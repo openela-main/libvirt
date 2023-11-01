@@ -1,0 +1,144 @@
+From d8c969c521efbd38df526f085db32c605661e2d1 Mon Sep 17 00:00:00 2001
+Message-Id: <d8c969c521efbd38df526f085db32c605661e2d1@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Mar 2023 14:05:27 +0100
+Subject: [PATCH] virnuma: Introduce virNumaCPUSetToNodeset()
+
+So far, we have a function that expands given list of NUMA nodes
+into list of CPUs. But soon, we are going to need the inverse -
+expand list of CPUs into list of NUMA nodes. Introduce
+virNumaCPUSetToNodeset() for that.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit b6cfd348e9fd1c748481416b1ef42b482db4b4cb)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/libvirt_private.syms |  2 ++
+ src/util/virnuma.c       | 59 ++++++++++++++++++++++++++++++++++++++++
+ src/util/virnuma.h       |  3 ++
+ 3 files changed, 64 insertions(+)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index e20421e7cd..28a6efda8f 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -2961,6 +2961,7 @@ virNodeSuspendGetTargetMask;
+ 
+ 
+ # util/virnuma.h
++virNumaCPUSetToNodeset;
+ virNumaGetAutoPlacementAdvice;
+ virNumaGetDistances;
+ virNumaGetHostMemoryNodeset;
+@@ -2968,6 +2969,7 @@ virNumaGetMaxCPUs;
+ virNumaGetMaxNode;
+ virNumaGetNodeCPUs;
+ virNumaGetNodeMemory;
++virNumaGetNodeOfCPU;
+ virNumaGetPageInfo;
+ virNumaGetPages;
+ virNumaIsAvailable;
+diff --git a/src/util/virnuma.c b/src/util/virnuma.c
+index dae0827c65..4a15bf32c8 100644
+--- a/src/util/virnuma.c
++++ b/src/util/virnuma.c
+@@ -311,6 +311,22 @@ virNumaGetNodeCPUs(int node,
+ # undef MASK_CPU_ISSET
+ # undef n_bits
+ 
++
++/**
++ * virNumaGetNodeOfCPU:
++ * @cpu: CPU ID
++ *
++ * For given @cpu, return NUMA node which it belongs to.
++ *
++ * Returns: NUMA node # on success,
++ *          -1 on failure (with errno set).
++ */
++int
++virNumaGetNodeOfCPU(int cpu)
++{
++    return numa_node_of_cpu(cpu);
++}
++
+ #else /* !WITH_NUMACTL */
+ 
+ int
+@@ -366,6 +382,14 @@ virNumaGetNodeCPUs(int node G_GNUC_UNUSED,
+     return -1;
+ }
+ 
++int
++virNumaGetNodeOfCPU(int cpu G_GNUC_UNUSED)
++{
++    errno = ENOSYS;
++    return -1;
++}
++
++
+ #endif /* !WITH_NUMACTL */
+ 
+ /**
+@@ -990,6 +1014,41 @@ virNumaGetHostMemoryNodeset(void)
+ }
+ 
+ 
++/**
++ * virNumaCPUSetToNodeset:
++ * @cpuset: bitmap containing a set of CPUs
++ * @nodeset: returned bitmap containing a set of NUMA nodes
++ *
++ * Convert a set of CPUs to set of NUMA nodes that contain the CPUs.
++ *
++ * Returns: 0 on success,
++ *          -1 on failure (with error reported)
++ */
++int
++virNumaCPUSetToNodeset(virBitmap *cpuset,
++                       virBitmap **nodeset)
++{
++    g_autoptr(virBitmap) nodes = virBitmapNew(0);
++    ssize_t pos = -1;
++
++    while ((pos = virBitmapNextSetBit(cpuset, pos)) >= 0) {
++        int node = virNumaGetNodeOfCPU(pos);
++
++        if (node < 0) {
++            virReportSystemError(errno,
++                                 _("Unable to get NUMA node of cpu %zd"),
++                                 pos);
++            return -1;
++        }
++
++        virBitmapSetBitExpand(nodes, node);
++    }
++
++    *nodeset = g_steal_pointer(&nodes);
++    return 0;
++}
++
++
+ /**
+  * virNumaNodesetToCPUset:
+  * @nodeset: bitmap containing a set of NUMA nodes
+diff --git a/src/util/virnuma.h b/src/util/virnuma.h
+index c35acd47cb..2c30ef4e31 100644
+--- a/src/util/virnuma.h
++++ b/src/util/virnuma.h
+@@ -45,7 +45,10 @@ int virNumaGetNodeMemory(int node,
+ 
+ unsigned int virNumaGetMaxCPUs(void) G_NO_INLINE;
+ 
++int virNumaGetNodeOfCPU(int cpu);
+ int virNumaGetNodeCPUs(int node, virBitmap **cpus) G_NO_INLINE;
++int virNumaCPUSetToNodeset(virBitmap *cpuset,
++                           virBitmap **nodeset);
+ int virNumaNodesetToCPUset(virBitmap *nodeset,
+                            virBitmap **cpuset);
+ 
+-- 
+2.40.0

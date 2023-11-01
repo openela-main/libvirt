@@ -1,0 +1,97 @@
+From f7d193539a8a7194ee3506642b68e0e52619cdf9 Mon Sep 17 00:00:00 2001
+Message-Id: <f7d193539a8a7194ee3506642b68e0e52619cdf9@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 31 Jan 2023 15:25:57 +0100
+Subject: [PATCH] qemu: fd: Add helpers allowing storing FD set data in status
+ XML
+
+Rollback of FD sets passed to qemu is also needed after possible restart
+of libvirtd when we need to serialize the data into status XML. For this
+purpose we need to access the fdset ID once it was passed to qemu and
+potentially re-create a 'qemuFDPass' struct in passed state.
+
+Introduce 'qemuFDPassNewPassed' and 'qemuFDPassIsPassed'.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 5598c10c6464887a99928de48fb2fc3e4f1696dc)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2040272
+---
+ src/qemu/qemu_fd.c | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_fd.h |  7 +++++++
+ 2 files changed, 48 insertions(+)
+
+diff --git a/src/qemu/qemu_fd.c b/src/qemu/qemu_fd.c
+index ebeeb65505..f5eedb88ec 100644
+--- a/src/qemu/qemu_fd.c
++++ b/src/qemu/qemu_fd.c
+@@ -96,6 +96,47 @@ qemuFDPassNew(const char *prefix,
+ }
+ 
+ 
++/**
++ * qemuFDPassNewPassed:
++ * @fdSetID: ID of an FDset which was allready passed to qemu
++ *
++ * Create qemuFDPass pointing to an already passed FD. Useful to usw with
++ * qemuFDPassTransferMonitorRollback, when restoring after restart.
++ */
++qemuFDPass *
++qemuFDPassNewPassed(unsigned int fdSetID)
++{
++    qemuFDPass *fdpass = g_new0(qemuFDPass, 1);
++
++    fdpass->fdSetID = fdSetID;
++    fdpass->passed = true;
++
++    return fdpass;
++}
++
++
++/**
++ * qemuFDPassIsPassed:
++ * @fdpass: The fd passing helper struct
++ * @id: when non-NULL filled with the fdset ID
++ *
++ * Returns true if @fdpass was passed to qemu. In such case @id is also filled
++ * with the ID of the fdset if non-NULL.
++ */
++bool
++qemuFDPassIsPassed(qemuFDPass *fdpass,
++                   unsigned *id)
++{
++    if (!fdpass || !fdpass->passed)
++        return false;
++
++    if (id)
++        *id = fdpass->fdSetID;
++
++    return true;
++}
++
++
+ /**
+  * qemuFDPassAddFD:
+  * @fdpass: The fd passing helper struct
+diff --git a/src/qemu/qemu_fd.h b/src/qemu/qemu_fd.h
+index 032b9442ee..cd0ff2c690 100644
+--- a/src/qemu/qemu_fd.h
++++ b/src/qemu/qemu_fd.h
+@@ -31,6 +31,13 @@ qemuFDPass *
+ qemuFDPassNew(const char *prefix,
+               void *dompriv);
+ 
++qemuFDPass *
++qemuFDPassNewPassed(unsigned int fdSetID);
++
++bool
++qemuFDPassIsPassed(qemuFDPass *fdpass,
++                   unsigned *id);
++
+ void
+ qemuFDPassAddFD(qemuFDPass *fdpass,
+                 int *fd,
+-- 
+2.39.1
+

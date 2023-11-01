@@ -1,0 +1,84 @@
+From 42803b023873d2e416a58b4663c4679006f03253 Mon Sep 17 00:00:00 2001
+Message-Id: <42803b023873d2e416a58b4663c4679006f03253@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 16 Feb 2023 12:07:42 +0100
+Subject: [PATCH] qemu_passt: Deduplicate passt killing code
+
+There are two places where we kill passt:
+
+1) qemuPasstStop() - called transitively from qemuProcessStop(),
+2) qemuPasstStart() - after failed start.
+
+Now, the code from 2) lack error preservation (so if there's
+another error during cleanup we might overwrite the original
+error). Therefore, move the internals of qemuPasstStop() into a
+separate function and call it from both places.
+
+Resolves: https://bugzilla.redhat.com/2169244
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Laine Stump <laine@redhat.com>
+(cherry picked from commit e5bfc661bc181a36fa70250470554b20002fb84d)
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_passt.c | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/qemu/qemu_passt.c b/src/qemu/qemu_passt.c
+index c082c149cd..2733f8e03f 100644
+--- a/src/qemu/qemu_passt.c
++++ b/src/qemu/qemu_passt.c
+@@ -102,11 +102,9 @@ qemuPasstAddNetProps(virDomainObj *vm,
+ }
+ 
+ 
+-void
+-qemuPasstStop(virDomainObj *vm,
+-              virDomainNetDef *net)
++static void
++qemuPasstKill(const char *pidfile)
+ {
+-    g_autofree char *pidfile = qemuPasstCreatePidFilename(vm, net);
+     virErrorPtr orig_err;
+ 
+     virErrorPreserveLast(&orig_err);
+@@ -118,6 +116,16 @@ qemuPasstStop(virDomainObj *vm,
+ }
+ 
+ 
++void
++qemuPasstStop(virDomainObj *vm,
++              virDomainNetDef *net)
++{
++    g_autofree char *pidfile = qemuPasstCreatePidFilename(vm, net);
++
++    qemuPasstKill(pidfile);
++}
++
++
+ int
+ qemuPasstSetupCgroup(virDomainObj *vm,
+                      virDomainNetDef *net,
+@@ -147,7 +155,6 @@ qemuPasstStart(virDomainObj *vm,
+     g_autofree char *errbuf = NULL;
+     char macaddr[VIR_MAC_STRING_BUFLEN];
+     size_t i;
+-    pid_t pid = (pid_t) -1;
+     int exitstatus = 0;
+     int cmdret = 0;
+ 
+@@ -273,10 +280,6 @@ qemuPasstStart(virDomainObj *vm,
+     return 0;
+ 
+  error:
+-    ignore_value(virPidFileReadPathIfLocked(pidfile, &pid));
+-    if (pid != -1)
+-        virProcessKillPainfully(pid, true);
+-    unlink(pidfile);
+-
++    qemuPasstKill(pidfile);
+     return -1;
+ }
+-- 
+2.39.2
+

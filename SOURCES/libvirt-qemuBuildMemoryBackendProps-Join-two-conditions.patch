@@ -1,0 +1,60 @@
+From 328cc56c14284fa7c026fd0fc4e4ab5d80bed9dd Mon Sep 17 00:00:00 2001
+Message-Id: <328cc56c14284fa7c026fd0fc4e4ab5d80bed9dd@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 14 Mar 2023 17:19:27 +0100
+Subject: [PATCH] qemuBuildMemoryBackendProps: Join two conditions
+
+There are two compound conditions in
+qemuBuildMemoryBackendProps() and each one checks for nodemask
+for NULL first. Join them into one bigger block.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 450d932cd9a604d1e7d25c9f239cad08ca5e375c)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 5edad046d5..436df47eaa 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3431,19 +3431,21 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
+             return -1;
+     }
+ 
+-    /* Make sure the requested nodeset is sensible */
+-    if (nodemask && !virNumaNodesetIsAvailable(nodemask))
+-        return -1;
+-
+-    /* If mode is "restrictive", we should only use cgroups setting allowed memory
+-     * nodes, and skip passing the host-nodes and policy parameters to QEMU command
+-     * line which means we will use system default memory policy. */
+-    if (nodemask && mode != VIR_DOMAIN_NUMATUNE_MEM_RESTRICTIVE) {
+-        if (virJSONValueObjectAdd(&props,
+-                                  "m:host-nodes", nodemask,
+-                                  "S:policy", qemuNumaPolicyTypeToString(mode),
+-                                  NULL) < 0)
++    if (nodemask) {
++        /* Make sure the requested nodeset is sensible */
++        if (!virNumaNodesetIsAvailable(nodemask))
+             return -1;
++
++        /* If mode is "restrictive", we should only use cgroups setting allowed memory
++         * nodes, and skip passing the host-nodes and policy parameters to QEMU command
++         * line which means we will use system default memory policy. */
++        if (mode != VIR_DOMAIN_NUMATUNE_MEM_RESTRICTIVE) {
++            if (virJSONValueObjectAdd(&props,
++                                      "m:host-nodes", nodemask,
++                                      "S:policy", qemuNumaPolicyTypeToString(mode),
++                                      NULL) < 0)
++                return -1;
++        }
+     }
+ 
+     /* If none of the following is requested... */
+-- 
+2.40.0

@@ -1,0 +1,78 @@
+From 2349387743e56e658fb56fcdadd522e6df9f42f2 Mon Sep 17 00:00:00 2001
+Message-Id: <2349387743e56e658fb56fcdadd522e6df9f42f2@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Mar 2023 15:36:35 +0100
+Subject: [PATCH] qemuxml2argvtest: Use virnuma mock
+
+While no part of cmd line building process currently depends on a
+host NUMA configuration, this will change soon. Use freshly
+changed virnumamock from qemuxml2argvtest and make the mock read
+NUMA data from vircaps2xmldata which seems to have the most rich
+NUMA configuration.
+
+This also means, we have to start building virnumamock
+unconditionally. But this is not a problem, since nothing inside
+of the mock relies on Linux specificity. The whole mock is merely
+just reading files and parsing them.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 28ec9d86b3db4bd9ea29891350366ffa6895d4e9)
+
+Conflicts:
+- tests/qemuxml2argvtest.c: Context, some cleanup patches (e.g.
+  v9.2.0-rc1~191) are not backported.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ tests/meson.build        | 2 +-
+ tests/qemuxml2argvtest.c | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/tests/meson.build b/tests/meson.build
+index 3365dce307..6d0e62c02f 100644
+--- a/tests/meson.build
++++ b/tests/meson.build
+@@ -84,6 +84,7 @@ mock_libs = [
+   { 'name': 'virnetdaemonmock' },
+   { 'name': 'virnetdevmock' },
+   { 'name': 'virnetserverclientmock' },
++  { 'name': 'virnumamock' },
+   { 'name': 'virpcimock' },
+   { 'name': 'virportallocatormock' },
+   { 'name': 'virprocessmock' },
+@@ -94,7 +95,6 @@ if host_machine.system() == 'linux'
+   mock_libs += [
+     { 'name': 'virfilemock' },
+     { 'name': 'virnetdevbandwidthmock' },
+-    { 'name': 'virnumamock' },
+     { 'name': 'virtestmock' },
+     { 'name': 'virusbmock' },
+   ]
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index e23b32e96a..3fb2d5dc74 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -872,6 +872,8 @@ mymain(void)
+     VIR_FREE(driver.config->nvramDir);
+     driver.config->nvramDir = g_strdup("/var/lib/libvirt/qemu/nvram");
+ 
++    virFileWrapperAddPrefix("/sys/devices/system",
++                            abs_srcdir "/vircaps2xmldata/linux-basic/system");
+     virFileWrapperAddPrefix(SYSCONFDIR "/qemu/firmware",
+                             abs_srcdir "/qemufirmwaredata/etc/qemu/firmware");
+     virFileWrapperAddPrefix(PREFIX "/share/qemu/firmware",
+@@ -2999,7 +3001,8 @@ VIR_TEST_MAIN_PRELOAD(mymain,
+                       VIR_TEST_MOCK("domaincaps"),
+                       VIR_TEST_MOCK("virrandom"),
+                       VIR_TEST_MOCK("qemucpu"),
+-                      VIR_TEST_MOCK("virpci"))
++                      VIR_TEST_MOCK("virpci"),
++                      VIR_TEST_MOCK("virnuma"))
+ 
+ #else
+ 
+-- 
+2.40.0

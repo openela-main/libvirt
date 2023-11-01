@@ -1,0 +1,38 @@
+From d96dc2b87c220298d4de031cff72fd9a458dad74 Mon Sep 17 00:00:00 2001
+Message-Id: <d96dc2b87c220298d4de031cff72fd9a458dad74@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 31 Jan 2023 17:26:43 +0100
+Subject: [PATCH] qemuFDPassTransferCommand: Mark that FD was passed
+
+Until now the code didn't expect that we'd want to rollback/detach a FD
+passed on the commandline, but whith disk backend FD passing this can
+happen.
+
+Properly mark the 'qemuFDPass' object as passed to qemu even when it was
+done on the commandline.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 3b7b201b95f2facc01bd9f8a42aed0fad96789fa)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2040272
+---
+ src/qemu/qemu_fd.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/qemu/qemu_fd.c b/src/qemu/qemu_fd.c
+index 51a8133fde..ebeeb65505 100644
+--- a/src/qemu/qemu_fd.c
++++ b/src/qemu/qemu_fd.c
+@@ -151,6 +151,8 @@ qemuFDPassTransferCommand(qemuFDPass *fdpass,
+         fdpass->fds[i].fd = -1;
+         virCommandAddArgList(cmd, "-add-fd", arg, NULL);
+     }
++
++    fdpass->passed = true;
+ }
+ 
+ 
+-- 
+2.39.1
+

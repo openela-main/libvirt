@@ -1,0 +1,73 @@
+From 3ef43d47b0a5a49b0896b1725476b4b6ec0629b0 Mon Sep 17 00:00:00 2001
+Message-Id: <3ef43d47b0a5a49b0896b1725476b4b6ec0629b0@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Tue, 21 Feb 2023 16:10:56 +0100
+Subject: [PATCH] qemu_snapshot: remove memory snapshot when deleting external
+ snapshot
+
+When deleting external snapshot we should remove the memory snapshot
+file as well.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 356e227208ec66fff178b91ed4b1197c7e6cf974)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2170826
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_snapshot.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_snapshot.c b/src/qemu/qemu_snapshot.c
+index b8416808b3..5cdcbc6290 100644
+--- a/src/qemu/qemu_snapshot.c
++++ b/src/qemu/qemu_snapshot.c
+@@ -2684,9 +2684,11 @@ qemuSnapshotSetInvalid(virDomainObj *vm,
+ 
+ static int
+ qemuSnapshotDiscardExternal(virDomainObj *vm,
++                            virDomainMomentObj *snap,
+                             GSList *externalData)
+ {
+     GSList *cur = NULL;
++    virDomainSnapshotDef *snapdef = virDomainSnapshotObjGetDef(snap);
+ 
+     for (cur = externalData; cur; cur = g_slist_next(cur)) {
+         qemuSnapshotDeleteExternalData *data = cur->data;
+@@ -2756,6 +2758,14 @@ qemuSnapshotDiscardExternal(virDomainObj *vm,
+             goto error;
+     }
+ 
++    if (snapdef->memory == VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL &&
++        snapdef->memorysnapshotfile) {
++        if (unlink(snapdef->memorysnapshotfile) < 0) {
++            VIR_WARN("failed to remove memory snapshot '%s'",
++                     snapdef->memorysnapshotfile);
++        }
++    }
++
+     return 0;
+ 
+  error:
+@@ -2886,7 +2896,7 @@ qemuSnapshotDiscardImpl(virQEMUDriver *driver,
+             }
+ 
+             if (virDomainSnapshotIsExternal(snap)) {
+-                if (qemuSnapshotDiscardExternal(vm, externalData) < 0)
++                if (qemuSnapshotDiscardExternal(vm, snap, externalData) < 0)
+                     return -1;
+             } else {
+                 if (qemuDomainSnapshotForEachQcow2(driver, def, snap, "-d", true) < 0)
+@@ -2894,7 +2904,7 @@ qemuSnapshotDiscardImpl(virQEMUDriver *driver,
+             }
+         } else {
+             if (virDomainSnapshotIsExternal(snap)) {
+-                if (qemuSnapshotDiscardExternal(vm, externalData) < 0)
++                if (qemuSnapshotDiscardExternal(vm, snap, externalData) < 0)
+                     return -1;
+             } else {
+                 /* Similarly as internal snapshot creation we would use a regular job
+-- 
+2.39.1
+

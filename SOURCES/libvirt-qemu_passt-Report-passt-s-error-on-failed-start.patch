@@ -1,0 +1,63 @@
+From 78a9316063050d84b39324470102330a89a1f76b Mon Sep 17 00:00:00 2001
+Message-Id: <78a9316063050d84b39324470102330a89a1f76b@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 16 Feb 2023 12:19:26 +0100
+Subject: [PATCH] qemu_passt: Report passt's error on failed start
+
+When starting passt, it may write something onto its stderr
+(convincing it to print even more is addressed later). Pass this
+string we read to user.
+
+Since we're not daemonizing passt anymore (see previous commit),
+we can let virCommand module do all the heavy lifting and switch
+to virCommandSetErrorBuffer() instead of reading error from an
+FD.
+
+Resolves: https://bugzilla.redhat.com/2169244
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Stefano Brivio <sbrivio@redhat.com>
+Reviewed-by: Laine Stump <laine@redhat.com>
+(cherry picked from commit 02355840ced2af18df1aa9ba387a6137a515eede)
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_passt.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_passt.c b/src/qemu/qemu_passt.c
+index adc69fc052..c082c149cd 100644
+--- a/src/qemu/qemu_passt.c
++++ b/src/qemu/qemu_passt.c
+@@ -144,18 +144,18 @@ qemuPasstStart(virDomainObj *vm,
+     g_autofree char *passtSocketName = qemuPasstCreateSocketPath(vm, net);
+     g_autoptr(virCommand) cmd = NULL;
+     g_autofree char *pidfile = qemuPasstCreatePidFilename(vm, net);
++    g_autofree char *errbuf = NULL;
+     char macaddr[VIR_MAC_STRING_BUFLEN];
+     size_t i;
+     pid_t pid = (pid_t) -1;
+     int exitstatus = 0;
+     int cmdret = 0;
+-    VIR_AUTOCLOSE errfd = -1;
+ 
+     cmd = virCommandNew(PASST);
+ 
+     virCommandClearCaps(cmd);
+     virCommandSetPidFile(cmd, pidfile);
+-    virCommandSetErrorFD(cmd, &errfd);
++    virCommandSetErrorBuffer(cmd, &errbuf);
+ 
+     virCommandAddArgList(cmd,
+                          "--one-off",
+@@ -266,7 +266,7 @@ qemuPasstStart(virDomainObj *vm,
+ 
+     if (cmdret < 0 || exitstatus != 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       _("Could not start 'passt'. exitstatus: %d"), exitstatus);
++                       _("Could not start 'passt': %s"), NULLSTR(errbuf));
+         goto error;
+     }
+ 
+-- 
+2.39.2
+

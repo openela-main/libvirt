@@ -1,0 +1,51 @@
+From b6eb914119af7e724cbee27951cfba0a6afb3b97 Mon Sep 17 00:00:00 2001
+Message-Id: <b6eb914119af7e724cbee27951cfba0a6afb3b97@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 19 Jan 2023 15:06:11 +0100
+Subject: [PATCH] qemu: hotplug: Remove legacy quirk for 'dimm' address
+ generation
+
+Commit b7798a07f93 (in fall of 2016) changed the way we generate aliases
+for 'dimm' memory devices as the alias itself is part of the migration
+stream section naming and thus must be treated as ABI.
+
+The code added compatibility layer for VMs with memory hotplug started
+with the old scheme to prevent from generating wrong aliases. The
+compatibility layer broke though later when 'nvdimm' and 'pmem' devices
+were introduced as it wrongly detected them as old configuration.
+
+Now rather than attempting to fix the legacy compat layer to treat other
+devices properly we'll be better off simply removing it as it's
+extremely unlikely that somebody has a VM started in 2016 running with
+today's libvirt and attempts to hotplug more memory.
+
+This fixes a corner case when a user hot-adds a 'dimm' into a VM with a
+'dimm' and a 'nvdimm' after restart of libvirtd and then attempts to
+migrate the VM.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2158701
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 50ce3463d514950350143f03e8421c8c31889c5d)
+---
+ src/qemu/qemu_hotplug.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 026e1ee5ad..5840504d13 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -2275,9 +2275,7 @@ qemuDomainAttachMemory(virQEMUDriver *driver,
+         goto cleanup;
+     releaseaddr = true;
+ 
+-    /* in cases where we are using a VM with aliases generated according to the
+-     * index of the memory device we need to keep continue using that scheme */
+-    if (qemuAssignDeviceMemoryAlias(vm->def, mem, priv->memAliasOrderMismatch) < 0)
++    if (qemuAssignDeviceMemoryAlias(vm->def, mem, false) < 0)
+         goto cleanup;
+ 
+     objalias = g_strdup_printf("mem%s", mem->info.alias);
+-- 
+2.39.1
+

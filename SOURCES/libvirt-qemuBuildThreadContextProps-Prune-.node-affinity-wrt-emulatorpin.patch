@@ -1,0 +1,138 @@
+From 45a585374500f4e4f1684c9dafe89269344c79b1 Mon Sep 17 00:00:00 2001
+Message-Id: <45a585374500f4e4f1684c9dafe89269344c79b1@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Mar 2023 14:05:54 +0100
+Subject: [PATCH] qemuBuildThreadContextProps: Prune .node-affinity wrt
+ <emulatorpin/>
+
+When a thread-context object is specified on the cmd line, then
+QEMU spawns a thread and sets its affinity to the list of NUMA
+nodes specified in .node-affinity attribute. And this works just
+fine, until the main QEMU thread itself is not restricted.
+
+Because of v5.3.0-rc1~18 we restrict the main emulator thread
+even before QEMU is executed and thus then it tries to set
+affinity of a thread-context thread, it inevitably fails with:
+
+  Setting CPU affinity failed: Invalid argument
+
+Now, we could lift the pinning temporarily, let QEMU spawn all
+thread-context threads, and enforce pinning again, but that would
+require some form of communication with QEMU (maybe -preconfig?).
+But that would still be wrong, because it would circumvent
+<emulatorpin/>.
+
+Technically speaking, thread-context is an internal
+implementation detail of QEMU, and if it weren't for it, the main
+emulator thread would be doing the allocation. Therefore, we
+should honor the pinning and prune the list of node so that
+inaccessible ones are dropped.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2154750
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit df2ef2e706ec5960761bdbf619ea33be99482a15)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c                       | 25 ++++++++++++++++---
+ src/qemu/qemu_command.h                       |  1 +
+ ...emory-hotplug-dimm-addr.x86_64-latest.args |  2 +-
+ 3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 346967f51c..b36005d248 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3533,7 +3533,7 @@ qemuBuildMemoryDimmBackendStr(virCommand *cmd,
+                                     def, mem, true, false, &nodemask) < 0)
+         return -1;
+ 
+-    if (qemuBuildThreadContextProps(&tcProps, &props, priv, nodemask) < 0)
++    if (qemuBuildThreadContextProps(&tcProps, &props, def, priv, nodemask) < 0)
+         return -1;
+ 
+     if (tcProps &&
+@@ -3630,10 +3630,13 @@ qemuBuildMemoryDeviceProps(virQEMUDriverConfig *cfg,
+ int
+ qemuBuildThreadContextProps(virJSONValue **tcProps,
+                             virJSONValue **memProps,
++                            const virDomainDef *def,
+                             qemuDomainObjPrivate *priv,
+                             virBitmap *nodemask)
+ {
+     g_autoptr(virJSONValue) props = NULL;
++    virBitmap *emulatorpin = NULL;
++    g_autoptr(virBitmap) emulatorNodes = NULL;
+     g_autofree char *tcAlias = NULL;
+     const char *memalias = NULL;
+     bool prealloc = false;
+@@ -3650,6 +3653,22 @@ qemuBuildThreadContextProps(virJSONValue **tcProps,
+         !prealloc)
+         return 0;
+ 
++    emulatorpin = qemuDomainEvaluateCPUMask(def,
++                                            def->cputune.emulatorpin,
++                                            priv->autoNodeset);
++
++    if (emulatorpin && virNumaIsAvailable()) {
++        if (virNumaCPUSetToNodeset(emulatorpin, &emulatorNodes) < 0)
++            return -1;
++
++        virBitmapIntersect(emulatorNodes, nodemask);
++
++        if (virBitmapIsAllClear(emulatorNodes))
++            return 0;
++
++        nodemask = emulatorNodes;
++    }
++
+     memalias = virJSONValueObjectGetString(*memProps, "id");
+     if (!memalias) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+@@ -7064,7 +7083,7 @@ qemuBuildMemCommandLineMemoryDefaultBackend(virCommand *cmd,
+                                     def, &mem, false, true, &nodemask) < 0)
+         return -1;
+ 
+-    if (qemuBuildThreadContextProps(&tcProps, &props, priv, nodemask) < 0)
++    if (qemuBuildThreadContextProps(&tcProps, &props, def, priv, nodemask) < 0)
+         return -1;
+ 
+     if (tcProps &&
+@@ -7393,7 +7412,7 @@ qemuBuildNumaCommandLine(virQEMUDriverConfig *cfg,
+             g_autoptr(virJSONValue) tcProps = NULL;
+ 
+             if (qemuBuildThreadContextProps(&tcProps, &nodeBackends[i],
+-                                            priv, nodemask[i]) < 0)
++                                            def, priv, nodemask[i]) < 0)
+                 goto cleanup;
+ 
+             if (tcProps &&
+diff --git a/src/qemu/qemu_command.h b/src/qemu/qemu_command.h
+index 17f326d13b..5fdb138030 100644
+--- a/src/qemu/qemu_command.h
++++ b/src/qemu/qemu_command.h
+@@ -153,6 +153,7 @@ qemuBuildMemoryDeviceProps(virQEMUDriverConfig *cfg,
+ int
+ qemuBuildThreadContextProps(virJSONValue **tcProps,
+                             virJSONValue **memProps,
++                            const virDomainDef *def,
+                             qemuDomainObjPrivate *priv,
+                             virBitmap *nodemask);
+ 
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args
+index 4e9bbde448..bbfb0f9a9e 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args
+@@ -29,7 +29,7 @@ XDG_CONFIG_HOME=/tmp/lib/domain--1-QEMUGuest1/.config \
+ -no-acpi \
+ -boot strict=on \
+ -device '{"driver":"piix3-usb-uhci","id":"usb","bus":"pci.0","addr":"0x1.0x2"}' \
+--object '{"qom-type":"thread-context","id":"tc-memdimm0","node-affinity":[1,2,3]}' \
++-object '{"qom-type":"thread-context","id":"tc-memdimm0","node-affinity":[1,2]}' \
+ -object '{"qom-type":"memory-backend-file","id":"memdimm0","mem-path":"/dev/hugepages2M/libvirt/qemu/-1-QEMUGuest1","prealloc":true,"size":536870912,"host-nodes":[1,2,3],"policy":"bind","prealloc-context":"tc-memdimm0"}' \
+ -device '{"driver":"pc-dimm","node":0,"memdev":"memdimm0","id":"dimm0","slot":0,"addr":4294967296}' \
+ -object '{"qom-type":"memory-backend-ram","id":"memdimm2","size":536870912}' \
+-- 
+2.40.0

@@ -1,0 +1,59 @@
+From 28bd414db666463dca0a26bbb969fd6bc784ec8e Mon Sep 17 00:00:00 2001
+Message-Id: <28bd414db666463dca0a26bbb969fd6bc784ec8e@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Tue, 17 Jan 2023 10:02:07 +0100
+Subject: [PATCH] vircgroupv2: fix cpu.weight limits check
+
+The cgroup v2 cpu.weight limits are different than cgroup v1 cpu.shares
+limits.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit cf3414a85b8383d71d6ae2a53daf63c331cc2230)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2037998
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/vircgroup.h   | 2 ++
+ src/util/vircgroupv2.c | 8 ++++----
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/util/vircgroup.h b/src/util/vircgroup.h
+index 690f09465c..adf3850b22 100644
+--- a/src/util/vircgroup.h
++++ b/src/util/vircgroup.h
+@@ -235,6 +235,8 @@ int virCgroupGetCpuShares(virCgroup *group, unsigned long long *shares);
+ /* Based on kernel code ((1ULL << MAX_BW_BITS) - 1) where MAX_BW_BITS is
+  * (64 - BW_SHIFT) and BW_SHIFT is 20 */
+ #define VIR_CGROUP_CPU_QUOTA_MAX 17592186044415LL
++#define VIR_CGROUPV2_WEIGHT_MIN 1LL
++#define VIR_CGROUPV2_WEIGHT_MAX 10000LL
+ 
+ int virCgroupSetCpuCfsPeriod(virCgroup *group, unsigned long long cfs_period);
+ int virCgroupGetCpuCfsPeriod(virCgroup *group, unsigned long long *cfs_period);
+diff --git a/src/util/vircgroupv2.c b/src/util/vircgroupv2.c
+index b1f562aa52..219b9c7f21 100644
+--- a/src/util/vircgroupv2.c
++++ b/src/util/vircgroupv2.c
+@@ -1499,13 +1499,13 @@ static int
+ virCgroupV2SetCpuShares(virCgroup *group,
+                         unsigned long long shares)
+ {
+-    if (shares < VIR_CGROUP_CPU_SHARES_MIN ||
+-        shares > VIR_CGROUP_CPU_SHARES_MAX) {
++    if (shares < VIR_CGROUPV2_WEIGHT_MIN ||
++        shares > VIR_CGROUPV2_WEIGHT_MAX) {
+         virReportError(VIR_ERR_INVALID_ARG,
+                        _("shares '%llu' must be in range [%llu, %llu]"),
+                        shares,
+-                       VIR_CGROUP_CPU_SHARES_MIN,
+-                       VIR_CGROUP_CPU_SHARES_MAX);
++                       VIR_CGROUPV2_WEIGHT_MIN,
++                       VIR_CGROUPV2_WEIGHT_MAX);
+         return -1;
+     }
+ 
+-- 
+2.39.1
+

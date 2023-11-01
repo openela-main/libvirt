@@ -1,0 +1,117 @@
+From 659a0e3cda2f5561abe45ccc10afc41014d1a331 Mon Sep 17 00:00:00 2001
+Message-Id: <659a0e3cda2f5561abe45ccc10afc41014d1a331@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 31 Jan 2023 14:37:40 +0100
+Subject: [PATCH] qemu: command: Handle FD passing commandline via
+ qemuBuildBlockStorageSourceAttachDataCommandline
+
+Copy the pointer to qemuFDPass into struct qemuBlockStorageSourceAttachData
+so that it can be used from qemuBuildBlockStorageSourceAttachDataCommandline
+rather than looping again in qemuBuildDiskSourceCommandLineFDs.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 65f14232fb031b57fad085a2e8792da87c97173f)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2040272
+---
+ src/qemu/qemu_block.h                         |  2 ++
+ src/qemu/qemu_command.c                       | 26 +++----------------
+ .../disk-source-fd.x86_64-latest.args         |  6 ++---
+ 3 files changed, 9 insertions(+), 25 deletions(-)
+
+diff --git a/src/qemu/qemu_block.h b/src/qemu/qemu_block.h
+index eac986e0f0..5a61a19da2 100644
+--- a/src/qemu/qemu_block.h
++++ b/src/qemu/qemu_block.h
+@@ -99,6 +99,8 @@ struct qemuBlockStorageSourceAttachData {
+     char *tlsAlias;
+     virJSONValue *tlsKeySecretProps;
+     char *tlsKeySecretAlias;
++
++    qemuFDPass *fdpass;
+ };
+ 
+ 
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index b96f2d33c1..5edad046d5 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -2119,6 +2119,8 @@ qemuBuildBlockStorageSourceAttachDataCommandline(virCommand *cmd,
+             return -1;
+     }
+ 
++    qemuFDPassTransferCommand(data->fdpass, cmd);
++
+     if (data->storageProps) {
+         if (!(tmp = virJSONValueToString(data->storageProps, false)))
+             return -1;
+@@ -2147,25 +2149,6 @@ qemuBuildBlockStorageSourceAttachDataCommandline(virCommand *cmd,
+ }
+ 
+ 
+-static int
+-qemuBuildDiskSourceCommandLineFDs(virCommand *cmd,
+-                                  virDomainDiskDef *disk)
+-{
+-    virStorageSource *n;
+-
+-    for (n = disk->src; virStorageSourceIsBacking(n); n = n->backingStore) {
+-        qemuDomainStorageSourcePrivate *srcpriv = QEMU_DOMAIN_STORAGE_SOURCE_PRIVATE(n);
+-
+-        if (!srcpriv || !srcpriv->fdpass)
+-            continue;
+-
+-        qemuFDPassTransferCommand(srcpriv->fdpass, cmd);
+-    }
+-
+-    return 0;
+-}
+-
+-
+ static int
+ qemuBuildDiskSourceCommandLine(virCommand *cmd,
+                                virDomainDiskDef *disk,
+@@ -2183,9 +2166,6 @@ qemuBuildDiskSourceCommandLine(virCommand *cmd,
+         if (virStorageSourceIsEmpty(disk->src))
+             return 0;
+ 
+-        if (qemuBuildDiskSourceCommandLineFDs(cmd, disk) < 0)
+-            return -1;
+-
+         if (!(data = qemuBuildStorageSourceChainAttachPrepareBlockdev(disk->src)))
+             return -1;
+ 
+@@ -10537,6 +10517,8 @@ qemuBuildStorageSourceAttachPrepareCommon(virStorageSource *src,
+ 
+             tlsKeySecretAlias = srcpriv->tlsKeySecret->alias;
+         }
++
++        data->fdpass = srcpriv->fdpass;
+     }
+ 
+     if (src->haveTLS == VIR_TRISTATE_BOOL_YES &&
+diff --git a/tests/qemuxml2argvdata/disk-source-fd.x86_64-latest.args b/tests/qemuxml2argvdata/disk-source-fd.x86_64-latest.args
+index b4a81acfc7..a7ddd65000 100644
+--- a/tests/qemuxml2argvdata/disk-source-fd.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/disk-source-fd.x86_64-latest.args
+@@ -33,13 +33,13 @@ XDG_CONFIG_HOME=/tmp/lib/domain--1-QEMUGuest1/.config \
+ -blockdev '{"driver":"file","filename":"/dev/fdset/2","node-name":"libvirt-4-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-4-format","read-only":false,"driver":"qcow2","file":"libvirt-4-storage"}' \
+ -device '{"driver":"virtio-blk-pci","bus":"pci.0","addr":"0x2","drive":"libvirt-4-format","id":"virtio-disk4","bootindex":1}' \
+--add-fd set=0,fd=704,opaque=libvirt-1-storage0 \
+--add-fd set=1,fd=777,opaque=libvirt-2-storage0 \
+--add-fd set=1,fd=778,opaque=libvirt-2-storage1 \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/images/rhel7.1484071876","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-3-format","read-only":true,"driver":"qcow2","file":"libvirt-3-storage","backing":null}' \
++-add-fd set=1,fd=777,opaque=libvirt-2-storage0 \
++-add-fd set=1,fd=778,opaque=libvirt-2-storage1 \
+ -blockdev '{"driver":"file","filename":"/dev/fdset/1","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-2-format","read-only":true,"driver":"qcow2","file":"libvirt-2-storage","backing":"libvirt-3-format"}' \
++-add-fd set=0,fd=704,opaque=libvirt-1-storage0 \
+ -blockdev '{"driver":"file","filename":"/dev/fdset/0","node-name":"libvirt-1-storage","read-only":false,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-1-format","read-only":false,"driver":"qcow2","file":"libvirt-1-storage","backing":"libvirt-2-format"}' \
+ -device '{"driver":"virtio-blk-pci","bus":"pci.0","addr":"0x3","drive":"libvirt-1-format","id":"virtio-disk5"}' \
+-- 
+2.39.1
+

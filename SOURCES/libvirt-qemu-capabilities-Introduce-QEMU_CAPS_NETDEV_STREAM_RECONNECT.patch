@@ -1,0 +1,75 @@
+From 3bd15e7694b6ad69832e17cf03ac09b2363cba78 Mon Sep 17 00:00:00 2001
+Message-Id: <3bd15e7694b6ad69832e17cf03ac09b2363cba78@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 20 Feb 2023 17:25:08 +0100
+Subject: [PATCH] qemu: capabilities: Introduce
+ QEMU_CAPS_NETDEV_STREAM_RECONNECT
+
+Detect that the 'stream' netdev backend supports reconnecting.
+
+src/qemu/qemu_capabilities.c
+tests/qemucapabilitiesdata/caps_8.0.0.x86_64.xml
+
+  both of these files had the usual merge conflicts caused by
+  unrelated caps flags added upstream but not in RHEL.
+
+Resolves: https://bugzilla.redhat.com/2172098
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 70747222a73ffed5cdadcab492bef67fe7e49aa4)
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                     | 2 ++
+ src/qemu/qemu_capabilities.h                     | 1 +
+ tests/qemucapabilitiesdata/caps_8.0.0.x86_64.xml | 1 +
+ 3 files changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 56cad891cc..61aa99dfc6 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -684,6 +684,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               /* 440 */
+               "machine-hpet", /* QEMU_CAPS_MACHINE_HPET */
+               "netdev.stream", /* QEMU_CAPS_NETDEV_STREAM */
++              "netdev.stream.reconnect", /* QEMU_CAPS_NETDEV_STREAM_RECONNECT */
+     );
+ 
+ 
+@@ -1552,6 +1553,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+     { "nbd-server-start/arg-type/tls-creds", QEMU_CAPS_NBD_TLS },
+     { "nbd-server-add/arg-type/bitmap", QEMU_CAPS_NBD_BITMAP },
+     { "netdev_add/arg-type/+stream", QEMU_CAPS_NETDEV_STREAM },
++    { "netdev_add/arg-type/+stream/reconnect", QEMU_CAPS_NETDEV_STREAM_RECONNECT },
+     { "netdev_add/arg-type/+vhost-vdpa", QEMU_CAPS_NETDEV_VHOST_VDPA },
+     /* JSON support for -netdev was introduced for the 'dgram' netdev type */
+     { "netdev_add/arg-type/type/^dgram", QEMU_CAPS_NETDEV_JSON },
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 15dddd3ea9..8543af868e 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -663,6 +663,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     /* 440 */
+     QEMU_CAPS_MACHINE_HPET, /* the HPET timer is configured via -machine, rather than -no-hpet */
+     QEMU_CAPS_NETDEV_STREAM, /* -netdev stream */
++    QEMU_CAPS_NETDEV_STREAM_RECONNECT, /* -netdev stream supports reconnect */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_8.0.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_8.0.0.x86_64.xml
+index a383075d4d..6d07d07822 100644
+--- a/tests/qemucapabilitiesdata/caps_8.0.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.0.0.x86_64.xml
+@@ -202,6 +202,7 @@
+   <flag name='screenshot-format-png'/>
+   <flag name='machine-hpet'/>
+   <flag name='netdev.stream'/>
++  <flag name='netdev.stream.reconnect'/>
+   <version>7002050</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100244</microcodeVersion>
+-- 
+2.39.2
+

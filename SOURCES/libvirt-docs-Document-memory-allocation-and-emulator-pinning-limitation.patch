@@ -1,0 +1,34 @@
+From 20187d7bb3024537b1cc3cac1b16a835a29b905e Mon Sep 17 00:00:00 2001
+Message-Id: <20187d7bb3024537b1cc3cac1b16a835a29b905e@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 8 Mar 2023 11:53:37 +0100
+Subject: [PATCH] docs: Document memory allocation and emulator pinning
+ limitation
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit c4b176567b5000da1fe22ecaa9afe4b8ad4b6837)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/formatdomain.rst | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 8fc8aeb928..e7bad33cbb 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -1107,7 +1107,9 @@ influence how virtual memory pages are backed by host pages.
+    Using the optional ``mode`` attribute, specify when to allocate the memory by
+    supplying either "immediate" or "ondemand". :since:`Since 8.2.0` it is
+    possible to set the number of threads that hypervisor uses to allocate
+-   memory via ``threads`` attribute.
++   memory via ``threads`` attribute. To speed allocation process up, when
++   pinning emulator thread it's recommended to include CPUs from desired NUMA
++   nodes so that allocation threads can have their affinity set.
+ ``discard``
+    When set and supported by hypervisor the memory content is discarded just
+    before guest shuts down (or when DIMM module is unplugged). Please note that
+-- 
+2.40.0
