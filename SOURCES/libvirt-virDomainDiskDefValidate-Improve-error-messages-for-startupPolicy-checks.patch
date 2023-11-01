@@ -1,0 +1,51 @@
+From 41247c87fd47f2e55825d62c697da810ba5062f5 Mon Sep 17 00:00:00 2001
+Message-Id: <41247c87fd47f2e55825d62c697da810ba5062f5@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 14 Jun 2022 13:13:48 +0200
+Subject: [PATCH] virDomainDiskDefValidate: Improve error messages for
+ 'startupPolicy' checks
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Remove linebreak and mention the attribute name. Also prepare the error
+messages for future by substituting the type of offending access.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 9a480737c8adf92c332aa850c5269191ceb04eb9)
+https://bugzilla.redhat.com/show_bug.cgi?id=2095758
+---
+ src/conf/domain_validate.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index a4271f1247..452742e67c 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -778,9 +778,9 @@ virDomainDiskDefValidate(const virDomainDef *def,
+     if (disk->startupPolicy != VIR_DOMAIN_STARTUP_POLICY_DEFAULT) {
+         if (disk->src->type == VIR_STORAGE_TYPE_NETWORK) {
+             virReportError(VIR_ERR_XML_ERROR,
+-                           _("Setting disk %s is not allowed for "
+-                             "disk of network type"),
+-                           virDomainStartupPolicyTypeToString(disk->startupPolicy));
++                           _("disk startupPolicy '%s' is not allowed for disk of '%s' type"),
++                           virDomainStartupPolicyTypeToString(disk->startupPolicy),
++                           virStorageTypeToString(disk->src->type));
+             return -1;
+         }
+ 
+@@ -788,8 +788,7 @@ virDomainDiskDefValidate(const virDomainDef *def,
+             disk->device != VIR_DOMAIN_DISK_DEVICE_FLOPPY &&
+             disk->startupPolicy == VIR_DOMAIN_STARTUP_POLICY_REQUISITE) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+-                           _("Setting disk 'requisite' is allowed only for "
+-                             "cdrom or floppy"));
++                           _("disk startupPolicy 'requisite' is allowed only for cdrom or floppy"));
+             return -1;
+         }
+     }
+-- 
+2.35.1
+

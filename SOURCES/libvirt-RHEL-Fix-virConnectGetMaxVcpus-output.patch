@@ -1,0 +1,46 @@
+From 29eb7b77805cf5fb756c964cdbe7fb7fb2c01f5f Mon Sep 17 00:00:00 2001
+Message-Id: <29eb7b77805cf5fb756c964cdbe7fb7fb2c01f5f@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 27 Aug 2018 13:09:38 +0200
+Subject: [PATCH] RHEL: Fix virConnectGetMaxVcpus output
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1092363
+
+RHEL-only.
+
+Ignore the maximum vcpu limit (KVM_CAP_MAX_VCPUS) on RHEL,
+since RHEL QEMU treats the recommended limit (KVM_CAP_NR_VCPUS)
+as the maximum, see:
+https://bugzilla.redhat.com/show_bug.cgi?id=998708
+
+(cherry picked from commit 7dff909fa34bdd93ad200dbffe70c0c1ee931925)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https: //bugzilla.redhat.com/show_bug.cgi?id=1582222
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/util/virhostcpu.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index a07c00a0e9..35f41daef2 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -1166,6 +1166,11 @@ virHostCPUGetKVMMaxVCPUs(void)
+         return -1;
+     }
+ 
++/* Ignore KVM_CAP_MAX_VCPUS on RHEL - the recommended maximum
++ * is treated as a hard limit.
++ */
++# undef KVM_CAP_MAX_VCPUS
++
+ # ifdef KVM_CAP_MAX_VCPUS
+     /* at first try KVM_CAP_MAX_VCPUS to determine the maximum count */
+     if ((ret = ioctl(fd, KVM_CHECK_EXTENSION, KVM_CAP_MAX_VCPUS)) > 0)
+-- 
+2.34.1
+

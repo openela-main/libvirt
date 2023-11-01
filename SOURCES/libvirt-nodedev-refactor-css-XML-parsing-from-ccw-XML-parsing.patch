@@ -1,0 +1,99 @@
+From 286c821eee3b682d6aa4aeaa13aad92382708803 Mon Sep 17 00:00:00 2001
+Message-Id: <286c821eee3b682d6aa4aeaa13aad92382708803@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:13 +0200
+Subject: [PATCH] nodedev: refactor css XML parsing from ccw XML parsing
+
+In preparation for easier extension later.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 245ff2d6634b3afb0dbf0d295051e458095bfc80)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/node_device_conf.c | 40 +++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 10 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 8982368465..fcb5be24e1 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -1193,6 +1193,31 @@ virNodeDevCCWDeviceAddressParseXML(xmlXPathContextPtr ctxt,
+     return 0;
+ }
+ 
++
++static int
++virNodeDevCapCCWParseXML(xmlXPathContextPtr ctxt,
++                         virNodeDeviceDef *def,
++                         xmlNodePtr node,
++                         virNodeDevCapCCW *ccw_dev)
++{
++    VIR_XPATH_NODE_AUTORESTORE(ctxt)
++    g_autofree virCCWDeviceAddress *ccw_addr = NULL;
++
++    ctxt->node = node;
++
++    ccw_addr = g_new0(virCCWDeviceAddress, 1);
++
++    if (virNodeDevCCWDeviceAddressParseXML(ctxt, node, def->name, ccw_addr) < 0)
++        return -1;
++
++    ccw_dev->cssid = ccw_addr->cssid;
++    ccw_dev->ssid = ccw_addr->ssid;
++    ccw_dev->devno = ccw_addr->devno;
++
++    return 0;
++}
++
++
+ static int
+ virNodeDevCSSCapabilityParseXML(xmlXPathContextPtr ctxt,
+                                 xmlNodePtr node,
+@@ -1221,7 +1246,7 @@ virNodeDevCSSCapabilityParseXML(xmlXPathContextPtr ctxt,
+ 
+ 
+ static int
+-virNodeDevCapCCWParseXML(xmlXPathContextPtr ctxt,
++virNodeDevCapCSSParseXML(xmlXPathContextPtr ctxt,
+                          virNodeDeviceDef *def,
+                          xmlNodePtr node,
+                          virNodeDevCapCCW *ccw_dev)
+@@ -1230,19 +1255,12 @@ virNodeDevCapCCWParseXML(xmlXPathContextPtr ctxt,
+     g_autofree xmlNodePtr *nodes = NULL;
+     int n = 0;
+     size_t i = 0;
+-    g_autofree virCCWDeviceAddress *ccw_addr = NULL;
+ 
+     ctxt->node = node;
+ 
+-    ccw_addr = g_new0(virCCWDeviceAddress, 1);
+-
+-    if (virNodeDevCCWDeviceAddressParseXML(ctxt, node, def->name, ccw_addr) < 0)
++    if (virNodeDevCapCCWParseXML(ctxt, def, node, ccw_dev) < 0)
+         return -1;
+ 
+-    ccw_dev->cssid = ccw_addr->cssid;
+-    ccw_dev->ssid = ccw_addr->ssid;
+-    ccw_dev->devno = ccw_addr->devno;
+-
+     if ((n = virXPathNodeSet("./capability", ctxt, &nodes)) < 0)
+         return -1;
+ 
+@@ -2282,9 +2300,11 @@ virNodeDevCapsDefParseXML(xmlXPathContextPtr ctxt,
+         ret = virNodeDevCapMdevParseXML(ctxt, def, node, &caps->data.mdev);
+         break;
+     case VIR_NODE_DEV_CAP_CCW_DEV:
+-    case VIR_NODE_DEV_CAP_CSS_DEV:
+         ret = virNodeDevCapCCWParseXML(ctxt, def, node, &caps->data.ccw_dev);
+         break;
++    case VIR_NODE_DEV_CAP_CSS_DEV:
++        ret = virNodeDevCapCSSParseXML(ctxt, def, node, &caps->data.ccw_dev);
++        break;
+     case VIR_NODE_DEV_CAP_AP_CARD:
+         ret = virNodeDevCapAPCardParseXML(ctxt, def, node,
+                                           &caps->data.ap_card);
+-- 
+2.39.1
+

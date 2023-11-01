@@ -1,0 +1,126 @@
+From 3de657416726803a56fb5b025396bccdd8bfa955 Mon Sep 17 00:00:00 2001
+Message-Id: <3de657416726803a56fb5b025396bccdd8bfa955@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:06 +0200
+Subject: [PATCH] util: refactor virDomainDeviceCCWAddressIsValid into virccw
+
+Refactor virDomainDeviceCCWAddressIsValid into virccw and rename method
+as virCCWDeviceAddressIsValid.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 38756ce5ba17d31597a3470d07708a21bf460c9b)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/device_conf.c   | 12 ++----------
+ src/conf/device_conf.h   |  1 -
+ src/libvirt_private.syms |  2 +-
+ src/util/virccw.c        |  8 ++++++++
+ src/util/virccw.h        |  2 ++
+ 5 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/conf/device_conf.c b/src/conf/device_conf.c
+index bdc9219f84..2385e81994 100644
+--- a/src/conf/device_conf.c
++++ b/src/conf/device_conf.c
+@@ -258,14 +258,6 @@ virPCIDeviceAddressFormat(virBuffer *buf,
+                       addr.function);
+ }
+ 
+-bool
+-virDomainDeviceCCWAddressIsValid(virCCWDeviceAddress *addr)
+-{
+-    return addr->cssid <= VIR_CCW_DEVICE_MAX_CSSID &&
+-           addr->ssid <= VIR_CCW_DEVICE_MAX_SSID &&
+-           addr->devno <= VIR_CCW_DEVICE_MAX_DEVNO;
+-}
+-
+ int
+ virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+                                   virCCWDeviceAddress *addr)
+@@ -288,7 +280,7 @@ virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+                                 &addr->devno)) < 0)
+         return -1;
+ 
+-    if (!virDomainDeviceCCWAddressIsValid(addr)) {
++    if (!virCCWDeviceAddressIsValid(addr)) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("Invalid specification for virtio ccw address: cssid='0x%x' ssid='0x%x' devno='0x%04x'"),
+                        addr->cssid, addr->ssid, addr->devno);
+@@ -453,7 +445,7 @@ virDomainDeviceAddressIsValid(virDomainDeviceInfo *info,
+         return true;
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_CCW:
+-        return virDomainDeviceCCWAddressIsValid(&info->addr.ccw);
++        return virCCWDeviceAddressIsValid(&info->addr.ccw);
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB:
+         return true;
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index 5c4b7b2f8e..0ed6991c23 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -193,7 +193,6 @@ void virPCIDeviceAddressFormat(virBuffer *buf,
+                                virPCIDeviceAddress addr,
+                                bool includeTypeInAddr);
+ 
+-bool virDomainDeviceCCWAddressIsValid(virCCWDeviceAddress *addr);
+ int virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+                                       virCCWDeviceAddress *addr);
+ bool virDomainDeviceCCWAddressEqual(virCCWDeviceAddress *addr1,
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index eb56292b34..9ed367d427 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -132,7 +132,6 @@ virDomainDeviceAddressIsValid;
+ virDomainDeviceAddressTypeToString;
+ virDomainDeviceCcidAddressParseXML;
+ virDomainDeviceCCWAddressEqual;
+-virDomainDeviceCCWAddressIsValid;
+ virDomainDeviceCCWAddressParseXML;
+ virDomainDeviceDriveAddressParseXML;
+ virDomainDeviceInfoAddressIsEqual;
+@@ -1904,6 +1903,7 @@ virBufferVasprintf;
+ # util/virccw.h
+ virCCWDeviceAddressAsString;
+ virCCWDeviceAddressIncrement;
++virCCWDeviceAddressIsValid;
+ 
+ 
+ # util/vircgroup.h
+diff --git a/src/util/virccw.c b/src/util/virccw.c
+index d14d432414..c3dfda2613 100644
+--- a/src/util/virccw.c
++++ b/src/util/virccw.c
+@@ -22,6 +22,14 @@
+ #include "virccw.h"
+ 
+ 
++bool
++virCCWDeviceAddressIsValid(virCCWDeviceAddress *addr)
++{
++    return addr->cssid <= VIR_CCW_DEVICE_MAX_CSSID &&
++           addr->ssid <= VIR_CCW_DEVICE_MAX_SSID &&
++           addr->devno <= VIR_CCW_DEVICE_MAX_DEVNO;
++}
++
+ char*
+ virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+ {
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index 4c48c9605e..c4daaff7b3 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -35,6 +35,8 @@ struct _virCCWDeviceAddress {
+     bool         assigned;
+ };
+ 
++bool virCCWDeviceAddressIsValid(virCCWDeviceAddress *addr);
++
+ char* virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+     ATTRIBUTE_NONNULL(1);
+ int virCCWDeviceAddressIncrement(virCCWDeviceAddress *addr);
+-- 
+2.39.1
+

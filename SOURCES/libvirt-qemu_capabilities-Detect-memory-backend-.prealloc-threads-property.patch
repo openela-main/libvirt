@@ -1,0 +1,314 @@
+From c387e7680c07d7dbb934dbe972e99ab78cebad28 Mon Sep 17 00:00:00 2001
+Message-Id: <c387e7680c07d7dbb934dbe972e99ab78cebad28@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 21 Mar 2022 16:55:05 +0100
+Subject: [PATCH] qemu_capabilities: Detect memory-backend-*.prealloc-threads
+ property
+
+The prealloc-threads is property of memory-backend class which is
+parent to the other three classes memory-backend-{ram,file,memfd}.
+Therefore the property is present for all, or none if QEMU is
+older than v5.0.0-rc0~75^2~1^2~3 which introduced the property.
+
+Anyway, the .reserve property is the same story, and we chose
+memory-backend-file to detect it, so stick with our earlier
+decision and use the same backend to detect this new property.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit a30dac15dcdb7a6c7a3e9b6cfc5cd77bae185081)
+
+Conflicts:
+src/qemu/qemu_capabilities.c: Context
+src/qemu/qemu_capabilities.h
+tests/qemucapabilitiesdata/caps_5.2.0.aarch64.xml
+tests/qemucapabilitiesdata/caps_5.2.0.ppc64.xml
+tests/qemucapabilitiesdata/caps_5.2.0.riscv64.xml
+tests/qemucapabilitiesdata/caps_5.2.0.s390x.xml
+tests/qemucapabilitiesdata/caps_5.2.0.x86_64.xml
+tests/qemucapabilitiesdata/caps_6.0.0.aarch64.xml
+tests/qemucapabilitiesdata/caps_6.0.0.s390x.xml
+tests/qemucapabilitiesdata/caps_6.0.0.x86_64.xml
+tests/qemucapabilitiesdata/caps_6.1.0.x86_64.xml
+tests/qemucapabilitiesdata/caps_6.2.0.aarch64.xml
+tests/qemucapabilitiesdata/caps_6.2.0.ppc64.xml
+tests/qemucapabilitiesdata/caps_6.2.0.x86_64.xml
+tests/qemucapabilitiesdata/caps_7.0.0.ppc64.xml
+tests/qemucapabilitiesdata/caps_7.0.0.x86_64.xml
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2067126
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                      | 2 ++
+ src/qemu/qemu_capabilities.h                      | 1 +
+ tests/qemucapabilitiesdata/caps_5.0.0.aarch64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_5.0.0.ppc64.xml   | 1 +
+ tests/qemucapabilitiesdata/caps_5.0.0.riscv64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_5.0.0.x86_64.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_5.1.0.sparc.xml   | 1 +
+ tests/qemucapabilitiesdata/caps_5.1.0.x86_64.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_5.2.0.aarch64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_5.2.0.ppc64.xml   | 1 +
+ tests/qemucapabilitiesdata/caps_5.2.0.riscv64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_5.2.0.s390x.xml   | 1 +
+ tests/qemucapabilitiesdata/caps_5.2.0.x86_64.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_6.0.0.aarch64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_6.0.0.s390x.xml   | 1 +
+ tests/qemucapabilitiesdata/caps_6.0.0.x86_64.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_6.1.0.x86_64.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_6.2.0.aarch64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_6.2.0.ppc64.xml   | 1 +
+ tests/qemucapabilitiesdata/caps_6.2.0.x86_64.xml  | 1 +
+ 20 files changed, 21 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 8ae80ef8d7..c4f7db55c8 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -657,6 +657,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+ 
+               /* 420 */
+               "blockdev-reopen.__com.redhat_rhel-av-8_2_0-api", /* QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API */
++              "memory-backend-file.prealloc-threads", /* QEMU_CAPS_MEMORY_BACKEND_PREALLOC_THREADS */
+     );
+ 
+ 
+@@ -1713,6 +1714,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsMemoryBackendFile[] =
+      * released qemu versions. */
+     { "x-use-canonical-path-for-ramblock-id", QEMU_CAPS_X_USE_CANONICAL_PATH_FOR_RAMBLOCK_ID },
+     { "reserve", QEMU_CAPS_MEMORY_BACKEND_RESERVE },
++    { "prealloc-threads", QEMU_CAPS_MEMORY_BACKEND_PREALLOC_THREADS },
+ };
+ 
+ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsMemoryBackendMemfd[] = {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index cde6c18b4c..8e65635e0d 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -636,6 +636,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+ 
+     /* 420 */
+     QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API, /* downstream support for blockdev reopen in rhel-av-8.2.0 */
++    QEMU_CAPS_MEMORY_BACKEND_PREALLOC_THREADS, /* -object memory-backend-*.prealloc-threads */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_5.0.0.aarch64.xml b/tests/qemucapabilitiesdata/caps_5.0.0.aarch64.xml
+index bb6a7d5ee7..3b18f160db 100644
+--- a/tests/qemucapabilitiesdata/caps_5.0.0.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.0.0.aarch64.xml
+@@ -179,6 +179,7 @@
+   <flag name='input-linux'/>
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>61700241</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.0.0.ppc64.xml b/tests/qemucapabilitiesdata/caps_5.0.0.ppc64.xml
+index f8317c1117..c90f2be296 100644
+--- a/tests/qemucapabilitiesdata/caps_5.0.0.ppc64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.0.0.ppc64.xml
+@@ -187,6 +187,7 @@
+   <flag name='input-linux'/>
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>42900241</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.0.0.riscv64.xml b/tests/qemucapabilitiesdata/caps_5.0.0.riscv64.xml
+index 58c7eb6651..8fbe8f114f 100644
+--- a/tests/qemucapabilitiesdata/caps_5.0.0.riscv64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.0.0.riscv64.xml
+@@ -171,6 +171,7 @@
+   <flag name='input-linux'/>
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>0</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.0.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_5.0.0.x86_64.xml
+index 69f49020e7..b76c4346a4 100644
+--- a/tests/qemucapabilitiesdata/caps_5.0.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.0.0.x86_64.xml
+@@ -221,6 +221,7 @@
+   <flag name='input-linux'/>
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100241</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.1.0.sparc.xml b/tests/qemucapabilitiesdata/caps_5.1.0.sparc.xml
+index 58af90b29f..7de7c291f5 100644
+--- a/tests/qemucapabilitiesdata/caps_5.1.0.sparc.xml
++++ b/tests/qemucapabilitiesdata/caps_5.1.0.sparc.xml
+@@ -90,6 +90,7 @@
+   <flag name='rotation-rate'/>
+   <flag name='input-linux'/>
+   <flag name='query-display-options'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5001000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>0</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.1.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_5.1.0.x86_64.xml
+index 578e16e8b0..9b5cb3cd7a 100644
+--- a/tests/qemucapabilitiesdata/caps_5.1.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.1.0.x86_64.xml
+@@ -224,6 +224,7 @@
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='virtio-mem-pci'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5001000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100242</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.2.0.aarch64.xml b/tests/qemucapabilitiesdata/caps_5.2.0.aarch64.xml
+index b943eaedaf..020c04c1c4 100644
+--- a/tests/qemucapabilitiesdata/caps_5.2.0.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.2.0.aarch64.xml
+@@ -184,6 +184,7 @@
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5002000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>61700243</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.2.0.ppc64.xml b/tests/qemucapabilitiesdata/caps_5.2.0.ppc64.xml
+index ec64e1cacf..5346b1552c 100644
+--- a/tests/qemucapabilitiesdata/caps_5.2.0.ppc64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.2.0.ppc64.xml
+@@ -190,6 +190,7 @@
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5002000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>42900243</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.2.0.riscv64.xml b/tests/qemucapabilitiesdata/caps_5.2.0.riscv64.xml
+index a11d15f91a..9f6974f85d 100644
+--- a/tests/qemucapabilitiesdata/caps_5.2.0.riscv64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.2.0.riscv64.xml
+@@ -174,6 +174,7 @@
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5002000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>0</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.2.0.s390x.xml b/tests/qemucapabilitiesdata/caps_5.2.0.s390x.xml
+index 552e1d43c9..44753b64c3 100644
+--- a/tests/qemucapabilitiesdata/caps_5.2.0.s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_5.2.0.s390x.xml
+@@ -141,6 +141,7 @@
+   <flag name='query-display-options'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5002000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>39100243</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_5.2.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_5.2.0.x86_64.xml
+index bcc262551a..db11c99739 100644
+--- a/tests/qemucapabilitiesdata/caps_5.2.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.2.0.x86_64.xml
+@@ -227,6 +227,7 @@
+   <flag name='virtio-mem-pci'/>
+   <flag name='piix4.acpi-root-pci-hotplug'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>5002000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100243</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.0.0.aarch64.xml b/tests/qemucapabilitiesdata/caps_6.0.0.aarch64.xml
+index 0fefe64537..5f9a97df43 100644
+--- a/tests/qemucapabilitiesdata/caps_6.0.0.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.0.0.aarch64.xml
+@@ -192,6 +192,7 @@
+   <flag name='set-action'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>61700242</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.0.0.s390x.xml b/tests/qemucapabilitiesdata/caps_6.0.0.s390x.xml
+index 61685066b8..46bd1d3d2d 100644
+--- a/tests/qemucapabilitiesdata/caps_6.0.0.s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_6.0.0.s390x.xml
+@@ -149,6 +149,7 @@
+   <flag name='set-action'/>
+   <flag name='virtio-blk.queue-size'/>
+   <flag name='query-dirty-rate'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>39100242</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.0.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_6.0.0.x86_64.xml
+index 0d6763e9a3..99bbb6e237 100644
+--- a/tests/qemucapabilitiesdata/caps_6.0.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.0.0.x86_64.xml
+@@ -236,6 +236,7 @@
+   <flag name='piix4.acpi-root-pci-hotplug'/>
+   <flag name='query-dirty-rate'/>
+   <flag name='sev-inject-launch-secret'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6000000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100242</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.1.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_6.1.0.x86_64.xml
+index 228f397c67..ff0715e605 100644
+--- a/tests/qemucapabilitiesdata/caps_6.1.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.1.0.x86_64.xml
+@@ -240,6 +240,7 @@
+   <flag name='query-dirty-rate'/>
+   <flag name='rbd-encryption'/>
+   <flag name='sev-inject-launch-secret'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6001000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100243</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.2.0.aarch64.xml b/tests/qemucapabilitiesdata/caps_6.2.0.aarch64.xml
+index 6bf9933bc5..dd6f0e6919 100644
+--- a/tests/qemucapabilitiesdata/caps_6.2.0.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.2.0.aarch64.xml
+@@ -203,6 +203,7 @@
+   <flag name='memory-backend-file.reserve'/>
+   <flag name='query-dirty-rate'/>
+   <flag name='rbd-encryption'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6001050</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>61700244</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.2.0.ppc64.xml b/tests/qemucapabilitiesdata/caps_6.2.0.ppc64.xml
+index 06cd7fb396..2646cdf88f 100644
+--- a/tests/qemucapabilitiesdata/caps_6.2.0.ppc64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.2.0.ppc64.xml
+@@ -199,6 +199,7 @@
+   <flag name='piix4.acpi-root-pci-hotplug'/>
+   <flag name='query-dirty-rate'/>
+   <flag name='rbd-encryption'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6001050</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>42900244</microcodeVersion>
+diff --git a/tests/qemucapabilitiesdata/caps_6.2.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_6.2.0.x86_64.xml
+index 75aaeed03c..f25ec1b84a 100644
+--- a/tests/qemucapabilitiesdata/caps_6.2.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.2.0.x86_64.xml
+@@ -241,6 +241,7 @@
+   <flag name='rbd-encryption'/>
+   <flag name='sev-guest-kernel-hashes'/>
+   <flag name='sev-inject-launch-secret'/>
++  <flag name='memory-backend-file.prealloc-threads'/>
+   <version>6002000</version>
+   <kvmVersion>0</kvmVersion>
+   <microcodeVersion>43100244</microcodeVersion>
+-- 
+2.35.1
+

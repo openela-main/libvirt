@@ -1,0 +1,42 @@
+From 26daf647925213a05509cc302d9151fe4525febb Mon Sep 17 00:00:00 2001
+Message-Id: <26daf647925213a05509cc302d9151fe4525febb@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 14 Jun 2022 14:07:47 +0200
+Subject: [PATCH] virDomainDiskDefValidateStartupPolicy: Validate disk type
+ better
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Our startup policy checkers work only for local paths, so disk sources
+such as NVMe, or vhost-user can't be used with startup policy.
+
+Unfortunately the validation did not catch these cases. Fix it.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit b90d0f0a1e4ee52c828fb683c14c14e241e6fcbb)
+https://bugzilla.redhat.com/show_bug.cgi?id=2095758
+---
+ src/conf/domain_validate.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index bfff7339ef..55759af9f8 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -604,7 +604,10 @@ virDomainDiskDefValidateStartupPolicy(const virDomainDiskDef *disk)
+     if (disk->startupPolicy == VIR_DOMAIN_STARTUP_POLICY_DEFAULT)
+         return 0;
+ 
+-    if (disk->src->type == VIR_STORAGE_TYPE_NETWORK) {
++    /* We want to allow any startup policy for un-translated _TYPE_VOLUME disks.
++     * virStorageSourceGetActualType returns _TYPE_VOLUME in such case */
++    if (virStorageSourceGetActualType(disk->src) != VIR_STORAGE_TYPE_VOLUME &&
++        !virStorageSourceIsLocalStorage(disk->src)) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("disk startupPolicy '%s' is not allowed for disk of '%s' type"),
+                        virDomainStartupPolicyTypeToString(disk->startupPolicy),
+-- 
+2.35.1
+

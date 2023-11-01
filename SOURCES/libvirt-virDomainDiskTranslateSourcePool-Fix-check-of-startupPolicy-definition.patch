@@ -1,0 +1,56 @@
+From 2ea89fb18aa9d2dac1e651869736fede7a2ec434 Mon Sep 17 00:00:00 2001
+Message-Id: <2ea89fb18aa9d2dac1e651869736fede7a2ec434@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 14 Jun 2022 14:21:33 +0200
+Subject: [PATCH] virDomainDiskTranslateSourcePool: Fix check of
+ 'startupPolicy' definition
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The check was historically done only for _TYPE_VOLUME disks, but
+refactors to allow _TYPE_VOLUME disks in the backing chain caused a
+regression where we'd reject startupPolicy also for _TYPE_BLOCK disks
+which historically worked well.
+
+Fix it by using the 'virDomainDiskDefValidateStartupPolicy' helper and
+use it only when the top level image is a _TYPE_VOLUME as in other cases
+it was already validated. This also allows _TYPE_BLOCK volumes to use
+startup policy.
+
+Fixes: 37f01262eed9f37dd5eb7de8b83edd2fea741054
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2095758
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit ed8984306e1cd44c424fda3ed412a4177dd7b84d)
+---
+ src/conf/domain_conf.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 805a15848e..92510973e6 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -31311,13 +31311,13 @@ virDomainDiskTranslateSourcePool(virDomainDiskDef *def)
+ 
+         if (virDomainStorageSourceTranslateSourcePool(n, conn) < 0)
+             return -1;
+-    }
+ 
+-    if (def->startupPolicy != 0 &&
+-        virStorageSourceGetActualType(def->src) != VIR_STORAGE_TYPE_FILE) {
+-        virReportError(VIR_ERR_XML_ERROR, "%s",
+-                       _("'startupPolicy' is only valid for 'file' type volume"));
+-        return -1;
++        /* The validity of 'startupPolicy' setting is checked only for the top
++         * level image. For any other subsequent images we honour it only if
++         * possible */
++        if (n == def->src &&
++            virDomainDiskDefValidateStartupPolicy(def) < 0)
++            return -1;
+     }
+ 
+     return 0;
+-- 
+2.35.1
+

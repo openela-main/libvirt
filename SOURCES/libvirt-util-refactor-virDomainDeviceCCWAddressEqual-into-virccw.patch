@@ -1,0 +1,151 @@
+From 71f605aed8cb1f27eef21953005b3251e41e1925 Mon Sep 17 00:00:00 2001
+Message-Id: <71f605aed8cb1f27eef21953005b3251e41e1925@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:07 +0200
+Subject: [PATCH] util: refactor virDomainDeviceCCWAddressEqual into virccw
+
+Refactor virDomainDeviceCCWAddressEqual into virccw and rename method as
+virCCWDeviceAddressEqual.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 784b87603517bd920910ccfb69daae8980a21d8d)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/device_conf.c   | 12 ------------
+ src/conf/device_conf.h   |  2 --
+ src/conf/domain_conf.c   |  8 ++++----
+ src/libvirt_private.syms |  2 +-
+ src/util/virccw.c        | 12 ++++++++++++
+ src/util/virccw.h        |  2 ++
+ 6 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/conf/device_conf.c b/src/conf/device_conf.c
+index 2385e81994..958e2f43cc 100644
+--- a/src/conf/device_conf.c
++++ b/src/conf/device_conf.c
+@@ -298,18 +298,6 @@ virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+     return 0;
+ }
+ 
+-bool
+-virDomainDeviceCCWAddressEqual(virCCWDeviceAddress *addr1,
+-                               virCCWDeviceAddress *addr2)
+-{
+-    if (addr1->cssid == addr2->cssid &&
+-        addr1->ssid == addr2->ssid &&
+-        addr1->devno == addr2->devno) {
+-        return true;
+-    }
+-    return false;
+-}
+-
+ int
+ virDomainDeviceDriveAddressParseXML(xmlNodePtr node,
+                                     virDomainDeviceDriveAddress *addr)
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index 0ed6991c23..01e2edccc9 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -195,8 +195,6 @@ void virPCIDeviceAddressFormat(virBuffer *buf,
+ 
+ int virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+                                       virCCWDeviceAddress *addr);
+-bool virDomainDeviceCCWAddressEqual(virCCWDeviceAddress *addr1,
+-                                    virCCWDeviceAddress *addr2);
+ 
+ int virDomainDeviceDriveAddressParseXML(xmlNodePtr node,
+                                         virDomainDeviceDriveAddress *addr);
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 17383fc878..1e1c7f01b1 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -15566,7 +15566,7 @@ virDomainDiskIndexByAddress(virDomainDef *def,
+             return i;
+         if (vdisk->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_CCW &&
+             ccw_addr &&
+-            virDomainDeviceCCWAddressEqual(&vdisk->info.addr.ccw, ccw_addr)) {
++            virCCWDeviceAddressEqual(&vdisk->info.addr.ccw, ccw_addr)) {
+             return i;
+         }
+         if (vdisk->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_DRIVE) {
+@@ -15755,8 +15755,8 @@ virDomainNetFindIdx(virDomainDef *def, virDomainNetDef *net)
+             continue;
+ 
+         if (CCWAddrSpecified &&
+-            !virDomainDeviceCCWAddressEqual(&def->nets[i]->info.addr.ccw,
+-                                            &net->info.addr.ccw))
++            !virCCWDeviceAddressEqual(&def->nets[i]->info.addr.ccw,
++                                      &net->info.addr.ccw))
+             continue;
+ 
+         if (net->info.alias && def->nets[i]->info.alias &&
+@@ -16192,7 +16192,7 @@ virDomainControllerFindByCCWAddress(virDomainDef *def,
+         virDomainDeviceInfo *info = &def->controllers[i]->info;
+ 
+         if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_CCW &&
+-            virDomainDeviceCCWAddressEqual(&info->addr.ccw, addr))
++            virCCWDeviceAddressEqual(&info->addr.ccw, addr))
+             return i;
+     }
+ 
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 9ed367d427..0d3ee4c20a 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -131,7 +131,6 @@ virDeviceInfoPCIAddressIsWanted;
+ virDomainDeviceAddressIsValid;
+ virDomainDeviceAddressTypeToString;
+ virDomainDeviceCcidAddressParseXML;
+-virDomainDeviceCCWAddressEqual;
+ virDomainDeviceCCWAddressParseXML;
+ virDomainDeviceDriveAddressParseXML;
+ virDomainDeviceInfoAddressIsEqual;
+@@ -1902,6 +1901,7 @@ virBufferVasprintf;
+ 
+ # util/virccw.h
+ virCCWDeviceAddressAsString;
++virCCWDeviceAddressEqual;
+ virCCWDeviceAddressIncrement;
+ virCCWDeviceAddressIsValid;
+ 
+diff --git a/src/util/virccw.c b/src/util/virccw.c
+index c3dfda2613..e2785bd9ab 100644
+--- a/src/util/virccw.c
++++ b/src/util/virccw.c
+@@ -30,6 +30,18 @@ virCCWDeviceAddressIsValid(virCCWDeviceAddress *addr)
+            addr->devno <= VIR_CCW_DEVICE_MAX_DEVNO;
+ }
+ 
++bool
++virCCWDeviceAddressEqual(virCCWDeviceAddress *addr1,
++                         virCCWDeviceAddress *addr2)
++{
++    if (addr1->cssid == addr2->cssid &&
++        addr1->ssid == addr2->ssid &&
++        addr1->devno == addr2->devno) {
++        return true;
++    }
++    return false;
++}
++
+ char*
+ virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+ {
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index c4daaff7b3..aebbd4ab6d 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -36,6 +36,8 @@ struct _virCCWDeviceAddress {
+ };
+ 
+ bool virCCWDeviceAddressIsValid(virCCWDeviceAddress *addr);
++bool virCCWDeviceAddressEqual(virCCWDeviceAddress *addr1,
++                              virCCWDeviceAddress *addr2);
+ 
+ char* virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+     ATTRIBUTE_NONNULL(1);
+-- 
+2.39.1
+

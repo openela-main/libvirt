@@ -1,0 +1,107 @@
+From e5e849999b1d615c6a371839aeead37275599cf0 Mon Sep 17 00:00:00 2001
+Message-Id: <e5e849999b1d615c6a371839aeead37275599cf0@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:10 +0200
+Subject: [PATCH] util: add virCCWDeviceAddressFromString to virccw
+
+Add a method to parse a ccw device address from a string.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 9453eb458a5c3ed6687188233d7e389c3e20c266)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Conflicts:
+	po/POTFILES (file is called POTFILES.in in downstream)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ po/POTFILES.in           |  1 +
+ src/libvirt_private.syms |  1 +
+ src/util/virccw.c        | 23 +++++++++++++++++++++++
+ src/util/virccw.h        |  3 +++
+ 4 files changed, 28 insertions(+)
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index bf0a3b3529..327e20ec11 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -246,6 +246,7 @@
+ @SRCDIR@src/util/virauth.c
+ @SRCDIR@src/util/virauthconfig.c
+ @SRCDIR@src/util/virbitmap.c
++@SRCDIR@src/util/virccw.c
+ @SRCDIR@src/util/vircgroup.c
+ @SRCDIR@src/util/vircgroupbackend.c
+ @SRCDIR@src/util/vircgroupbackend.h
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 6f1292e0c4..7c558ad364 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -1902,6 +1902,7 @@ virBufferVasprintf;
+ # util/virccw.h
+ virCCWDeviceAddressAsString;
+ virCCWDeviceAddressEqual;
++virCCWDeviceAddressFromString;
+ virCCWDeviceAddressIncrement;
+ virCCWDeviceAddressIsValid;
+ virCCWDeviceAddressParseFromString;
+diff --git a/src/util/virccw.c b/src/util/virccw.c
+index 33df1c2428..d741743050 100644
+--- a/src/util/virccw.c
++++ b/src/util/virccw.c
+@@ -20,8 +20,11 @@
+ 
+ #include <config.h>
+ #include "virccw.h"
++#include "virerror.h"
+ #include "virstring.h"
+ 
++#define VIR_FROM_THIS VIR_FROM_NONE
++
+ 
+ bool
+ virCCWDeviceAddressIsValid(virCCWDeviceAddress *addr)
+@@ -49,6 +52,26 @@ virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+     return g_strdup_printf(VIR_CCW_DEVICE_ADDRESS_FMT, addr->cssid, addr->ssid, addr->devno);
+ }
+ 
++virCCWDeviceAddress *
++virCCWDeviceAddressFromString(const char *address)
++{
++    g_autofree virCCWDeviceAddress *ccw = NULL;
++
++    ccw = g_new0(virCCWDeviceAddress, 1);
++
++    if (virCCWDeviceAddressParseFromString(address,
++                                           &ccw->cssid,
++                                           &ccw->ssid,
++                                           &ccw->devno) < 0) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("Failed to parse CCW address '%s'"),
++                       address);
++        return NULL;
++    }
++
++    return g_steal_pointer(&ccw);
++}
++
+ int
+ virCCWDeviceAddressIncrement(virCCWDeviceAddress *addr)
+ {
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index df0273bcac..80cc716811 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -41,6 +41,9 @@ bool virCCWDeviceAddressEqual(virCCWDeviceAddress *addr1,
+ 
+ char* virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+     ATTRIBUTE_NONNULL(1);
++virCCWDeviceAddress *virCCWDeviceAddressFromString(const char *address)
++    ATTRIBUTE_NONNULL(1);
++
+ int virCCWDeviceAddressIncrement(virCCWDeviceAddress *addr);
+ 
+ int virCCWDeviceAddressParseFromString(const char *address,
+-- 
+2.39.1
+

@@ -1,0 +1,334 @@
+From 50d94f13286ca19ef1f457be72debdbf77547df6 Mon Sep 17 00:00:00 2001
+Message-Id: <50d94f13286ca19ef1f457be72debdbf77547df6@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 4 May 2022 16:21:38 +0200
+Subject: [PATCH] cputest: Drop some old artificial baseline tests
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 6aff36019bbaf643f451779621c6c88cab0e64a7)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1851227
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ tests/cputest.c                               |  6 ---
+ .../cputestdata/x86_64-baseline-1-result.xml  |  5 --
+ tests/cputestdata/x86_64-baseline-1.xml       | 20 --------
+ .../cputestdata/x86_64-baseline-2-result.xml  |  4 --
+ tests/cputestdata/x86_64-baseline-2.xml       | 22 ---------
+ .../x86_64-baseline-5-expanded.xml            | 47 -------------------
+ .../cputestdata/x86_64-baseline-5-result.xml  | 10 ----
+ tests/cputestdata/x86_64-baseline-5.xml       | 35 --------------
+ .../cputestdata/x86_64-baseline-7-result.xml  |  4 --
+ tests/cputestdata/x86_64-baseline-7.xml       | 24 ----------
+ .../cputestdata/x86_64-baseline-8-result.xml  |  4 --
+ tests/cputestdata/x86_64-baseline-8.xml       | 28 -----------
+ 12 files changed, 209 deletions(-)
+ delete mode 100644 tests/cputestdata/x86_64-baseline-1-result.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-1.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-2-result.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-2.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-5-expanded.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-5-result.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-5.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-7-result.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-7.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-8-result.xml
+ delete mode 100644 tests/cputestdata/x86_64-baseline-8.xml
+
+diff --git a/tests/cputest.c b/tests/cputest.c
+index 0f0621292a..20d56836be 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -1051,18 +1051,12 @@ mymain(void)
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "incompatible-vendors", 0, -1);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "no-vendor", 0, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "some-vendors", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "1", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "2", 0, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "3", 0, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "3", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "4", 0, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "4", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "5", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "5", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "6", 0, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "6", VIR_CONNECT_BASELINE_CPU_MIGRATABLE, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "7", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "8", 0, 0);
+ 
+     DO_TEST_BASELINE(VIR_ARCH_PPC64, "incompatible-vendors", 0, -1);
+     DO_TEST_BASELINE(VIR_ARCH_PPC64, "no-vendor", 0, 0);
+diff --git a/tests/cputestdata/x86_64-baseline-1-result.xml b/tests/cputestdata/x86_64-baseline-1-result.xml
+deleted file mode 100644
+index 96c4f43b3d..0000000000
+--- a/tests/cputestdata/x86_64-baseline-1-result.xml
++++ /dev/null
+@@ -1,5 +0,0 @@
+-<cpu mode='custom' match='exact'>
+-  <model fallback='allow'>Conroe</model>
+-  <vendor>Intel</vendor>
+-  <feature policy='disable' name='lahf_lm'/>
+-</cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-1.xml b/tests/cputestdata/x86_64-baseline-1.xml
+deleted file mode 100644
+index 509e6a85d2..0000000000
+--- a/tests/cputestdata/x86_64-baseline-1.xml
++++ /dev/null
+@@ -1,20 +0,0 @@
+-<cpuTest>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>Penryn</model>
+-  <vendor>Intel</vendor>
+-  <topology sockets='2' cores='4' threads='1'/>
+-</cpu>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>Conroe</model>
+-  <vendor>Intel</vendor>
+-  <topology sockets='1' cores='1' threads='1'/>
+-</cpu>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>core2duo</model>
+-  <vendor>Intel</vendor>
+-  <topology sockets='1' cores='1' threads='1'/>
+-</cpu>
+-</cpuTest>
+diff --git a/tests/cputestdata/x86_64-baseline-2-result.xml b/tests/cputestdata/x86_64-baseline-2-result.xml
+deleted file mode 100644
+index a11352d0b1..0000000000
+--- a/tests/cputestdata/x86_64-baseline-2-result.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<cpu mode='custom' match='exact'>
+-  <model fallback='allow'>core2duo</model>
+-  <feature policy='disable' name='nx'/>
+-</cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-2.xml b/tests/cputestdata/x86_64-baseline-2.xml
+deleted file mode 100644
+index 055223fd34..0000000000
+--- a/tests/cputestdata/x86_64-baseline-2.xml
++++ /dev/null
+@@ -1,22 +0,0 @@
+-<cpuTest>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>core2duo</model>
+-  <topology sockets='1' cores='2' threads='1'/>
+-</cpu>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>pentiumpro</model>
+-  <topology sockets='1' cores='2' threads='1'/>
+-  <feature name='mtrr'/>
+-  <feature name='clflush'/>
+-  <feature name='mca'/>
+-  <feature name='vme'/>
+-  <feature name='pse36'/>
+-  <feature name='pni'/>
+-  <feature name='monitor'/>
+-  <feature name='ssse3'/>
+-  <feature name='lm'/>
+-  <feature name='syscall'/>
+-</cpu>
+-</cpuTest>
+diff --git a/tests/cputestdata/x86_64-baseline-5-expanded.xml b/tests/cputestdata/x86_64-baseline-5-expanded.xml
+deleted file mode 100644
+index 2c1b400150..0000000000
+--- a/tests/cputestdata/x86_64-baseline-5-expanded.xml
++++ /dev/null
+@@ -1,47 +0,0 @@
+-<cpu mode='custom' match='exact'>
+-  <model fallback='allow'>SandyBridge</model>
+-  <vendor>Intel</vendor>
+-  <feature policy='require' name='aes'/>
+-  <feature policy='require' name='apic'/>
+-  <feature policy='require' name='avx'/>
+-  <feature policy='require' name='clflush'/>
+-  <feature policy='require' name='cmov'/>
+-  <feature policy='require' name='cx16'/>
+-  <feature policy='require' name='cx8'/>
+-  <feature policy='require' name='de'/>
+-  <feature policy='require' name='fpu'/>
+-  <feature policy='require' name='fxsr'/>
+-  <feature policy='require' name='hypervisor'/>
+-  <feature policy='require' name='lahf_lm'/>
+-  <feature policy='require' name='lm'/>
+-  <feature policy='require' name='mca'/>
+-  <feature policy='require' name='mce'/>
+-  <feature policy='require' name='mmx'/>
+-  <feature policy='require' name='msr'/>
+-  <feature policy='require' name='mtrr'/>
+-  <feature policy='require' name='nx'/>
+-  <feature policy='require' name='osxsave'/>
+-  <feature policy='require' name='pae'/>
+-  <feature policy='require' name='pat'/>
+-  <feature policy='require' name='pcid'/>
+-  <feature policy='require' name='pclmuldq'/>
+-  <feature policy='require' name='pge'/>
+-  <feature policy='require' name='pni'/>
+-  <feature policy='require' name='popcnt'/>
+-  <feature policy='require' name='pse'/>
+-  <feature policy='require' name='pse36'/>
+-  <feature policy='disable' name='rdtscp'/>
+-  <feature policy='require' name='sep'/>
+-  <feature policy='require' name='ss'/>
+-  <feature policy='require' name='sse'/>
+-  <feature policy='require' name='sse2'/>
+-  <feature policy='require' name='sse4.1'/>
+-  <feature policy='require' name='sse4.2'/>
+-  <feature policy='require' name='ssse3'/>
+-  <feature policy='require' name='syscall'/>
+-  <feature policy='require' name='tsc'/>
+-  <feature policy='require' name='tsc-deadline'/>
+-  <feature policy='require' name='vme'/>
+-  <feature policy='require' name='x2apic'/>
+-  <feature policy='require' name='xsave'/>
+-</cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-5-result.xml b/tests/cputestdata/x86_64-baseline-5-result.xml
+deleted file mode 100644
+index 775a27de2e..0000000000
+--- a/tests/cputestdata/x86_64-baseline-5-result.xml
++++ /dev/null
+@@ -1,10 +0,0 @@
+-<cpu mode='custom' match='exact'>
+-  <model fallback='allow'>SandyBridge</model>
+-  <vendor>Intel</vendor>
+-  <feature policy='require' name='vme'/>
+-  <feature policy='require' name='ss'/>
+-  <feature policy='require' name='pcid'/>
+-  <feature policy='require' name='osxsave'/>
+-  <feature policy='require' name='hypervisor'/>
+-  <feature policy='disable' name='rdtscp'/>
+-</cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-5.xml b/tests/cputestdata/x86_64-baseline-5.xml
+deleted file mode 100644
+index 80cd533ca4..0000000000
+--- a/tests/cputestdata/x86_64-baseline-5.xml
++++ /dev/null
+@@ -1,35 +0,0 @@
+-<cpuTest>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>Westmere</model>
+-  <vendor>Intel</vendor>
+-  <topology sockets='4' cores='1' threads='1'/>
+-  <feature name='hypervisor'/>
+-  <feature name='avx'/>
+-  <feature name='osxsave'/>
+-  <feature name='xsave'/>
+-  <feature name='tsc-deadline'/>
+-  <feature name='x2apic'/>
+-  <feature name='pcid'/>
+-  <feature name='pclmuldq'/>
+-  <feature name='ss'/>
+-  <feature name='vme'/>
+-</cpu>
+-<cpu>
+-  <arch>x86_64</arch>
+-  <model>Nehalem</model>
+-  <vendor>Intel</vendor>
+-  <topology sockets='4' cores='1' threads='1'/>
+-  <feature name='aes'/>
+-  <feature name='hypervisor'/>
+-  <feature name='avx'/>
+-  <feature name='osxsave'/>
+-  <feature name='xsave'/>
+-  <feature name='tsc-deadline'/>
+-  <feature name='x2apic'/>
+-  <feature name='pcid'/>
+-  <feature name='pclmuldq'/>
+-  <feature name='ss'/>
+-  <feature name='vme'/>
+-</cpu>
+-</cpuTest>
+diff --git a/tests/cputestdata/x86_64-baseline-7-result.xml b/tests/cputestdata/x86_64-baseline-7-result.xml
+deleted file mode 100644
+index 2af549e77a..0000000000
+--- a/tests/cputestdata/x86_64-baseline-7-result.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<cpu mode='custom' match='exact'>
+-  <model fallback='allow'>Haswell-noTSX</model>
+-  <vendor>Intel</vendor>
+-</cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-7.xml b/tests/cputestdata/x86_64-baseline-7.xml
+deleted file mode 100644
+index b7e61b160c..0000000000
+--- a/tests/cputestdata/x86_64-baseline-7.xml
++++ /dev/null
+@@ -1,24 +0,0 @@
+-<cpuTest>
+-    <cpu>
+-      <arch>x86_64</arch>
+-      <model>SandyBridge</model>
+-      <vendor>Intel</vendor>
+-      <topology sockets='1' cores='2' threads='2'/>
+-      <feature name='invpcid'/>
+-      <feature name='erms'/>
+-      <feature name='bmi2'/>
+-      <feature name='smep'/>
+-      <feature name='avx2'/>
+-      <feature name='bmi1'/>
+-      <feature name='fsgsbase'/>
+-      <feature name='movbe'/>
+-      <feature name='pcid'/>
+-      <feature name='fma'/>
+-    </cpu>
+-    <cpu>
+-      <arch>x86_64</arch>
+-      <model>Haswell-noTSX</model>
+-      <vendor>Intel</vendor>
+-      <topology sockets='1' cores='2' threads='2'/>
+-    </cpu>
+-</cpuTest>
+diff --git a/tests/cputestdata/x86_64-baseline-8-result.xml b/tests/cputestdata/x86_64-baseline-8-result.xml
+deleted file mode 100644
+index 88226b3dab..0000000000
+--- a/tests/cputestdata/x86_64-baseline-8-result.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<cpu mode='custom' match='exact'>
+-  <model fallback='allow'>Broadwell-noTSX</model>
+-  <vendor>Intel</vendor>
+-</cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-8.xml b/tests/cputestdata/x86_64-baseline-8.xml
+deleted file mode 100644
+index f1ee67d542..0000000000
+--- a/tests/cputestdata/x86_64-baseline-8.xml
++++ /dev/null
+@@ -1,28 +0,0 @@
+-<cpuTest>
+-    <cpu>
+-      <arch>x86_64</arch>
+-      <model>SandyBridge</model>
+-      <vendor>Intel</vendor>
+-      <topology sockets='1' cores='2' threads='2'/>
+-      <feature name='invpcid'/>
+-      <feature name='erms'/>
+-      <feature name='bmi2'/>
+-      <feature name='smep'/>
+-      <feature name='avx2'/>
+-      <feature name='bmi1'/>
+-      <feature name='fsgsbase'/>
+-      <feature name='movbe'/>
+-      <feature name='pcid'/>
+-      <feature name='fma'/>
+-      <feature name='3dnowprefetch'/>
+-      <feature name='rdseed'/>
+-      <feature name='adx'/>
+-      <feature name='smap'/>
+-    </cpu>
+-    <cpu>
+-      <arch>x86_64</arch>
+-      <model>Broadwell-noTSX</model>
+-      <vendor>Intel</vendor>
+-      <topology sockets='1' cores='2' threads='2'/>
+-    </cpu>
+-</cpuTest>
+-- 
+2.35.1
+

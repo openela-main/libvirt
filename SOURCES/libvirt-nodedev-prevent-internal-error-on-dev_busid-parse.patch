@@ -1,0 +1,35 @@
+From 7c60078d7a6442dc8cb5a711876d28f70d892bff Mon Sep 17 00:00:00 2001
+Message-Id: <7c60078d7a6442dc8cb5a711876d28f70d892bff@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 23 May 2022 17:56:21 +0200
+Subject: [PATCH] nodedev: prevent internal error on dev_busid parse
+
+As "none" is a legal value represented in the sysfs attribute dev_busid
+this patch prevents libvirt from incorrectly reporting an internal error.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Suggested-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e37c39747be0792d03c450e56ddb3c78d08cbf3e)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/node_device/node_device_udev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index 611a2592ca..b76e3de681 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -1144,7 +1144,7 @@ udevProcessCSS(struct udev_device *device,
+     /* process optional channel devices information */
+     udevGetStringSysfsAttr(device, "dev_busid", &dev_busid);
+ 
+-    if (dev_busid != NULL)
++    if (dev_busid != NULL && STRNEQ(dev_busid, "none"))
+         def->caps->data.ccw_dev.channel_dev_addr = virCCWDeviceAddressFromString(dev_busid);
+ 
+     if (virNodeDeviceGetCSSDynamicCaps(def->sysfs_path, &def->caps->data.ccw_dev) < 0)
+-- 
+2.39.1
+

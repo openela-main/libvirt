@@ -1,0 +1,53 @@
+From 8354fa1d2e471699331961272bc38f5e4cfe7cb8 Mon Sep 17 00:00:00 2001
+Message-Id: <8354fa1d2e471699331961272bc38f5e4cfe7cb8@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 22 Jun 2022 09:04:04 +0200
+Subject: [PATCH] qemu_migration: Use qemuDomainSetMaxMemLock
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This helper will not try to set the limit if it is already big enough,
+which may be useful when libvirt daemon is running in a containerized
+environment and is not allowed to change memory locking limit.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 22ee8cbf090c45f999b76e3f8dc7a45065fc9edf)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2089433
+
+Conflicts:
+	src/qemu/qemu_migration.c
+            - refactoring for post-copy recovery not backported
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 2635ef1162..10338f8e87 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -2974,7 +2974,7 @@ qemuMigrationDstPrepareAny(virQEMUDriver *driver,
+ 
+     if (STREQ_NULLABLE(protocol, "rdma") &&
+         vm->def->mem.hard_limit > 0 &&
+-        virProcessSetMaxMemLock(vm->pid, vm->def->mem.hard_limit << 10) < 0) {
++        qemuDomainSetMaxMemLock(vm, vm->def->mem.hard_limit << 10, NULL) < 0) {
+         goto stopjob;
+     }
+ 
+@@ -4224,7 +4224,7 @@ qemuMigrationSrcRun(virQEMUDriver *driver,
+     case MIGRATION_DEST_HOST:
+         if (STREQ(spec->dest.host.protocol, "rdma") &&
+             vm->def->mem.hard_limit > 0 &&
+-            virProcessSetMaxMemLock(vm->pid, vm->def->mem.hard_limit << 10) < 0) {
++            qemuDomainSetMaxMemLock(vm, vm->def->mem.hard_limit << 10, NULL) < 0) {
+             goto exit_monitor;
+         }
+         rc = qemuMonitorMigrateToHost(priv->mon, migrate_flags,
+-- 
+2.35.1
+

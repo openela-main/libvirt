@@ -1,0 +1,36 @@
+From 0f6009e5a8ca63388772597f3e42c71b50635a02 Mon Sep 17 00:00:00 2001
+Message-Id: <0f6009e5a8ca63388772597f3e42c71b50635a02@dist-git>
+From: Peng Liang <liangpeng10@huawei.com>
+Date: Wed, 2 Mar 2022 17:22:05 +0800
+Subject: [PATCH] rpc: Fix memory leak of fds
+
+In virSystemdActivationClaimFDs, the memory of ent->fds has been stolen
+and stored in fds, but fds is never freed, which causes a memory leak.
+Fix it by declaring fds as g_autofree.
+
+Reported-by: Jie Tang <tangjie18@huawei.com>
+Signed-off-by: Peng Liang <liangpeng10@huawei.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8a1915c4d6c33669dcb390d0708cb6e5d651770d)
+https://bugzilla.redhat.com/show_bug.cgi?id=2165428
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/rpc/virnetserver.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/rpc/virnetserver.c b/src/rpc/virnetserver.c
+index ad581a36dd..d9430a2cfa 100644
+--- a/src/rpc/virnetserver.c
++++ b/src/rpc/virnetserver.c
+@@ -655,7 +655,7 @@ virNetServerAddServiceActivation(virNetServer *srv,
+                                  size_t max_queued_clients,
+                                  size_t nrequests_client_max)
+ {
+-    int *fds;
++    g_autofree int *fds = NULL;
+     size_t nfds;
+ 
+     if (act == NULL)
+-- 
+2.39.1
+

@@ -1,0 +1,37 @@
+From ac8357ab7dd676af82b971673f8d7e862ff07624 Mon Sep 17 00:00:00 2001
+Message-Id: <ac8357ab7dd676af82b971673f8d7e862ff07624@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 6 Mar 2020 15:52:24 +0100
+Subject: [PATCH] RHEL: virutil: Accept non-block devices in virGetDeviceID()
+
+If a caller wants to learn major or minor number for a device,
+let them. There's no need to check if the device is a block
+device here.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1808390
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Message-Id: <20200306145226.1610708-5-abologna@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/util/virutil.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/src/util/virutil.c b/src/util/virutil.c
+index b1e37b45c5..ced8493516 100644
+--- a/src/util/virutil.c
++++ b/src/util/virutil.c
+@@ -1333,9 +1333,6 @@ virGetDeviceID(const char *path, int *maj, int *min)
+     if (stat(path, &sb) < 0)
+         return -errno;
+ 
+-    if (!S_ISBLK(sb.st_mode))
+-        return -EINVAL;
+-
+     if (maj)
+         *maj = major(sb.st_rdev);
+     if (min)
+-- 
+2.34.1
+

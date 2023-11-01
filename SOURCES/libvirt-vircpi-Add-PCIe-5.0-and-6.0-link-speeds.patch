@@ -1,0 +1,65 @@
+From 0a192b453da043cfb3679a07b55c1628b56efdde Mon Sep 17 00:00:00 2001
+Message-Id: <0a192b453da043cfb3679a07b55c1628b56efdde@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 8 Jul 2022 14:29:32 +0200
+Subject: [PATCH] vircpi: Add PCIe 5.0 and 6.0 link speeds
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The PCIe 5.0 and PCIe 6.0 standards define new link speeds:
+32GT/s and 64GT/s, respectively. Update our internal enum to
+include these new speeds. Otherwise we format incorrect XML:
+
+  <pci-express>
+    <link validity='cap' port='0' speed='(null)' width='16'/>
+    <link validity='sta' speed='16' width='16'/>
+  </pci-express>
+
+Like all "good" specifications, these are also locked behind a
+login portal. But we can look at pciutils' source code: [1] and
+[2].
+
+1: https://git.kernel.org/pub/scm/utils/pciutils/pciutils.git/commit/ls-caps.c?id=caca31a0eea41c7b051705704c1158fddc02fbd2
+2: https://git.kernel.org/pub/scm/utils/pciutils/pciutils.git/commit/ls-caps.c?id=5bdf63b6b1bc35b59c4b3f47f7ca83ca1868155b
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2105231
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit d33c2a9e2f933b31f8e96e9938c237bdffe27f84)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2168116
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/util/virpci.c | 2 +-
+ src/util/virpci.h | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index 0d476cd8b4..4949d1a3d4 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -46,7 +46,7 @@ VIR_LOG_INIT("util.pci");
+ 
+ VIR_ENUM_IMPL(virPCIELinkSpeed,
+               VIR_PCIE_LINK_SPEED_LAST,
+-              "", "2.5", "5", "8", "16",
++              "", "2.5", "5", "8", "16", "32", "64"
+ );
+ 
+ VIR_ENUM_IMPL(virPCIStubDriver,
+diff --git a/src/util/virpci.h b/src/util/virpci.h
+index b9b9cd7b34..4d9193f24e 100644
+--- a/src/util/virpci.h
++++ b/src/util/virpci.h
+@@ -83,6 +83,8 @@ typedef enum {
+     VIR_PCIE_LINK_SPEED_5,
+     VIR_PCIE_LINK_SPEED_8,
+     VIR_PCIE_LINK_SPEED_16,
++    VIR_PCIE_LINK_SPEED_32,
++    VIR_PCIE_LINK_SPEED_64,
+     VIR_PCIE_LINK_SPEED_LAST
+ } virPCIELinkSpeed;
+ 
+-- 
+2.39.1
+

@@ -1,0 +1,50 @@
+From f745b9ae2d12df0c0f2253c295f3d411a8a4165d Mon Sep 17 00:00:00 2001
+Message-Id: <f745b9ae2d12df0c0f2253c295f3d411a8a4165d@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 5 Sep 2022 10:34:44 +0200
+Subject: [PATCH] qemu_process: Don't require a hugetlbfs mount for memfd
+
+The aim of qemuProcessNeedHugepagesPath() is to determine whether
+a hugetlbfs mount point is required for given domain (as in
+whether qemuBuildMemoryBackendProps() picks up
+memory-backend-file pointing to a hugetlbfs mount point). Well,
+when domain is configured to use memfd backend then that
+condition can never be true. Therefore, skip creating domain's
+private path under hugetlbfs mount points.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit f14f8dff9330ed51d817f190a2ee9ac76dfac00b)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2123196
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_process.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 5c6657a876..540eee9ff0 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3810,8 +3810,18 @@ qemuProcessNeedHugepagesPath(virDomainDef *def,
+     const long system_pagesize = virGetSystemPageSizeKB();
+     size_t i;
+ 
+-    if (def->mem.source == VIR_DOMAIN_MEMORY_SOURCE_FILE)
++    switch ((virDomainMemorySource)def->mem.source) {
++    case VIR_DOMAIN_MEMORY_SOURCE_FILE:
++        /* This needs a hugetlbfs mount. */
+         return true;
++    case VIR_DOMAIN_MEMORY_SOURCE_MEMFD:
++        /* memfd works without a hugetlbfs mount */
++        return false;
++    case VIR_DOMAIN_MEMORY_SOURCE_NONE:
++    case VIR_DOMAIN_MEMORY_SOURCE_ANONYMOUS:
++    case VIR_DOMAIN_MEMORY_SOURCE_LAST:
++        break;
++    }
+ 
+     for (i = 0; i < def->mem.nhugepages; i++) {
+         if (def->mem.hugepages[i].size != system_pagesize)
+-- 
+2.38.0
+

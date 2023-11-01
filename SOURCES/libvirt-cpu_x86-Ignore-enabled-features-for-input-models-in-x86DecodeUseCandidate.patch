@@ -1,0 +1,272 @@
+From 752c74eeae67d41e7550991cb3bbe289984ec9d3 Mon Sep 17 00:00:00 2001
+Message-Id: <752c74eeae67d41e7550991cb3bbe289984ec9d3@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 29 Apr 2022 10:35:02 +0200
+Subject: [PATCH] cpu_x86: Ignore enabled features for input models in
+ x86DecodeUseCandidate
+
+While we don't want to aim for the shortest list of disabled features in
+the baseline result (it would select a very old model), we want to do so
+while looking at any of the input models for which we're trying to
+compute a baseline CPU model. Given a set of input models, we always
+want to take the least capable one of them (i.e., the one with shortest
+list of disabled features) or a better model which is not one of the
+input models.
+
+So when considering an input model, we just check whether its list of
+disabled features is shorter than the currently best one. When looking
+at other models we check both enabled and disabled features while
+penalizing disabled features as implemented by the previous patch.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit bb6cedd2082599323257ee0df18c93a6e0551b0b)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1851227
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu/cpu_x86.c                             | 66 ++++++++++++-------
+ ...4-baseline-Westmere+Nehalem-migratable.xml |  8 ++-
+ ...86_64-baseline-Westmere+Nehalem-result.xml |  8 ++-
+ ...-cpuid-baseline-Cooperlake+Cascadelake.xml | 13 ++--
+ 4 files changed, 64 insertions(+), 31 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index ebcd96edb1..7b59dad8bf 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1975,7 +1975,8 @@ virCPUx86Compare(virCPUDef *host,
+ 
+ static int
+ virCPUx86CompareCandidateFeatureList(virCPUDef *cpuCurrent,
+-                                     virCPUDef *cpuCandidate)
++                                     virCPUDef *cpuCandidate,
++                                     bool isPreferred)
+ {
+     size_t current = cpuCurrent->nfeatures;
+     size_t enabledCurrent = current;
+@@ -2017,6 +2018,14 @@ virCPUx86CompareCandidateFeatureList(virCPUDef *cpuCurrent,
+         return 1;
+     }
+ 
++    if (isPreferred && disabled < disabledCurrent) {
++        VIR_DEBUG("%s is in the list of preferred models and provides fewer "
++                  "disabled features than %s: %zu < %zu",
++                  cpuCandidate->model, cpuCurrent->model,
++                  disabled, disabledCurrent);
++        return 1;
++    }
++
+     VIR_DEBUG("%s is not better than %s: %zu (%zu, %zu) >= %zu (%zu, %zu)",
+               cpuCandidate->model, cpuCurrent->model,
+               candidate, enabled, disabled,
+@@ -2039,8 +2048,10 @@ x86DecodeUseCandidate(virCPUx86Model *current,
+                       virCPUx86Model *candidate,
+                       virCPUDef *cpuCandidate,
+                       uint32_t signature,
+-                      const char *preferred)
++                      const char **preferred)
+ {
++    bool isPreferred = false;
++
+     if (cpuCandidate->type == VIR_CPU_TYPE_HOST &&
+         !candidate->decodeHost) {
+         VIR_DEBUG("%s is not supposed to be used for host CPU definition",
+@@ -2064,9 +2075,13 @@ x86DecodeUseCandidate(virCPUx86Model *current,
+         }
+     }
+ 
+-    if (preferred && STREQ(cpuCandidate->model, preferred)) {
+-        VIR_DEBUG("%s is the preferred model", cpuCandidate->model);
+-        return 2;
++    if (preferred) {
++        isPreferred = g_strv_contains(preferred, cpuCandidate->model);
++
++        if (isPreferred && !preferred[1]) {
++            VIR_DEBUG("%s is the preferred model", cpuCandidate->model);
++            return 2;
++        }
+     }
+ 
+     if (!cpuCurrent) {
+@@ -2093,7 +2108,8 @@ x86DecodeUseCandidate(virCPUx86Model *current,
+         }
+     }
+ 
+-    return virCPUx86CompareCandidateFeatureList(cpuCurrent, cpuCandidate);
++    return virCPUx86CompareCandidateFeatureList(cpuCurrent, cpuCandidate,
++                                                isPreferred);
+ }
+ 
+ 
+@@ -2136,7 +2152,7 @@ static int
+ x86Decode(virCPUDef *cpu,
+           const virCPUx86Data *cpuData,
+           virDomainCapsCPUModels *models,
+-          const char *preferred,
++          const char **preferred,
+           bool migratable)
+ {
+     virCPUx86Map *map;
+@@ -2169,6 +2185,9 @@ x86Decode(virCPUDef *cpu,
+ 
+     x86DataFilterTSX(&data, vendor, map);
+ 
++    if (preferred && !preferred[0])
++        preferred = NULL;
++
+     /* Walk through the CPU models in reverse order to check newest
+      * models first.
+      */
+@@ -2176,16 +2195,18 @@ x86Decode(virCPUDef *cpu,
+         candidate = map->models[i];
+         if (models &&
+             !(hvModel = virDomainCapsCPUModelsGet(models, candidate->name))) {
+-            if (preferred && STREQ(candidate->name, preferred)) {
++            if (preferred &&
++                !preferred[1] &&
++                STREQ(candidate->name, preferred[0])) {
+                 if (cpu->fallback != VIR_CPU_FALLBACK_ALLOW) {
+                     virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                                    _("CPU model %s is not supported by hypervisor"),
+-                                   preferred);
++                                   preferred[0]);
+                     return -1;
+                 } else {
+                     VIR_WARN("Preferred CPU model %s not allowed by"
+                              " hypervisor; closest supported model will be"
+-                             " used", preferred);
++                             " used", preferred[0]);
+                 }
+             } else {
+                 VIR_DEBUG("CPU model %s not allowed by hypervisor; ignoring",
+@@ -2793,8 +2814,8 @@ virCPUx86Baseline(virCPUDef **cpus,
+     size_t i;
+     virCPUx86Vendor *vendor = NULL;
+     bool outputVendor = true;
+-    const char *modelName;
+-    bool matchingNames = true;
++    g_autofree char **modelNames = NULL;
++    size_t namesLen = 0;
+     g_autoptr(virCPUData) featData = NULL;
+ 
+     if (!(map = virCPUx86GetMap()))
+@@ -2816,19 +2837,17 @@ virCPUx86Baseline(virCPUDef **cpus,
+         return NULL;
+     }
+ 
+-    modelName = cpus[0]->model;
++    modelNames = g_new0(char *, ncpus + 1);
++    if (cpus[0]->model)
++        modelNames[namesLen++] = cpus[0]->model;
++
+     for (i = 1; i < ncpus; i++) {
+         g_autoptr(virCPUx86Model) model = NULL;
+         const char *vn = NULL;
+ 
+-        if (matchingNames && cpus[i]->model) {
+-            if (!modelName) {
+-                modelName = cpus[i]->model;
+-            } else if (STRNEQ(modelName, cpus[i]->model)) {
+-                modelName = NULL;
+-                matchingNames = false;
+-            }
+-        }
++        if (cpus[i]->model &&
++            !g_strv_contains((const char **) modelNames, cpus[i]->model))
++            modelNames[namesLen++] = cpus[i]->model;
+ 
+         if (!(model = x86ModelFromCPU(cpus[i], map, -1)))
+             return NULL;
+@@ -2891,10 +2910,11 @@ virCPUx86Baseline(virCPUDef **cpus,
+         virCPUx86DataAddItem(&base_model->data, &vendor->data) < 0)
+         return NULL;
+ 
+-    if (x86Decode(cpu, &base_model->data, models, modelName, migratable) < 0)
++    if (x86Decode(cpu, &base_model->data, models,
++                  (const char **) modelNames, migratable) < 0)
+         return NULL;
+ 
+-    if (STREQ_NULLABLE(cpu->model, modelName))
++    if (namesLen == 1 && STREQ(cpu->model, modelNames[0]))
+         cpu->fallback = VIR_CPU_FALLBACK_FORBID;
+ 
+     if (!outputVendor)
+diff --git a/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-migratable.xml b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-migratable.xml
+index 775a27de2e..f5846b1619 100644
+--- a/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-migratable.xml
++++ b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-migratable.xml
+@@ -1,10 +1,14 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='allow'>SandyBridge</model>
++  <model fallback='allow'>Westmere</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='vme'/>
+   <feature policy='require' name='ss'/>
++  <feature policy='require' name='pclmuldq'/>
+   <feature policy='require' name='pcid'/>
++  <feature policy='require' name='x2apic'/>
++  <feature policy='require' name='tsc-deadline'/>
++  <feature policy='require' name='xsave'/>
+   <feature policy='require' name='osxsave'/>
++  <feature policy='require' name='avx'/>
+   <feature policy='require' name='hypervisor'/>
+-  <feature policy='disable' name='rdtscp'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-result.xml b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-result.xml
+index cafca97d62..166833276c 100644
+--- a/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-result.xml
++++ b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-result.xml
+@@ -1,11 +1,15 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='allow'>SandyBridge</model>
++  <model fallback='allow'>Westmere</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='vme'/>
+   <feature policy='require' name='ss'/>
++  <feature policy='require' name='pclmuldq'/>
+   <feature policy='require' name='pcid'/>
++  <feature policy='require' name='x2apic'/>
++  <feature policy='require' name='tsc-deadline'/>
++  <feature policy='require' name='xsave'/>
+   <feature policy='require' name='osxsave'/>
++  <feature policy='require' name='avx'/>
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='invtsc'/>
+-  <feature policy='disable' name='rdtscp'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml
+index 46c32c996f..ecac749b97 100644
+--- a/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml
+@@ -1,17 +1,22 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='allow'>Cooperlake</model>
++  <model fallback='allow'>Cascadelake-Server</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ss'/>
+   <feature policy='require' name='vmx'/>
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='tsc_adjust'/>
+-  <feature policy='require' name='mpx'/>
+   <feature policy='require' name='umip'/>
++  <feature policy='require' name='pku'/>
+   <feature policy='require' name='md-clear'/>
++  <feature policy='require' name='stibp'/>
++  <feature policy='require' name='arch-capabilities'/>
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='ibpb'/>
+   <feature policy='require' name='amd-ssbd'/>
++  <feature policy='require' name='rdctl-no'/>
++  <feature policy='require' name='ibrs-all'/>
++  <feature policy='require' name='skip-l1dfl-vmentry'/>
++  <feature policy='require' name='mds-no'/>
++  <feature policy='require' name='pschange-mc-no'/>
+   <feature policy='require' name='tsx-ctrl'/>
+-  <feature policy='disable' name='avx512-bf16'/>
+-  <feature policy='disable' name='taa-no'/>
+ </cpu>
+-- 
+2.35.1
+
