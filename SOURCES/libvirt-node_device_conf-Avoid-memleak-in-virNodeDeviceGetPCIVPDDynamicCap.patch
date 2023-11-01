@@ -1,0 +1,55 @@
+From 70bf6394c7241eeb575c0eb5fca1e094670c59f1 Mon Sep 17 00:00:00 2001
+Message-Id: <70bf6394c7241eeb575c0eb5fca1e094670c59f1@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 30 Nov 2022 14:53:21 +0100
+Subject: [PATCH] node_device_conf: Avoid memleak in
+ virNodeDeviceGetPCIVPDDynamicCap()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The virNodeDeviceGetPCIVPDDynamicCap() function is called from
+virNodeDeviceGetPCIDynamicCaps() and therefore has to be a wee
+bit more clever about adding VPD capability. Namely, it has to
+remove the old one before adding a new one. This is how other
+functions called from virNodeDeviceGetPCIDynamicCaps() behave
+as well.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2143235
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 64d32118540aca3d42bc5ee21c8b780cafe04bfa)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2208597
+https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2023-2700
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/conf/node_device_conf.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 16b9497faf..eee94a3900 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -3100,6 +3100,9 @@ virNodeDeviceGetPCIVPDDynamicCap(virNodeDevCapPCIDev *devCapPCIDev)
+     virPCIDeviceAddress devAddr;
+     g_autoptr(virPCIVPDResource) res = NULL;
+ 
++    g_clear_pointer(&devCapPCIDev->vpd, virPCIVPDResourceFree);
++    devCapPCIDev->flags &= ~VIR_NODE_DEV_CAP_FLAG_PCI_VPD;
++
+     devAddr.domain = devCapPCIDev->domain;
+     devAddr.bus = devCapPCIDev->bus;
+     devAddr.slot = devCapPCIDev->slot;
+@@ -3113,8 +3116,6 @@ virNodeDeviceGetPCIVPDDynamicCap(virNodeDevCapPCIDev *devCapPCIDev)
+         if ((res = virPCIDeviceGetVPD(pciDev))) {
+             devCapPCIDev->flags |= VIR_NODE_DEV_CAP_FLAG_PCI_VPD;
+             devCapPCIDev->vpd = g_steal_pointer(&res);
+-        } else {
+-            virPCIVPDResourceFree(g_steal_pointer(&devCapPCIDev->vpd));
+         }
+     }
+     return 0;
+-- 
+2.40.1

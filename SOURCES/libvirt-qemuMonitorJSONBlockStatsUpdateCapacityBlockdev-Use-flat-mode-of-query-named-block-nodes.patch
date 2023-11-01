@@ -1,0 +1,44 @@
+From 932e837b6251071818b6dcd87e5e7ebde9e15308 Mon Sep 17 00:00:00 2001
+Message-Id: <932e837b6251071818b6dcd87e5e7ebde9e15308@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 9 Nov 2022 11:06:25 +0100
+Subject: [PATCH] qemuMonitorJSONBlockStatsUpdateCapacityBlockdev: Use 'flat'
+ mode of query-named-block-nodes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+'query-named-block-nodes' in non-flat mode returns redundantly nested
+data under the 'backing-image' field. Fortunately we don't need it when
+updating the capacity stats.
+
+This function was unfortunately not fixed originally when the support
+for flat mode was added. Use the flat cached in the monitor object to
+force flat mode if available.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit bbd4d4899391b3bd1906cce61a3634f42f4b1bdf)
+
+[8.9.0] https://bugzilla.redhat.com/show_bug.cgi?id=2170472
+[8.8.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181575
+[8.6.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181577
+---
+ src/qemu/qemu_monitor_json.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 7d8755246f..789554e225 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -2679,7 +2679,7 @@ qemuMonitorJSONBlockStatsUpdateCapacityBlockdev(qemuMonitor *mon,
+ {
+     g_autoptr(virJSONValue) nodes = NULL;
+ 
+-    if (!(nodes = qemuMonitorJSONQueryNamedBlockNodes(mon, false)))
++    if (!(nodes = qemuMonitorJSONQueryNamedBlockNodes(mon, mon->queryNamedBlockNodesFlat)))
+         return -1;
+ 
+     if (virJSONValueArrayForeachSteal(nodes,
+-- 
+2.40.1
