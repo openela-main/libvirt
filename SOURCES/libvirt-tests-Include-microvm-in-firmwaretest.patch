@@ -1,0 +1,36 @@
+From a6233b1853d1090e7387ab6dea3cb4e46f1bbe0f Mon Sep 17 00:00:00 2001
+Message-ID: <a6233b1853d1090e7387ab6dea3cb4e46f1bbe0f.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Thu, 18 May 2023 14:57:07 +0200
+Subject: [PATCH] tests: Include microvm in firmwaretest
+
+libvirt doesn't really support the microvm machine type, but
+it can parse the firmware descriptor just fine.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 1b3e9c67e3a2902b882ac2310f4876f5fa48d8f7)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ tests/qemufirmwaretest.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tests/qemufirmwaretest.c b/tests/qemufirmwaretest.c
+index 86c708c7ac..7596c746ab 100644
+--- a/tests/qemufirmwaretest.c
++++ b/tests/qemufirmwaretest.c
+@@ -295,6 +295,9 @@ mymain(void)
+     DO_SUPPORTED_TEST("pc-q35-3.1", VIR_ARCH_I686, false,
+                       "/usr/share/seabios/bios-256k.bin:NULL",
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_BIOS);
++    DO_SUPPORTED_TEST("microvm", VIR_ARCH_X86_64, false,
++                      "/usr/share/edk2/ovmf/MICROVM.fd:NULL",
++                      VIR_DOMAIN_OS_DEF_FIRMWARE_EFI);
+     DO_SUPPORTED_TEST("virt-3.1", VIR_ARCH_AARCH64, false,
+                       "/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.qcow2:/usr/share/edk2/aarch64/vars-template-pflash.qcow2:"
+                       "/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw:/usr/share/edk2/aarch64/vars-template-pflash.raw:"
+-- 
+2.42.0

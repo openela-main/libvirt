@@ -1,0 +1,97 @@
+From 1c1274ab6be81184ca2193a86735e2edb27aee8d Mon Sep 17 00:00:00 2001
+Message-ID: <1c1274ab6be81184ca2193a86735e2edb27aee8d.1689974709.git.jdenemar@redhat.com>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Wed, 5 Jul 2023 08:20:25 +0200
+Subject: [PATCH] qemu: add run-with async-teardown capability
+
+QEMU capability is looking in query-command-line-options response for
+...
+    {
+      "parameters": [
+        {
+          "name": "async-teardown",
+          "type": "boolean"
+        }
+      ],
+      "option": "run-with"
+    }
+...
+allow to use the QEMU option -run-with async-teardown=on|off
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 65c6513811d1cdc7e97319164d7528411520dd0c)
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2168499
+
+Signed-off-by: Boris Fiuczynski <bfiuczyn@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                     | 4 ++++
+ src/qemu/qemu_capabilities.h                     | 3 +++
+ tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml | 1 +
+ 4 files changed, 9 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 7dad7231ee..c9f4b17208 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -694,6 +694,9 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "rbd-encryption-layering", /* QEMU_CAPS_RBD_ENCRYPTION_LAYERING */
+               "rbd-encryption-luks-any", /* QEMU_CAPS_RBD_ENCRYPTION_LUKS_ANY */
+               "qcow2-discard-no-unref", /* QEMU_CAPS_QCOW2_DISCARD_NO_UNREF */
++
++              /* 450 */
++              "run-with.async-teardown", /* QEMU_CAPS_RUN_WITH_ASYNC_TEARDOWN */
+     );
+ 
+ 
+@@ -3369,6 +3372,7 @@ static struct virQEMUCapsCommandLineProps virQEMUCapsCommandLine[] = {
+     { "spice", "gl", QEMU_CAPS_SPICE_GL },
+     { "spice", "rendernode", QEMU_CAPS_SPICE_RENDERNODE },
+     { "vnc", "power-control", QEMU_CAPS_VNC_POWER_CONTROL },
++    { "run-with", "async-teardown", QEMU_CAPS_RUN_WITH_ASYNC_TEARDOWN },
+ };
+ 
+ static int
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index ce545cb2cc..2460fa7fa0 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -674,6 +674,9 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_RBD_ENCRYPTION_LUKS_ANY, /* luks-any (LUKS and LUKS2) encryption format for Ceph RBD */
+     QEMU_CAPS_QCOW2_DISCARD_NO_UNREF, /* qcow2 block driver allows discards without unrefing the sector */
+ 
++    /* 450 */
++    QEMU_CAPS_RUN_WITH_ASYNC_TEARDOWN, /* asynchronous teardown -run-with async-teardown=on|off */
++
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+ 
+diff --git a/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml b/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml
+index 23b5aece15..88c7ac89db 100644
+--- a/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml
+@@ -114,6 +114,7 @@
+   <flag name='virtio-gpu.blob'/>
+   <flag name='rbd-encryption-layering'/>
+   <flag name='rbd-encryption-luks-any'/>
++  <flag name='run-with.async-teardown'/>
+   <version>8000050</version>
+   <microcodeVersion>39100245</microcodeVersion>
+   <package>v8.0.0-1270-g1c12355b</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
+index f717c83fec..475496a8c8 100644
+--- a/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
+@@ -206,6 +206,7 @@
+   <flag name='rbd-encryption-layering'/>
+   <flag name='rbd-encryption-luks-any'/>
+   <flag name='qcow2-discard-no-unref'/>
++  <flag name='run-with.async-teardown'/>
+   <version>8000050</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v8.0.0-1739-g5f9dd6a8ce</package>
+-- 
+2.41.0

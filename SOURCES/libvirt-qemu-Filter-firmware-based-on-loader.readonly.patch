@@ -1,0 +1,340 @@
+From 9b3f3afb21c64dc403fea734b1cb75a8bd2e4fc0 Mon Sep 17 00:00:00 2001
+Message-ID: <9b3f3afb21c64dc403fea734b1cb75a8bd2e4fc0.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 30 May 2023 18:01:58 +0200
+Subject: [PATCH] qemu: Filter firmware based on loader.readonly
+
+If the user included loader.readonly=no in the domain XML, we
+should not pick a firmware build that expects to work with
+loader.readonly=yes.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e96e322725f27d59ebcbd194c8da949b64bab9d6)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_firmware.c                      | 12 ++++++
+ ...-auto-efi-rw-abi-update.x86_64-latest.args | 38 -----------------
+ ...e-auto-efi-rw-abi-update.x86_64-latest.err |  1 +
+ .../firmware-auto-efi-rw.x86_64-latest.args   | 38 -----------------
+ .../firmware-auto-efi-rw.x86_64-latest.err    |  1 +
+ ...ual-efi-rw-legacy-paths.x86_64-latest.args |  6 +--
+ ...ual-efi-rw-modern-paths.x86_64-latest.args |  6 +--
+ tests/qemuxml2argvtest.c                      |  4 +-
+ ...e-auto-efi-rw-abi-update.x86_64-latest.xml | 41 -------------------
+ .../firmware-auto-efi-rw.x86_64-latest.xml    |  8 +---
+ ...nual-efi-rw-legacy-paths.x86_64-latest.xml |  3 +-
+ ...nual-efi-rw-modern-paths.x86_64-latest.xml |  9 +---
+ tests/qemuxml2xmltest.c                       |  1 -
+ 13 files changed, 24 insertions(+), 144 deletions(-)
+ delete mode 100644 tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args
+ create mode 100644 tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.err
+ delete mode 100644 tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args
+ create mode 100644 tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.err
+ delete mode 100644 tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml
+
+diff --git a/src/qemu/qemu_firmware.c b/src/qemu/qemu_firmware.c
+index 2c9a03e6cf..3538654913 100644
+--- a/src/qemu/qemu_firmware.c
++++ b/src/qemu/qemu_firmware.c
+@@ -1295,6 +1295,13 @@ qemuFirmwareMatchDomain(const virDomainDef *def,
+             }
+         }
+ 
++        if (loader &&
++            loader->readonly == VIR_TRISTATE_BOOL_NO &&
++            flash->mode != QEMU_FIRMWARE_FLASH_MODE_COMBINED) {
++            VIR_DEBUG("Discarding readonly loader");
++            return false;
++        }
++
+         if (STRNEQ(flash->executable.format, "raw") &&
+             STRNEQ(flash->executable.format, "qcow2")) {
+             VIR_DEBUG("Discarding loader with unsupported flash format '%s'",
+@@ -1593,6 +1600,11 @@ qemuFirmwareFillDomainLegacy(virQEMUDriver *driver,
+         return 1;
+     }
+ 
++    if (loader->readonly == VIR_TRISTATE_BOOL_NO) {
++        VIR_DEBUG("Ignoring legacy entries for read-write loader");
++        return 1;
++    }
++
+     if (loader->stateless == VIR_TRISTATE_BOOL_YES) {
+         VIR_DEBUG("Ignoring legacy entries for stateless loader");
+         return 1;
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args
+deleted file mode 100644
+index 48f357cbf9..0000000000
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args
++++ /dev/null
+@@ -1,38 +0,0 @@
+-LC_ALL=C \
+-PATH=/bin \
+-HOME=/var/lib/libvirt/qemu/domain--1-guest \
+-USER=test \
+-LOGNAME=test \
+-XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
+-XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
+-XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+-/usr/bin/qemu-system-x86_64 \
+--name guest=guest,debug-threads=on \
+--S \
+--object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+--accel kvm \
+--cpu qemu64 \
+--global driver=cfi.pflash01,property=secure,value=on \
+--m size=1048576k \
+--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
+--overcommit mem-lock=off \
+--smp 1,sockets=1,cores=1,threads=1 \
+--uuid 63840878-0deb-4095-97e6-fc444d9bc9fa \
+--display none \
+--no-user-config \
+--nodefaults \
+--chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
+--mon chardev=charmonitor,id=monitor,mode=control \
+--rtc base=utc \
+--no-shutdown \
+--boot strict=on \
+--audiodev '{"id":"audio1","driver":"none"}' \
+--global ICH9-LPC.noreboot=off \
+--watchdog-action reset \
+--sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+--msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.err b/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.err
+new file mode 100644
+index 0000000000..4cfde1bd2e
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.err
+@@ -0,0 +1 @@
++operation failed: Unable to find any firmware to satisfy 'efi'
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args
+deleted file mode 100644
+index 48f357cbf9..0000000000
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args
++++ /dev/null
+@@ -1,38 +0,0 @@
+-LC_ALL=C \
+-PATH=/bin \
+-HOME=/var/lib/libvirt/qemu/domain--1-guest \
+-USER=test \
+-LOGNAME=test \
+-XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
+-XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
+-XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+-/usr/bin/qemu-system-x86_64 \
+--name guest=guest,debug-threads=on \
+--S \
+--object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+--accel kvm \
+--cpu qemu64 \
+--global driver=cfi.pflash01,property=secure,value=on \
+--m size=1048576k \
+--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
+--overcommit mem-lock=off \
+--smp 1,sockets=1,cores=1,threads=1 \
+--uuid 63840878-0deb-4095-97e6-fc444d9bc9fa \
+--display none \
+--no-user-config \
+--nodefaults \
+--chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
+--mon chardev=charmonitor,id=monitor,mode=control \
+--rtc base=utc \
+--no-shutdown \
+--boot strict=on \
+--audiodev '{"id":"audio1","driver":"none"}' \
+--global ICH9-LPC.noreboot=off \
+--watchdog-action reset \
+--sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+--msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.err b/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.err
+new file mode 100644
+index 0000000000..4cfde1bd2e
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.err
+@@ -0,0 +1 @@
++operation failed: Unable to find any firmware to satisfy 'efi'
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.args
+index ccc279e4e3..85495da6f5 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.args
+@@ -11,10 +11,8 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+ -blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":false,"driver":"raw","file":"libvirt-pflash0-storage"}' \
++-machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,acpi=on \
+ -accel tcg \
+ -cpu qemu64 \
+ -m size=1048576k \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args
+index 2d45fa4792..c26daad29f 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args
+@@ -11,10 +11,8 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+ -blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":false,"driver":"raw","file":"libvirt-pflash0-storage"}' \
++-machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,acpi=on \
+ -accel tcg \
+ -cpu qemu64 \
+ -m size=1048576k \
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index b2d9e00350..370b26a023 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1089,8 +1089,8 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("firmware-auto-efi");
+     DO_TEST_CAPS_LATEST_ABI_UPDATE("firmware-auto-efi-abi-update");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-stateless");
+-    DO_TEST_CAPS_LATEST("firmware-auto-efi-rw");
+-    DO_TEST_CAPS_LATEST_ABI_UPDATE("firmware-auto-efi-rw-abi-update");
++    DO_TEST_CAPS_LATEST_FAILURE("firmware-auto-efi-rw");
++    DO_TEST_CAPS_LATEST_ABI_UPDATE_PARSE_ERROR("firmware-auto-efi-rw-abi-update");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-loader-secure");
+     DO_TEST_CAPS_LATEST_ABI_UPDATE("firmware-auto-efi-loader-secure-abi-update");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-loader-insecure");
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml
+deleted file mode 100644
+index 332d931ba1..0000000000
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml
++++ /dev/null
+@@ -1,41 +0,0 @@
+-<domain type='kvm'>
+-  <name>guest</name>
+-  <uuid>63840878-0deb-4095-97e6-fc444d9bc9fa</uuid>
+-  <memory unit='KiB'>1048576</memory>
+-  <currentMemory unit='KiB'>1048576</currentMemory>
+-  <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
+-    <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='yes' name='enrolled-keys'/>
+-      <feature enabled='yes' name='secure-boot'/>
+-    </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+-    <boot dev='hd'/>
+-  </os>
+-  <features>
+-    <acpi/>
+-    <smm state='on'/>
+-  </features>
+-  <cpu mode='custom' match='exact' check='none'>
+-    <model fallback='forbid'>qemu64</model>
+-  </cpu>
+-  <clock offset='utc'/>
+-  <on_poweroff>destroy</on_poweroff>
+-  <on_reboot>restart</on_reboot>
+-  <on_crash>destroy</on_crash>
+-  <devices>
+-    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+-    <controller type='usb' index='0' model='none'/>
+-    <controller type='sata' index='0'>
+-      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
+-    </controller>
+-    <controller type='pci' index='0' model='pcie-root'/>
+-    <input type='mouse' bus='ps2'/>
+-    <input type='keyboard' bus='ps2'/>
+-    <audio id='1' type='none'/>
+-    <watchdog model='itco' action='reset'/>
+-    <memballoon model='none'/>
+-  </devices>
+-</domain>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml
+index 332d931ba1..c2d0c33a0b 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml
+@@ -6,17 +6,11 @@
+   <vcpu placement='static'>1</vcpu>
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='yes' name='enrolled-keys'/>
+-      <feature enabled='yes' name='secure-boot'/>
+-    </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='no'/>
+     <boot dev='hd'/>
+   </os>
+   <features>
+     <acpi/>
+-    <smm state='on'/>
+   </features>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml
+index cfd7a6824f..c5baedc42c 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml
+@@ -6,8 +6,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='no' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml
+index 468ca022ef..0d755a4306 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml
+@@ -4,14 +4,9 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
++  <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
+-    </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='no' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index d3d4e4e585..3f2ef10df7 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -901,7 +901,6 @@ mymain(void)
+     DO_TEST_CAPS_LATEST_ABI_UPDATE("firmware-auto-efi-abi-update");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-stateless");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-rw");
+-    DO_TEST_CAPS_LATEST_ABI_UPDATE("firmware-auto-efi-rw-abi-update");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-loader-secure");
+     DO_TEST_CAPS_LATEST_ABI_UPDATE("firmware-auto-efi-loader-secure-abi-update");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-loader-insecure");
+-- 
+2.42.0

@@ -1,0 +1,178 @@
+From 6dbe828752378e2215d4fd4fca65c94372ad0cf2 Mon Sep 17 00:00:00 2001
+Message-ID: <6dbe828752378e2215d4fd4fca65c94372ad0cf2.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 30 May 2023 18:24:40 +0200
+Subject: [PATCH] qemu: Match NVRAM template extension for new domains
+
+Keep things consistent by using the same file extension for the
+generated NVRAM path as the NVRAM template.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit b845e376a45a8e93f933a4a41068a9ce27adf755)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_domain.c                        |  2 +-
+ src/qemu/qemu_firmware.c                      | 32 ++++++++++++++++---
+ src/qemu/qemu_firmware.h                      |  3 +-
+ src/qemu/qemu_process.c                       |  2 +-
+ ...-loader-raw-abi-update.aarch64-latest.args |  2 +-
+ ...t-loader-raw-abi-update.aarch64-latest.xml |  2 +-
+ 6 files changed, 33 insertions(+), 10 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 94587638c3..3bb3e5fdfa 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -4505,7 +4505,7 @@ qemuDomainDefBootPostParse(virDomainDef *def,
+      * to start the domain, qemuFirmwareFillDomain() will be run
+      * again, fail in the same way, and at that point we'll have a
+      * chance to inform the user of any issues */
+-    if (qemuFirmwareFillDomain(driver, def) < 0) {
++    if (qemuFirmwareFillDomain(driver, def, abiUpdate) < 0) {
+         if (abiUpdate) {
+             return -1;
+         } else {
+diff --git a/src/qemu/qemu_firmware.c b/src/qemu/qemu_firmware.c
+index 3538654913..ebaf32cf71 100644
+--- a/src/qemu/qemu_firmware.c
++++ b/src/qemu/qemu_firmware.c
+@@ -32,6 +32,7 @@
+ #include "virlog.h"
+ #include "viralloc.h"
+ #include "virenum.h"
++#include "virstring.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_QEMU
+ 
+@@ -1054,6 +1055,7 @@ qemuFirmwareOSInterfaceTypeFromOsDefLoaderType(virDomainLoader type)
+  * qemuFirmwareEnsureNVRAM:
+  * @def: domain definition
+  * @driver: QEMU driver
++ * @abiUpdate: whether a new domain is being defined
+  *
+  * Make sure that a source for the NVRAM file exists, possibly by
+  * creating it. This might involve automatically generating the
+@@ -1061,7 +1063,8 @@ qemuFirmwareOSInterfaceTypeFromOsDefLoaderType(virDomainLoader type)
+  */
+ static void
+ qemuFirmwareEnsureNVRAM(virDomainDef *def,
+-                        virQEMUDriver *driver)
++                        virQEMUDriver *driver,
++                        bool abiUpdate)
+ {
+     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+     virDomainLoaderDef *loader = def->os.loader;
+@@ -1091,8 +1094,25 @@ qemuFirmwareEnsureNVRAM(virDomainDef *def,
+     loader->nvram->type = VIR_STORAGE_TYPE_FILE;
+     loader->nvram->format = loader->format;
+ 
+-    if (loader->nvram->format == VIR_STORAGE_FILE_RAW)
+-        ext = ".fd";
++    if (loader->nvram->format == VIR_STORAGE_FILE_RAW) {
++        /* The extension used by raw edk2 builds has historically
++         * been .fd, but more recent aarch64 builds have started
++         * using the .raw extension instead.
++         *
++         * If we're defining a new domain, we should try to match the
++         * extension for the file backing its NVRAM store with the
++         * one used by the template to keep things nice and
++         * consistent.
++         *
++         * If we're loading an existing domain, however, we need to
++         * stick with the .fd extension to ensure compatibility */
++        if (abiUpdate &&
++            loader->nvramTemplate &&
++            virStringHasSuffix(loader->nvramTemplate, ".raw"))
++            ext = ".raw";
++        else
++            ext = ".fd";
++    }
+     if (loader->nvram->format == VIR_STORAGE_FILE_QCOW2)
+         ext = ".qcow2";
+ 
+@@ -1729,6 +1749,7 @@ qemuFirmwareFillDomainModern(virQEMUDriver *driver,
+  * qemuFirmwareFillDomain:
+  * @driver: QEMU driver
+  * @def: domain definition
++ * @abiUpdate: whether a new domain is being defined
+  *
+  * Perform firmware selection.
+  *
+@@ -1752,7 +1773,8 @@ qemuFirmwareFillDomainModern(virQEMUDriver *driver,
+  */
+ int
+ qemuFirmwareFillDomain(virQEMUDriver *driver,
+-                       virDomainDef *def)
++                       virDomainDef *def,
++                       bool abiUpdate)
+ {
+     virDomainLoaderDef *loader = def->os.loader;
+     virStorageSource *nvram = loader ? loader->nvram : NULL;
+@@ -1822,7 +1844,7 @@ qemuFirmwareFillDomain(virQEMUDriver *driver,
+     /* Always ensure that the NVRAM path is present, even if we
+      * haven't found a match: the configuration might simply be
+      * referring to a custom firmware build */
+-    qemuFirmwareEnsureNVRAM(def, driver);
++    qemuFirmwareEnsureNVRAM(def, driver, abiUpdate);
+ 
+     return 0;
+ }
+diff --git a/src/qemu/qemu_firmware.h b/src/qemu/qemu_firmware.h
+index 1ce0920713..39572d979d 100644
+--- a/src/qemu/qemu_firmware.h
++++ b/src/qemu/qemu_firmware.h
+@@ -44,7 +44,8 @@ qemuFirmwareFetchConfigs(char ***firmwares,
+ 
+ int
+ qemuFirmwareFillDomain(virQEMUDriver *driver,
+-                       virDomainDef *def);
++                       virDomainDef *def,
++                       bool abiUpdate);
+ 
+ int
+ qemuFirmwareGetSupported(const char *machine,
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index db06991450..32fe46dae8 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6706,7 +6706,7 @@ qemuProcessPrepareDomain(virQEMUDriver *driver,
+         return -1;
+ 
+     VIR_DEBUG("Prepare bios/uefi paths");
+-    if (qemuFirmwareFillDomain(driver, vm->def) < 0)
++    if (qemuFirmwareFillDomain(driver, vm->def, false) < 0)
+         return -1;
+     if (qemuDomainInitializePflashStorageSource(vm, cfg) < 0)
+         return -1;
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args
+index eb5cd8d5fc..3e319a29bf 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+ -blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.raw","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+ -machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml
+index 38c680fabd..ee22b16831 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml
+@@ -11,7 +11,7 @@
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+     <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
+-    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+-- 
+2.42.0

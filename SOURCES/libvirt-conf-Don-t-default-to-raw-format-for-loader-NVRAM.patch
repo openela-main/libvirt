@@ -1,0 +1,392 @@
+From 7708f08af4581f11d9bc3c3cdf858e55ebdb5a6c Mon Sep 17 00:00:00 2001
+Message-ID: <7708f08af4581f11d9bc3c3cdf858e55ebdb5a6c.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 16 May 2023 19:50:50 +0200
+Subject: [PATCH] conf: Don't default to raw format for loader/NVRAM
+
+Due to the way the information is stored by the XML parser, we've
+had this quirk where specifying any information about the loader
+or NVRAM would implicitly set its format to raw. That is,
+
+  <nvram>/path/to/guest_VARS.fd</nvram>
+
+would effectively be interpreted as
+
+  <nvram format='raw'>/path/to/guest_VARS.fd</nvram>
+
+forcing the use of raw format firmware even when qcow2 format
+would normally be preferred based on the ordering of firmware
+descriptors. This behavior can be worked around in a number of
+ways, but it's fairly unintuitive.
+
+In order to remove this quirk, move the selection of the default
+firmware format from the parser down to the individual drivers.
+
+Most drivers only support raw firmware images, so they can
+unconditionally set the format early and be done with it; the
+QEMU driver, however, supports multiple formats and so in that
+case we want this default to be applied as late as possible,
+when we have already ruled out the possibility of using qcow2
+formatted firmware images.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 10a8997cbb402f7edb9f970af70feee2fc256a1c)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/bhyve/bhyve_firmware.c                    |  3 ++
+ src/conf/domain_conf.c                        | 21 ++++++----
+ src/libxl/libxl_conf.c                        | 15 +++++---
+ src/libxl/xen_xl.c                            |  2 +
+ src/libxl/xen_xm.c                            |  1 +
+ src/qemu/qemu_firmware.c                      | 27 +++++++++++--
+ ...uto-efi-format-mismatch.x86_64-latest.args | 38 +++++++++++++++++++
+ ...auto-efi-format-mismatch.x86_64-latest.err |  1 -
+ .../firmware-auto-efi-format-mismatch.xml     |  2 +-
+ ...oader-secure-abi-update.x86_64-latest.args |  8 ++--
+ tests/qemuxml2argvtest.c                      |  2 +-
+ ...loader-secure-abi-update.x86_64-latest.xml |  4 +-
+ 12 files changed, 98 insertions(+), 26 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.args
+ delete mode 100644 tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.err
+
+diff --git a/src/bhyve/bhyve_firmware.c b/src/bhyve/bhyve_firmware.c
+index 57ab9c7a82..8aaf05dc62 100644
+--- a/src/bhyve/bhyve_firmware.c
++++ b/src/bhyve/bhyve_firmware.c
+@@ -80,6 +80,9 @@ bhyveFirmwareFillDomain(bhyveConn *driver,
+     if (!def->os.loader)
+         def->os.loader = virDomainLoaderDefNew();
+ 
++    if (!def->os.loader->format)
++        def->os.loader->format = VIR_STORAGE_FILE_RAW;
++
+     if (def->os.loader->format != VIR_STORAGE_FILE_RAW) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                        _("Unsupported loader format '%1$s'"),
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 5ac5c0b771..8fa0a6dc73 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -3728,7 +3728,6 @@ virDomainLoaderDefNew(void)
+     virDomainLoaderDef *def = NULL;
+ 
+     def = g_new0(virDomainLoaderDef, 1);
+-    def->format = VIR_STORAGE_FILE_RAW;
+ 
+     return def;
+ }
+@@ -16771,10 +16770,11 @@ virDomainLoaderDefParseXMLNvram(virDomainLoaderDef *loader,
+ 
+     if (virXMLPropEnumDefault(nvramNode, "format",
+                               virStorageFileFormatTypeFromString, VIR_XML_PROP_NONE,
+-                              &format, VIR_STORAGE_FILE_RAW) < 0) {
++                              &format, VIR_STORAGE_FILE_NONE) < 0) {
+         return -1;
+     }
+-    if (format != VIR_STORAGE_FILE_RAW &&
++    if (format &&
++        format != VIR_STORAGE_FILE_RAW &&
+         format != VIR_STORAGE_FILE_QCOW2) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("Unsupported nvram format '%1$s'"),
+@@ -16860,10 +16860,11 @@ virDomainLoaderDefParseXMLLoader(virDomainLoaderDef *loader,
+ 
+     if (virXMLPropEnumDefault(loaderNode, "format",
+                               virStorageFileFormatTypeFromString, VIR_XML_PROP_NONE,
+-                              &format, VIR_STORAGE_FILE_RAW) < 0) {
++                              &format, VIR_STORAGE_FILE_NONE) < 0) {
+         return -1;
+     }
+-    if (format != VIR_STORAGE_FILE_RAW &&
++    if (format &&
++        format != VIR_STORAGE_FILE_RAW &&
+         format != VIR_STORAGE_FILE_QCOW2) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("Unsupported loader format '%1$s'"),
+@@ -16894,7 +16895,9 @@ virDomainLoaderDefParseXML(virDomainLoaderDef *loader,
+                                          loaderNode) < 0)
+         return -1;
+ 
+-    if (loader->nvram && loader->format != loader->nvram->format) {
++    if (loader->nvram &&
++        loader->format && loader->nvram->format &&
++        loader->format != loader->nvram->format) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("Format mismatch: loader.format='%1$s' nvram.format='%2$s'"),
+                        virStorageFileFormatTypeToString(loader->format),
+@@ -26224,7 +26227,8 @@ virDomainLoaderDefFormatNvram(virBuffer *buf,
+                 return -1;
+         }
+ 
+-        if (src->format != VIR_STORAGE_FILE_RAW) {
++        if (src->format &&
++            src->format != VIR_STORAGE_FILE_RAW) {
+             virBufferEscapeString(&attrBuf, " format='%s'",
+                                   virStorageFileFormatTypeToString(src->format));
+         }
+@@ -26262,7 +26266,8 @@ virDomainLoaderDefFormat(virBuffer *buf,
+                           virTristateBoolTypeToString(loader->stateless));
+     }
+ 
+-    if (loader->format != VIR_STORAGE_FILE_RAW) {
++    if (loader->format &&
++        loader->format != VIR_STORAGE_FILE_RAW) {
+         virBufferEscapeString(&loaderAttrBuf, " format='%s'",
+                               virStorageFileFormatTypeToString(loader->format));
+     }
+diff --git a/src/libxl/libxl_conf.c b/src/libxl/libxl_conf.c
+index a1c76935b6..14ad320023 100644
+--- a/src/libxl/libxl_conf.c
++++ b/src/libxl/libxl_conf.c
+@@ -654,11 +654,16 @@ libxlMakeDomBuildInfo(virDomainDef *def,
+             b_info->u.hvm.system_firmware = g_strdup(def->os.loader->path);
+         }
+ 
+-        if (def->os.loader && def->os.loader->format != VIR_STORAGE_FILE_RAW) {
+-            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-                           _("Unsupported loader format '%1$s'"),
+-                           virStorageFileFormatTypeToString(def->os.loader->format));
+-            return -1;
++        if (def->os.loader) {
++            if (!def->os.loader->format)
++                def->os.loader->format = VIR_STORAGE_FILE_RAW;
++
++            if (def->os.loader->format != VIR_STORAGE_FILE_RAW) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                               _("Unsupported loader format '%1$s'"),
++                               virStorageFileFormatTypeToString(def->os.loader->format));
++                return -1;
++            }
+         }
+ 
+         if (def->emulator) {
+diff --git a/src/libxl/xen_xl.c b/src/libxl/xen_xl.c
+index 1cc42fa59f..ab1941454d 100644
+--- a/src/libxl/xen_xl.c
++++ b/src/libxl/xen_xl.c
+@@ -115,6 +115,7 @@ xenParseXLOS(virConf *conf, virDomainDef *def, virCaps *caps)
+ 
+         if (bios && STREQ(bios, "ovmf")) {
+             def->os.loader = virDomainLoaderDefNew();
++            def->os.loader->format = VIR_STORAGE_FILE_RAW;
+             def->os.loader->type = VIR_DOMAIN_LOADER_TYPE_PFLASH;
+             def->os.loader->readonly = VIR_TRISTATE_BOOL_YES;
+             if (bios_path)
+@@ -126,6 +127,7 @@ xenParseXLOS(virConf *conf, virDomainDef *def, virCaps *caps)
+                 if (caps->guests[i]->ostype == VIR_DOMAIN_OSTYPE_HVM &&
+                     caps->guests[i]->arch.id == def->os.arch) {
+                     def->os.loader = virDomainLoaderDefNew();
++                    def->os.loader->format = VIR_STORAGE_FILE_RAW;
+                     def->os.loader->path = g_strdup(caps->guests[i]->arch.defaultInfo.loader);
+                 }
+             }
+diff --git a/src/libxl/xen_xm.c b/src/libxl/xen_xm.c
+index 0031d6cbc6..5705a5ec0c 100644
+--- a/src/libxl/xen_xm.c
++++ b/src/libxl/xen_xm.c
+@@ -43,6 +43,7 @@ xenParseXMOS(virConf *conf, virDomainDef *def)
+         g_autofree char *boot = NULL;
+ 
+         def->os.loader = virDomainLoaderDefNew();
++        def->os.loader->format = VIR_STORAGE_FILE_RAW;
+ 
+         if (xenConfigCopyString(conf, "kernel", &def->os.loader->path) < 0)
+             return -1;
+diff --git a/src/qemu/qemu_firmware.c b/src/qemu/qemu_firmware.c
+index ebaf32cf71..3dcd139a47 100644
+--- a/src/qemu/qemu_firmware.c
++++ b/src/qemu/qemu_firmware.c
+@@ -1082,6 +1082,11 @@ qemuFirmwareEnsureNVRAM(virDomainDef *def,
+     if (loader->stateless == VIR_TRISTATE_BOOL_YES)
+         return;
+ 
++    /* If the NVRAM format hasn't been set yet, inherit the same as
++     * the loader */
++    if (loader->nvram && !loader->nvram->format)
++        loader->nvram->format = loader->format;
++
+     /* If the source already exists and is fully specified, including
+      * the path, leave it alone */
+     if (loader->nvram && loader->nvram->path)
+@@ -1328,7 +1333,7 @@ qemuFirmwareMatchDomain(const virDomainDef *def,
+                       flash->executable.format);
+             return false;
+         }
+-        if (loader &&
++        if (loader && loader->format &&
+             STRNEQ(flash->executable.format, virStorageFileFormatTypeToString(loader->format))) {
+             VIR_DEBUG("Discarding loader with mismatching flash format '%s' != '%s'",
+                       flash->executable.format,
+@@ -1342,7 +1347,7 @@ qemuFirmwareMatchDomain(const virDomainDef *def,
+                           flash->nvram_template.format);
+                 return false;
+             }
+-            if (loader && loader->nvram &&
++            if (loader && loader->nvram && loader->nvram->format &&
+                 STRNEQ(flash->nvram_template.format, virStorageFileFormatTypeToString(loader->nvram->format))) {
+                 VIR_DEBUG("Discarding loader with mismatching nvram template format '%s' != '%s'",
+                           flash->nvram_template.format,
+@@ -1630,7 +1635,8 @@ qemuFirmwareFillDomainLegacy(virQEMUDriver *driver,
+         return 1;
+     }
+ 
+-    if (loader->format != VIR_STORAGE_FILE_RAW) {
++    if (loader->format &&
++        loader->format != VIR_STORAGE_FILE_RAW) {
+         VIR_DEBUG("Ignoring legacy entries for loader with flash format '%s'",
+                   virStorageFileFormatTypeToString(loader->format));
+         return 1;
+@@ -1793,6 +1799,7 @@ qemuFirmwareFillDomain(virQEMUDriver *driver,
+         return -1;
+ 
+     if (loader &&
++        loader->format &&
+         loader->format != VIR_STORAGE_FILE_RAW &&
+         loader->format != VIR_STORAGE_FILE_QCOW2) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+@@ -1801,6 +1808,7 @@ qemuFirmwareFillDomain(virQEMUDriver *driver,
+         return -1;
+     }
+     if (nvram &&
++        nvram->format &&
+         nvram->format != VIR_STORAGE_FILE_RAW &&
+         nvram->format != VIR_STORAGE_FILE_QCOW2) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+@@ -1831,8 +1839,19 @@ qemuFirmwareFillDomain(virQEMUDriver *driver,
+          * CODE:NVRAM pairs that might have been provided at build
+          * time */
+         if (!autoSelection) {
+-            if (qemuFirmwareFillDomainLegacy(driver, def) < 0)
++            if ((ret = qemuFirmwareFillDomainLegacy(driver, def)) < 0)
+                 return -1;
++
++            /* If we've gotten this far without finding a match, it
++             * means that we're dealing with a set of completely
++             * custom paths. In that case, unless the user has
++             * specified otherwise, we have to assume that they're in
++             * raw format */
++            if (ret == 1) {
++                if (loader && !loader->format) {
++                    loader->format = VIR_STORAGE_FILE_RAW;
++                }
++            }
+         } else {
+             virReportError(VIR_ERR_OPERATION_FAILED,
+                            _("Unable to find any firmware to satisfy '%1$s'"),
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.args
+new file mode 100644
+index 0000000000..e8d7d580f7
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.args
+@@ -0,0 +1,38 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-guest \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
++/usr/bin/qemu-system-x86_64 \
++-name guest=guest,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/path/to/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
++-machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-accel kvm \
++-cpu qemu64 \
++-global driver=cfi.pflash01,property=secure,value=on \
++-m size=1048576k \
++-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
++-overcommit mem-lock=off \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid 63840878-0deb-4095-97e6-fc444d9bc9fa \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-global ICH9-LPC.noreboot=off \
++-watchdog-action reset \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.err b/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.err
+deleted file mode 100644
+index abfdfc4357..0000000000
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.err
++++ /dev/null
+@@ -1 +0,0 @@
+-XML error: Format mismatch: loader.format='qcow2' nvram.format='raw'
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.xml b/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.xml
+index 6613d9e9a9..75fa44fd20 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.xml
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.xml
+@@ -6,7 +6,7 @@
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <loader format='qcow2'/>
+-    <nvram>/path/to/guest_VARS.fd</nvram>
++    <nvram>/path/to/guest_VARS.qcow2</nvram>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args
+index 48f357cbf9..790fb619e8 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args
+@@ -10,10 +10,10 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+ -machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+ -accel kvm \
+ -cpu qemu64 \
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 370b26a023..9439a5a1e6 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1117,7 +1117,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2-network-nbd");
+     DO_TEST_CAPS_ARCH_LATEST("firmware-auto-efi-format-loader-raw", "aarch64");
+     DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE("firmware-auto-efi-format-loader-raw-abi-update", "aarch64");
+-    DO_TEST_CAPS_LATEST_PARSE_ERROR("firmware-auto-efi-format-mismatch");
++    DO_TEST_CAPS_LATEST("firmware-auto-efi-format-mismatch");
+ 
+     DO_TEST_NOCAPS("clock-utc");
+     DO_TEST_NOCAPS("clock-localtime");
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml
+index 332d931ba1..f4ff7a0fc2 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+-- 
+2.42.0

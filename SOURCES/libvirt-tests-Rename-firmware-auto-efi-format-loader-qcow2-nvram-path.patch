@@ -1,0 +1,117 @@
+From b262d1dfbdbc8bb6c57bf4f6053dada37691ceab Mon Sep 17 00:00:00 2001
+Message-ID: <b262d1dfbdbc8bb6c57bf4f6053dada37691ceab.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Thu, 3 Aug 2023 15:19:59 +0200
+Subject: [PATCH] tests: Rename
+ firmware-auto-efi-format-loader-qcow2-nvram-path
+
+Now that, after the recent changes, the test passes, its old
+name is no longer accurate.
+
+While at it, enable the xml2xml part for it as well.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 48e5fe7af43b291e98a6c57cb8830e0adff49d6f)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ ...oader-qcow2-nvram-path.x86_64-latest.args} |  0
+ ...to-efi-format-loader-qcow2-nvram-path.xml} |  0
+ tests/qemuxml2argvtest.c                      |  2 +-
+ ...-loader-qcow2-nvram-path.x86_64-latest.xml | 41 +++++++++++++++++++
+ tests/qemuxml2xmltest.c                       |  1 +
+ 5 files changed, 43 insertions(+), 1 deletion(-)
+ rename tests/qemuxml2argvdata/{firmware-auto-efi-format-mismatch.x86_64-latest.args => firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.args} (100%)
+ rename tests/qemuxml2argvdata/{firmware-auto-efi-format-mismatch.xml => firmware-auto-efi-format-loader-qcow2-nvram-path.xml} (100%)
+ create mode 100644 tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.xml
+
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.args
+similarity index 100%
+rename from tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.x86_64-latest.args
+rename to tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.args
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.xml b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2-nvram-path.xml
+similarity index 100%
+rename from tests/qemuxml2argvdata/firmware-auto-efi-format-mismatch.xml
+rename to tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2-nvram-path.xml
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 9439a5a1e6..cc3345f5b1 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1112,12 +1112,12 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-nvram-network-iscsi");
+ 
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-loader-qcow2");
++    DO_TEST_CAPS_LATEST("firmware-auto-efi-format-loader-qcow2-nvram-path");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2-path");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2-network-nbd");
+     DO_TEST_CAPS_ARCH_LATEST("firmware-auto-efi-format-loader-raw", "aarch64");
+     DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE("firmware-auto-efi-format-loader-raw-abi-update", "aarch64");
+-    DO_TEST_CAPS_LATEST("firmware-auto-efi-format-mismatch");
+ 
+     DO_TEST_NOCAPS("clock-utc");
+     DO_TEST_NOCAPS("clock-localtime");
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.xml
+new file mode 100644
+index 0000000000..49fdfc5c5f
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2-nvram-path.x86_64-latest.xml
+@@ -0,0 +1,41 @@
++<domain type='kvm'>
++  <name>guest</name>
++  <uuid>63840878-0deb-4095-97e6-fc444d9bc9fa</uuid>
++  <memory unit='KiB'>1048576</memory>
++  <currentMemory unit='KiB'>1048576</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os firmware='efi'>
++    <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
++    <firmware>
++      <feature enabled='yes' name='enrolled-keys'/>
++      <feature enabled='yes' name='secure-boot'/>
++    </firmware>
++    <loader readonly='yes' secure='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2' format='qcow2'>/path/to/guest_VARS.qcow2</nvram>
++    <boot dev='hd'/>
++  </os>
++  <features>
++    <acpi/>
++    <smm state='on'/>
++  </features>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu64</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0' model='none'/>
++    <controller type='sata' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
++    </controller>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <audio id='1' type='none'/>
++    <watchdog model='itco' action='reset'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 3f2ef10df7..c210673e39 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -921,6 +921,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-nvram-network-iscsi");
+ 
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-loader-qcow2");
++    DO_TEST_CAPS_LATEST("firmware-auto-efi-format-loader-qcow2-nvram-path");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2-path");
+     DO_TEST_CAPS_LATEST("firmware-auto-efi-format-nvram-qcow2-network-nbd");
+-- 
+2.42.0
