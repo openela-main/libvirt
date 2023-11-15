@@ -1,0 +1,72 @@
+From fa7cff4e684ededd184976d4fdf217cc155825b8 Mon Sep 17 00:00:00 2001
+Message-Id: <fa7cff4e684ededd184976d4fdf217cc155825b8@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 31 Jan 2022 12:55:47 +0100
+Subject: [PATCH] qemu: Validate domain definition even on migration
+
+When we are about to spawn QEMU, we validate the domain
+definition against qemuCaps. Except when domain is/was already
+running before (i.e. on incoming migration, snapshots, resume
+from a file). However, especially on incoming migration it may
+happen that the destination QEMU is different to the source
+QEMU, e.g. the destination QEMU may have some devices disabled.
+
+And we have a function that validates devices/features requested
+in domain XML against the desired QEMU capabilities (aka
+qemuCaps) - it's virDomainDefValidate() which calls
+qemuValidateDomainDef() and qemuValidateDomainDeviceDef()
+subsequently.
+
+But the problem here is that the validation function is
+explicitly skipped over in specific scenarios (like incoming
+migration, restore from a snapshot or previously saved file).
+
+This in turn means that we may spawn QEMU and request
+device/features it doesn't support. When that happens QEMU fails
+to load migration stream:
+
+  qemu-kvm: ... 'virtio-mem-pci' is not a valid device model name
+
+(NB, while the example shows one particular device, the problem
+is paramount)
+
+This problem is easier to run into since we are slowly moving
+validation from qemu_command.c into said validation functions.
+
+The solution is simple: do the validation in all cases. And while
+it may happen that users would be unable to migrate/restore a
+guest due to a bug in our validator, spawning QEMU without
+validation is worse (especially when you consider that users can
+supply their own XMLs for migrate/restore operations - these were
+never validated).
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2048435
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 517b8c12b98d7ac0bb4d582e0b491d50d776eb6d)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2050702
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_process.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 5c9ca0fe4f..5c6657a876 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5411,11 +5411,7 @@ qemuProcessStartValidate(virQEMUDriver *driver,
+ 
+     }
+ 
+-    /* Checks below should not be executed when starting a qemu process for a
+-     * VM that was running before (migration, snapshots, save). It's more
+-     * important to start such VM than keep the configuration clean */
+-    if ((flags & VIR_QEMU_PROCESS_START_NEW) &&
+-        virDomainDefValidate(vm->def, 0, driver->xmlopt, qemuCaps) < 0)
++    if (virDomainDefValidate(vm->def, 0, driver->xmlopt, qemuCaps) < 0)
+         return -1;
+ 
+     if (qemuProcessStartValidateGraphics(vm) < 0)
+-- 
+2.35.1
+

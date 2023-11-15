@@ -1,0 +1,77 @@
+From 08ddc711a2e6d94a0fce55fec8e012a434655d2c Mon Sep 17 00:00:00 2001
+Message-ID: <08ddc711a2e6d94a0fce55fec8e012a434655d2c.1690812875.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 1 Apr 2022 14:30:05 +0200
+Subject: [PATCH] lib: Set up cpuset controller for restrictive numatune
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The aim of 'restrictive' numatune mode is to rely solely on
+CGroups to have QEMU running on configured NUMA nodes.  However,
+we were never setting the cpuset controller when a domain was
+starting up. We are doing so only when
+virDomainSetNumaParameters() is called (aka live pinning).
+
+This is obviously wrong. Fortunately, fix is simple as
+'restrictive' is similar to 'strict' - every location where
+VIR_DOMAIN_NUMATUNE_MEM_STRICT occurs can be audited and
+VIR_DOMAIN_NUMATUNE_MEM_RESTRICTIVE case can be added.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2070380
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 629282d8845407c1aff9a26f5dc026e15121f8cd)
+
+Conflicts:
+- src/ch/ch_process.c: The CH driver diverged because it's
+  unsupported downstream. Just drop the conflicting hunk from
+  there.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2223464
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/lxc/lxc_controller.c | 3 ++-
+ src/qemu/qemu_process.c  | 6 ++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/lxc/lxc_controller.c b/src/lxc/lxc_controller.c
+index 3c930eaacd..6fd8373256 100644
+--- a/src/lxc/lxc_controller.c
++++ b/src/lxc/lxc_controller.c
+@@ -812,7 +812,8 @@ static int virLXCControllerSetupResourceLimits(virLXCController *ctrl)
+     virDomainNumatuneMemMode mode;
+ 
+     if (virDomainNumatuneGetMode(ctrl->def->numa, -1, &mode) == 0) {
+-        if (mode == VIR_DOMAIN_NUMATUNE_MEM_STRICT &&
++        if ((mode == VIR_DOMAIN_NUMATUNE_MEM_STRICT ||
++             mode == VIR_DOMAIN_NUMATUNE_MEM_RESTRICTIVE) &&
+             virCgroupControllerAvailable(VIR_CGROUP_CONTROLLER_CPUSET)) {
+             /* Use virNuma* API iff necessary. Once set and child is exec()-ed,
+              * there's no way for us to change it. Rely on cgroups (if available
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 0fb665bc82..73d54f01cd 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -2645,7 +2645,8 @@ qemuProcessSetupPid(virDomainObj *vm,
+         virCgroupHasController(priv->cgroup, VIR_CGROUP_CONTROLLER_CPUSET)) {
+ 
+         if (virDomainNumatuneGetMode(vm->def->numa, -1, &mem_mode) == 0 &&
+-            mem_mode == VIR_DOMAIN_NUMATUNE_MEM_STRICT &&
++            (mem_mode == VIR_DOMAIN_NUMATUNE_MEM_STRICT ||
++             mem_mode == VIR_DOMAIN_NUMATUNE_MEM_RESTRICTIVE) &&
+             virDomainNumatuneMaybeFormatNodeset(vm->def->numa,
+                                                 priv->autoNodeset,
+                                                 &mem_mask, -1) < 0)
+@@ -3162,7 +3163,8 @@ static int qemuProcessHook(void *data)
+         goto cleanup;
+ 
+     if (virDomainNumatuneGetMode(h->vm->def->numa, -1, &mode) == 0) {
+-        if (mode == VIR_DOMAIN_NUMATUNE_MEM_STRICT &&
++        if ((mode == VIR_DOMAIN_NUMATUNE_MEM_STRICT ||
++             mode == VIR_DOMAIN_NUMATUNE_MEM_RESTRICTIVE) &&
+             h->cfg->cgroupControllers & (1 << VIR_CGROUP_CONTROLLER_CPUSET) &&
+             virCgroupControllerAvailable(VIR_CGROUP_CONTROLLER_CPUSET)) {
+             /* Use virNuma* API iff necessary. Once set and child is exec()-ed,
+-- 
+2.41.0

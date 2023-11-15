@@ -1,0 +1,80 @@
+From 20c1c86f96dd7293734888ef6f8b75c11cda5fae Mon Sep 17 00:00:00 2001
+Message-Id: <20c1c86f96dd7293734888ef6f8b75c11cda5fae@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 22 Jun 2022 16:36:53 +0200
+Subject: [PATCH] virsh: Add support for VIR_MIGRATE_ZEROCOPY flag
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit efa3baeae70fbdf4ab032ca485cb9272ee96bd50)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2089433
+
+Conflicts:
+	docs/manpages/virsh.rst
+	tools/virsh-domain.c
+            - post-copy recovery not backported
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/manpages/virsh.rst | 8 +++++++-
+ tools/virsh-domain.c    | 7 +++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index dd534c10cb..d24e7774a6 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -3225,7 +3225,8 @@ migrate
+    migrate [--live] [--offline] [--direct] [--p2p [--tunnelled]]
+       [--persistent] [--undefinesource] [--suspend] [--copy-storage-all]
+       [--copy-storage-inc] [--change-protection] [--unsafe] [--verbose]
+-      [--rdma-pin-all] [--abort-on-error] [--postcopy] [--postcopy-after-precopy]
++      [--rdma-pin-all] [--abort-on-error] [--postcopy]
++      [--postcopy-after-precopy] [--zerocopy]
+       domain desturi [migrateuri] [graphicsuri] [listen-address] [dname]
+       [--timeout seconds [--timeout-suspend | --timeout-postcopy]]
+       [--xml file] [--migrate-disks disk-list] [--disks-port port]
+@@ -3298,6 +3299,11 @@ high (and thus allowing the domain to lock most of the host's memory). Doing so
+ may be dangerous to both the domain and the host itself since the host's kernel
+ may run out of memory.
+ 
++*--zerocopy* requests zero-copy mechanism to be used for migrating memory pages.
++For QEMU/KVM this means QEMU will be temporarily allowed to lock all guest
++pages in host's memory, although only those that are queued for transfer will
++be locked at the same time.
++
+ ``Note``: Individual hypervisors usually do not support all possible types of
+ migration. For example, QEMU does not support direct migration.
+ 
+diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
+index b56f6a90f5..c5bade1dbf 100644
+--- a/tools/virsh-domain.c
++++ b/tools/virsh-domain.c
+@@ -10730,6 +10730,10 @@ static const vshCmdOptDef opts_migrate[] = {
+      .type = VSH_OT_BOOL,
+      .help = N_("automatically switch to post-copy migration after one pass of pre-copy")
+     },
++    {.name = "zerocopy",
++     .type = VSH_OT_BOOL,
++     .help = N_("use zero-copy mechanism for migrating memory pages")
++    },
+     {.name = "migrateuri",
+      .type = VSH_OT_STRING,
+      .completer = virshCompleteEmpty,
+@@ -11133,6 +11137,9 @@ doMigrate(void *opaque)
+     if (vshCommandOptBool(cmd, "postcopy"))
+         flags |= VIR_MIGRATE_POSTCOPY;
+ 
++    if (vshCommandOptBool(cmd, "zerocopy"))
++        flags |= VIR_MIGRATE_ZEROCOPY;
++
+     if (vshCommandOptBool(cmd, "tls"))
+         flags |= VIR_MIGRATE_TLS;
+ 
+-- 
+2.35.1
+

@@ -1,0 +1,84 @@
+From 71a79a215d278d83f3cd3da330e0378209983b6b Mon Sep 17 00:00:00 2001
+Message-Id: <71a79a215d278d83f3cd3da330e0378209983b6b@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 26 Jan 2022 14:00:13 +0100
+Subject: [PATCH] node_device: Rework udevKludgeStorageType()
+
+The udevKludgeStorageType() function looks at devlink name
+(/dev/XXX) and guesses the type of the (storage) device using a
+series of STRPREFIX() calls. Well those can be turn into an array
+and a for() loop, especially if we are about to add a new case
+(in the next commit).
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit ec9e2adb961f2e1a121f47e7985142e827f3347b)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2056673
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/node_device/node_device_udev.c | 43 ++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 20 deletions(-)
+
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index cd1722f934..dd18401e78 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -890,32 +890,35 @@ udevProcessDASD(struct udev_device *device,
+ static int
+ udevKludgeStorageType(virNodeDeviceDef *def)
+ {
++    size_t i;
++    const struct {
++        const char *prefix;
++        const char *subst;
++    } fixups[] = {
++        /* virtio disk */
++        { "/dev/vd", "disk" },
++
++        /* For Direct Access Storage Devices (DASDs) there are
++         * currently no identifiers in udev besides ID_PATH. Since
++         * ID_TYPE=disk does not exist on DASDs they fall through
++         * the udevProcessStorage detection logic. */
++        { "/dev/dasd", "dasd" },
++    };
++
+     VIR_DEBUG("Could not find definitive storage type for device "
+               "with sysfs path '%s', trying to guess it",
+               def->sysfs_path);
+ 
+-    /* virtio disk */
+-    if (STRPREFIX(def->caps->data.storage.block, "/dev/vd")) {
+-        def->caps->data.storage.drive_type = g_strdup("disk");
+-        VIR_DEBUG("Found storage type '%s' for device "
+-                  "with sysfs path '%s'",
+-                  def->caps->data.storage.drive_type,
+-                  def->sysfs_path);
+-        return 0;
++    for (i = 0; i < G_N_ELEMENTS(fixups); i++) {
++        if (STRPREFIX(def->caps->data.storage.block, fixups[i].prefix)) {
++            def->caps->data.storage.drive_type = g_strdup(fixups[i].subst);
++            VIR_DEBUG("Found storage type '%s' for device with sysfs path '%s'",
++                      def->caps->data.storage.drive_type,
++                      def->sysfs_path);
++            return 0;
++        }
+     }
+ 
+-    /* For Direct Access Storage Devices (DASDs) there are
+-     * currently no identifiers in udev besides ID_PATH. Since
+-     * ID_TYPE=disk does not exist on DASDs they fall through
+-     * the udevProcessStorage detection logic. */
+-    if (STRPREFIX(def->caps->data.storage.block, "/dev/dasd")) {
+-        def->caps->data.storage.drive_type = g_strdup("dasd");
+-        VIR_DEBUG("Found storage type '%s' for device "
+-                  "with sysfs path '%s'",
+-                  def->caps->data.storage.drive_type,
+-                  def->sysfs_path);
+-        return 0;
+-    }
+     VIR_DEBUG("Could not determine storage type "
+               "for device with sysfs path '%s'", def->sysfs_path);
+     return -1;
+-- 
+2.35.1
+

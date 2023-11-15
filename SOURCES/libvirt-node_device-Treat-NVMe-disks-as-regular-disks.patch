@@ -1,0 +1,39 @@
+From c04c7a986bd3514730e4169bf1a70bbec1fda006 Mon Sep 17 00:00:00 2001
+Message-Id: <c04c7a986bd3514730e4169bf1a70bbec1fda006@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 26 Jan 2022 13:47:33 +0100
+Subject: [PATCH] node_device: Treat NVMe disks as regular disks
+
+Unfortunately, udev doesn't set ID_TYPE attribute for NVMe disks,
+therefore we have to add another case into udevKludgeStorageType()
+to treat /dev/nvme* devlinks as any other disk.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2045953
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit f103976ff34a52298df1810d82ececa3e7da4291)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2056673
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/node_device/node_device_udev.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index dd18401e78..a9e8bf10da 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -903,6 +903,11 @@ udevKludgeStorageType(virNodeDeviceDef *def)
+          * ID_TYPE=disk does not exist on DASDs they fall through
+          * the udevProcessStorage detection logic. */
+         { "/dev/dasd", "dasd" },
++
++        /* NVMe disk. While strictly speaking /dev/nvme is a
++         * controller not a disk, this function is called if and
++         * only if @def is of VIR_NODE_DEV_CAP_STORAGE type. */
++        { "/dev/nvme", "disk" },
+     };
+ 
+     VIR_DEBUG("Could not find definitive storage type for device "
+-- 
+2.35.1
+

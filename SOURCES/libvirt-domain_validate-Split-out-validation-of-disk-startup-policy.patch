@@ -1,0 +1,111 @@
+From 296343c5a950668d790f9cd5ebd7b466e8156d03 Mon Sep 17 00:00:00 2001
+Message-Id: <296343c5a950668d790f9cd5ebd7b466e8156d03@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 14 Jun 2022 13:23:29 +0200
+Subject: [PATCH] domain_validate: Split out validation of disk startup policy
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Move the code into 'virDomainDiskDefValidateStartupPolicy' which will be
+later reused in the qemu driver.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 3603a18bcec18842cedecbd8329723062b87795c)
+https://bugzilla.redhat.com/show_bug.cgi?id=2095758
+---
+ src/conf/domain_validate.c | 45 ++++++++++++++++++++++++--------------
+ src/conf/domain_validate.h |  2 ++
+ src/libvirt_private.syms   |  1 +
+ 3 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index 452742e67c..bfff7339ef 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -598,6 +598,32 @@ virDomainDiskDefSourceLUNValidate(const virStorageSource *src)
+ }
+ 
+ 
++int
++virDomainDiskDefValidateStartupPolicy(const virDomainDiskDef *disk)
++{
++    if (disk->startupPolicy == VIR_DOMAIN_STARTUP_POLICY_DEFAULT)
++        return 0;
++
++    if (disk->src->type == VIR_STORAGE_TYPE_NETWORK) {
++        virReportError(VIR_ERR_XML_ERROR,
++                       _("disk startupPolicy '%s' is not allowed for disk of '%s' type"),
++                       virDomainStartupPolicyTypeToString(disk->startupPolicy),
++                       virStorageTypeToString(disk->src->type));
++        return -1;
++    }
++
++    if (disk->device != VIR_DOMAIN_DISK_DEVICE_CDROM &&
++        disk->device != VIR_DOMAIN_DISK_DEVICE_FLOPPY &&
++        disk->startupPolicy == VIR_DOMAIN_STARTUP_POLICY_REQUISITE) {
++        virReportError(VIR_ERR_XML_ERROR, "%s",
++                       _("disk startupPolicy 'requisite' is allowed only for cdrom or floppy"));
++        return -1;
++    }
++
++    return 0;
++}
++
++
+ static int
+ virDomainDiskDefValidate(const virDomainDef *def,
+                          const virDomainDiskDef *disk)
+@@ -775,23 +801,8 @@ virDomainDiskDefValidate(const virDomainDef *def,
+         return -1;
+     }
+ 
+-    if (disk->startupPolicy != VIR_DOMAIN_STARTUP_POLICY_DEFAULT) {
+-        if (disk->src->type == VIR_STORAGE_TYPE_NETWORK) {
+-            virReportError(VIR_ERR_XML_ERROR,
+-                           _("disk startupPolicy '%s' is not allowed for disk of '%s' type"),
+-                           virDomainStartupPolicyTypeToString(disk->startupPolicy),
+-                           virStorageTypeToString(disk->src->type));
+-            return -1;
+-        }
+-
+-        if (disk->device != VIR_DOMAIN_DISK_DEVICE_CDROM &&
+-            disk->device != VIR_DOMAIN_DISK_DEVICE_FLOPPY &&
+-            disk->startupPolicy == VIR_DOMAIN_STARTUP_POLICY_REQUISITE) {
+-            virReportError(VIR_ERR_XML_ERROR, "%s",
+-                           _("disk startupPolicy 'requisite' is allowed only for cdrom or floppy"));
+-            return -1;
+-        }
+-    }
++    if (virDomainDiskDefValidateStartupPolicy(disk) < 0)
++        return -1;
+ 
+     if (disk->wwn && !virValidateWWN(disk->wwn))
+         return -1;
+diff --git a/src/conf/domain_validate.h b/src/conf/domain_validate.h
+index 430d61fd3c..07b99195e3 100644
+--- a/src/conf/domain_validate.h
++++ b/src/conf/domain_validate.h
+@@ -41,4 +41,6 @@ int virDomainDeviceDefValidate(const virDomainDeviceDef *dev,
+ 
+ int virDomainDiskDefValidateSource(const virStorageSource *src);
+ 
++int virDomainDiskDefValidateStartupPolicy(const virDomainDiskDef *disk);
++
+ int virDomainDiskDefSourceLUNValidate(const virStorageSource *src);
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 2c42e2a5e8..5b7a056151 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -777,6 +777,7 @@ virDomainActualNetDefValidate;
+ virDomainDefValidate;
+ virDomainDeviceValidateAliasForHotplug;
+ virDomainDiskDefSourceLUNValidate;
++virDomainDiskDefValidateStartupPolicy;
+ 
+ 
+ # conf/interface_conf.h
+-- 
+2.35.1
+

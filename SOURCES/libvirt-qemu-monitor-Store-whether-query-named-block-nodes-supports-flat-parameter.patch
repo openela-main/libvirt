@@ -1,0 +1,57 @@
+From b3ffc8876adf777c7baefb6e467d7552c0a03251 Mon Sep 17 00:00:00 2001
+Message-Id: <b3ffc8876adf777c7baefb6e467d7552c0a03251@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 9 Nov 2022 10:53:49 +0100
+Subject: [PATCH] qemu: monitor: Store whether 'query-named-block-nodes'
+ supports 'flat' parameter
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Rather than having callers always pass this flag store it in the
+qemuMonitor object. Following patches will convert the code to use this
+internal flag.
+
+In the future this will also simplify removal when all supported qemu
+versions will support the new mode.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit b0e4ad5263c73a926b8246028c76c552b07fca74)
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
+---
+ src/qemu/qemu_monitor.c      | 4 +++-
+ src/qemu/qemu_monitor_priv.h | 2 ++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index bba92592c5..99667fdf2f 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -610,8 +610,10 @@ qemuMonitorOpenInternal(virDomainObj *vm,
+     mon->cb = cb;
+     mon->callbackOpaque = opaque;
+ 
+-    if (priv)
++    if (priv) {
+         mon->objectAddNoWrap = virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_OBJECT_JSON);
++        mon->queryNamedBlockNodesFlat = virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_QMP_QUERY_NAMED_BLOCK_NODES_FLAT);
++    }
+ 
+     if (virSetCloseExec(mon->fd) < 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+diff --git a/src/qemu/qemu_monitor_priv.h b/src/qemu/qemu_monitor_priv.h
+index 606aa79fbd..e32928805f 100644
+--- a/src/qemu/qemu_monitor_priv.h
++++ b/src/qemu/qemu_monitor_priv.h
+@@ -91,6 +91,8 @@ struct _qemuMonitor {
+ 
+     /* true if qemu no longer wants 'props' sub-object of object-add */
+     bool objectAddNoWrap;
++    /* query-named-block-nodes supports the 'flat' option */
++    bool queryNamedBlockNodesFlat;
+ };
+ 
+ 
+-- 
+2.40.1

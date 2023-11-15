@@ -1,0 +1,38 @@
+From 08fef741d85ecfb3493c47f5f1334f91c30e3233 Mon Sep 17 00:00:00 2001
+Message-Id: <08fef741d85ecfb3493c47f5f1334f91c30e3233@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 9 Feb 2022 11:08:42 +0100
+Subject: [PATCH] qemu: Ignore missing vm.unprivileged_userfaultfd sysctl
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Older kernels did not support this sysctl, but they did not restrict
+userfaultfd in any way so everything worked as if
+vm.unprivileged_userfaultfd was set to 1. Thus we can safely ignore
+errors when setting the value.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 558f00397a0d46ad22bf53a22a40ed6fc4fdb5eb)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2148578
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/postcopy-migration.sysctl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/postcopy-migration.sysctl b/src/qemu/postcopy-migration.sysctl
+index aa8f015ae0..db3f11e49f 100644
+--- a/src/qemu/postcopy-migration.sysctl
++++ b/src/qemu/postcopy-migration.sysctl
+@@ -3,4 +3,4 @@
+ # privileged processes.
+ # It can be safely overridden by a file in /etc/sysctl.d/ in case post-copy
+ # migration is not used on the host.
+-vm.unprivileged_userfaultfd = 1
++-vm.unprivileged_userfaultfd = 1
+-- 
+2.39.0
+

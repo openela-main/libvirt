@@ -1,0 +1,44 @@
+From a4d8210ae9fd84740e01b96d28bfb6183f3f3270 Mon Sep 17 00:00:00 2001
+Message-Id: <a4d8210ae9fd84740e01b96d28bfb6183f3f3270@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 14 Feb 2022 16:02:29 +0100
+Subject: [PATCH] qemu: monitor: Drop old monitor fields from 'struct
+ _qemuMonitorMessage'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The fields are no longer used since we've deleted support for HMP-only
+qemus. The HMP command pass-through works via a QMP command.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit c5eb99a9d9af8683789e99cc904671e343580058)
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
+---
+ src/qemu/qemu_monitor.h | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index d2037914be..a4a4edf5a6 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -43,15 +43,10 @@ struct _qemuMonitorMessage {
+     int txOffset;
+     int txLength;
+ 
+-    /* Used by the text monitor reply / error */
+-    char *rxBuffer;
+-    int rxLength;
+     /* Used by the JSON monitor to hold reply / error */
+     void *rxObject;
+ 
+-    /* True if rxBuffer / rxObject are ready, or a
+-     * fatal error occurred on the monitor channel
+-     */
++    /* True if rxObject is ready, or a fatal error occurred on the monitor channel */
+     bool finished;
+ };
+ 
+-- 
+2.40.1

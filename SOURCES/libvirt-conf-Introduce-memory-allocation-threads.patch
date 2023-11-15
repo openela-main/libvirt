@@ -1,0 +1,155 @@
+From 19f7e6dc950baf346738f462ac5c6b815c04edcc Mon Sep 17 00:00:00 2001
+Message-Id: <19f7e6dc950baf346738f462ac5c6b815c04edcc@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 21 Mar 2022 16:49:25 +0100
+Subject: [PATCH] conf: Introduce memory allocation threads
+
+Since its v5.0.0 release QEMU is capable of specifying number of
+threads used to allocate memory. It defaults to 1, which may be
+too low for humongous guests with gigantic pages.
+
+In general, on QEMU cmd line level it is possible to use
+different number of threads per each memory-backend-* object, in
+practical terms it's not useful. Therefore, use <memoryBacking/>
+to set guest wide value and let all memory devices 'inherit' it,
+silently. IOW, don't introduce per device knob because that would
+only complicate things for a little or no benefit.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit ba7f98126fa84d354ce72929b77cc111a9a557a9)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2067126
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/formatdomain.rst                        |  8 +++++---
+ docs/schemas/domaincommon.rng                | 19 +++++++++++++------
+ src/conf/domain_conf.c                       | 15 ++++++++++++++-
+ src/conf/domain_conf.h                       |  1 +
+ tests/qemuxml2argvdata/memfd-memory-numa.xml |  2 +-
+ 5 files changed, 34 insertions(+), 11 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 8128e43da4..17e89a0c0d 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -977,7 +977,7 @@ Memory Backing
+        <locked/>
+        <source type="file|anonymous|memfd"/>
+        <access mode="shared|private"/>
+-       <allocation mode="immediate|ondemand"/>
++       <allocation mode="immediate|ondemand" threads='8'/>
+        <discard/>
+      </memoryBacking>
+      ...
+@@ -1026,8 +1026,10 @@ influence how virtual memory pages are backed by host pages.
+    Using the ``mode`` attribute, specify if the memory is to be "shared" or
+    "private". This can be overridden per numa node by ``memAccess``.
+ ``allocation``
+-   Using the ``mode`` attribute, specify when to allocate the memory by
+-   supplying either "immediate" or "ondemand".
++   Using the optional ``mode`` attribute, specify when to allocate the memory by
++   supplying either "immediate" or "ondemand". :since:`Since 8.2.0` it is
++   possible to set the number of threads that hypervisor uses to allocate
++   memory via ``threads`` attribute.
+ ``discard``
+    When set and supported by hypervisor the memory content is discarded just
+    before guest shuts down (or when DIMM module is unplugged). Please note that
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 7fa5c2b8b5..c9c1529979 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -745,12 +745,19 @@
+             </optional>
+             <optional>
+               <element name="allocation">
+-                <attribute name="mode">
+-                  <choice>
+-                    <value>immediate</value>
+-                    <value>ondemand</value>
+-                  </choice>
+-                </attribute>
++                <optional>
++                  <attribute name="mode">
++                    <choice>
++                      <value>immediate</value>
++                      <value>ondemand</value>
++                    </choice>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="threads">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
+               </element>
+             </optional>
+             <optional>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 5691b8d2d5..805a15848e 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -19095,6 +19095,13 @@ virDomainDefParseMemory(virDomainDef *def,
+         VIR_FREE(tmp);
+     }
+ 
++    if (virXPathUInt("string(./memoryBacking/allocation/@threads)",
++                     ctxt, &def->mem.allocation_threads) == -2) {
++        virReportError(VIR_ERR_XML_ERROR, "%s",
++                       _("Failed to parse memory allocation threads"));
++        return -1;
++    }
++
+     if (virXPathNode("./memoryBacking/hugepages", ctxt)) {
+         /* hugepages will be used */
+         if ((n = virXPathNodeSet("./memoryBacking/hugepages/page", ctxt, &nodes)) < 0) {
+@@ -27639,6 +27646,7 @@ virDomainMemorybackingFormat(virBuffer *buf,
+                              const virDomainMemtune *mem)
+ {
+     g_auto(virBuffer) childBuf = VIR_BUFFER_INIT_CHILD(buf);
++    g_auto(virBuffer) allocAttrBuf = VIR_BUFFER_INITIALIZER;
+ 
+     if (mem->nhugepages)
+         virDomainHugepagesFormat(&childBuf, mem->hugepages, mem->nhugepages);
+@@ -27653,8 +27661,13 @@ virDomainMemorybackingFormat(virBuffer *buf,
+         virBufferAsprintf(&childBuf, "<access mode='%s'/>\n",
+                           virDomainMemoryAccessTypeToString(mem->access));
+     if (mem->allocation)
+-        virBufferAsprintf(&childBuf, "<allocation mode='%s'/>\n",
++        virBufferAsprintf(&allocAttrBuf, " mode='%s'",
+                           virDomainMemoryAllocationTypeToString(mem->allocation));
++    if (mem->allocation_threads > 0)
++        virBufferAsprintf(&allocAttrBuf, " threads='%u'", mem->allocation_threads);
++
++    virXMLFormatElement(&childBuf, "allocation", &allocAttrBuf, NULL);
++
+     if (mem->discard)
+         virBufferAddLit(&childBuf, "<discard/>\n");
+ 
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 144ba4dd12..10af94e2e4 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2677,6 +2677,7 @@ struct _virDomainMemtune {
+     int source; /* enum virDomainMemorySource */
+     int access; /* enum virDomainMemoryAccess */
+     int allocation; /* enum virDomainMemoryAllocation */
++    unsigned int allocation_threads;
+ 
+     virTristateBool discard;
+ };
+diff --git a/tests/qemuxml2argvdata/memfd-memory-numa.xml b/tests/qemuxml2argvdata/memfd-memory-numa.xml
+index 1ebcee8939..1ac87e3aef 100644
+--- a/tests/qemuxml2argvdata/memfd-memory-numa.xml
++++ b/tests/qemuxml2argvdata/memfd-memory-numa.xml
+@@ -10,7 +10,7 @@
+     </hugepages>
+     <source type='memfd'/>
+     <access mode='shared'/>
+-    <allocation mode='immediate'/>
++    <allocation mode='immediate' threads='8'/>
+   </memoryBacking>
+   <vcpu placement='static'>8</vcpu>
+   <numatune>
+-- 
+2.35.1
+

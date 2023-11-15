@@ -1,0 +1,80 @@
+From 58d2890501a5a58eefa0500e1340112bc2264a70 Mon Sep 17 00:00:00 2001
+Message-Id: <58d2890501a5a58eefa0500e1340112bc2264a70@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:04 +0200
+Subject: [PATCH] util: refactor ccw address constants into virccw
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 5fe90d471a312a5c94668f8ed4bb397fdc894c58)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/device_conf.c | 6 +++---
+ src/conf/device_conf.h | 4 ----
+ src/conf/domain_addr.c | 2 +-
+ src/util/virccw.h      | 3 +++
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/conf/device_conf.c b/src/conf/device_conf.c
+index 92b908b2e6..bdc9219f84 100644
+--- a/src/conf/device_conf.c
++++ b/src/conf/device_conf.c
+@@ -261,9 +261,9 @@ virPCIDeviceAddressFormat(virBuffer *buf,
+ bool
+ virDomainDeviceCCWAddressIsValid(virCCWDeviceAddress *addr)
+ {
+-    return addr->cssid <= VIR_DOMAIN_DEVICE_CCW_MAX_CSSID &&
+-           addr->ssid <= VIR_DOMAIN_DEVICE_CCW_MAX_SSID &&
+-           addr->devno <= VIR_DOMAIN_DEVICE_CCW_MAX_DEVNO;
++    return addr->cssid <= VIR_CCW_DEVICE_MAX_CSSID &&
++           addr->ssid <= VIR_CCW_DEVICE_MAX_SSID &&
++           addr->devno <= VIR_CCW_DEVICE_MAX_DEVNO;
+ }
+ 
+ int
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index 950d333e2e..5c4b7b2f8e 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -70,10 +70,6 @@ struct _virDomainDeviceVirtioSerialAddress {
+     unsigned int port;
+ };
+ 
+-#define VIR_DOMAIN_DEVICE_CCW_MAX_CSSID    254
+-#define VIR_DOMAIN_DEVICE_CCW_MAX_SSID       3
+-#define VIR_DOMAIN_DEVICE_CCW_MAX_DEVNO  65535
+-
+ typedef struct _virDomainDeviceCcidAddress virDomainDeviceCcidAddress;
+ struct _virDomainDeviceCcidAddress {
+     unsigned int controller;
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index bf51ef5e5a..655f3cc09e 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1292,7 +1292,7 @@ virDomainCCWAddressIncrement(virCCWDeviceAddress *addr)
+     virCCWDeviceAddress ccwaddr = *addr;
+ 
+     /* We are not touching subchannel sets and channel subsystems */
+-    if (++ccwaddr.devno > VIR_DOMAIN_DEVICE_CCW_MAX_DEVNO)
++    if (++ccwaddr.devno > VIR_CCW_DEVICE_MAX_DEVNO)
+         return -1;
+ 
+     *addr = ccwaddr;
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index 127359c299..c3a47127f1 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -22,6 +22,9 @@
+ 
+ #include "internal.h"
+ 
++#define VIR_CCW_DEVICE_MAX_CSSID    254
++#define VIR_CCW_DEVICE_MAX_SSID       3
++#define VIR_CCW_DEVICE_MAX_DEVNO  65535
+ #define VIR_CCW_DEVICE_ADDRESS_FMT "%x.%x.%04x"
+ 
+ typedef struct _virCCWDeviceAddress virCCWDeviceAddress;
+-- 
+2.39.1
+

@@ -1,0 +1,39 @@
+From 088ba382d7a099ddbebe37e5486ce648e24266db Mon Sep 17 00:00:00 2001
+Message-Id: <088ba382d7a099ddbebe37e5486ce648e24266db@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 21 Mar 2022 17:09:40 +0100
+Subject: [PATCH] qemu_validate: Validate prealloc threads against qemuCpas
+
+Only fairly new QEMUs are capable of user provided number of
+preallocation threads. Validate this assumption.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 75a4e0165ef199809974e97b507d3953e1de01d1)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2067126
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_validate.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index 3a69733f81..7bc14293d6 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -739,6 +739,13 @@ qemuValidateDomainDefMemory(const virDomainDef *def,
+         return -1;
+     }
+ 
++    if (mem->allocation_threads > 0 &&
++        !virQEMUCapsGet(qemuCaps, QEMU_CAPS_MEMORY_BACKEND_PREALLOC_THREADS)) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("preallocation threads are unsupported with this QEMU"));
++        return -1;
++    }
++
+     if (mem->source == VIR_DOMAIN_MEMORY_SOURCE_ANONYMOUS) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                        _("hugepages are not allowed with anonymous "
+-- 
+2.35.1
+

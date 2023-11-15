@@ -1,0 +1,66 @@
+From f562b4c83d342002291f6bd7c5776eaecbd3147f Mon Sep 17 00:00:00 2001
+Message-Id: <f562b4c83d342002291f6bd7c5776eaecbd3147f@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 17 Dec 2018 20:42:31 -0500
+Subject: [PATCH] RHEL: qemu: Add check for unpriv sgio for SCSI generic host
+ device
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1582424
+
+RHEL-only
+
+Check if the hostdev has set the sgio filtered/unfiltered and handle
+appropriately.
+
+This restores functionality removed by upstream commit id 'ce346623'
+to remove sgio support for the SCSI generic host device.
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_conf.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index ba85fc6e22..28c334761b 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -1749,13 +1749,29 @@ qemuSharedHostdevAddRemoveInternal(virQEMUDriver *driver,
+ {
+     g_autofree char *dev_path = NULL;
+     g_autofree char *key = NULL;
++    virDomainHostdevSubsysSCSI *scsisrc = &hostdev->source.subsys.u.scsi;
++    virDomainHostdevSubsysSCSIHost *scsihostsrc = &scsisrc->u.host;
+     int ret = -1;
+ 
+     if (!qemuIsSharedHostdev(hostdev))
+         return 0;
+ 
+-    if (!(dev_path = qemuGetHostdevPath(hostdev)) ||
+-        !(key = qemuGetSharedDeviceKey(dev_path)))
++    if (!(dev_path = qemuGetHostdevPath(hostdev)))
++        return -1;
++
++    if ((ret = qemuCheckUnprivSGIO(driver->sharedDevices, dev_path,
++                                   scsisrc->sgio)) < 0) {
++        if (ret == -2) {
++            virReportError(VIR_ERR_OPERATION_INVALID,
++                           _("sgio of shared scsi host device '%s-%u-%u-%llu' "
++                             "conflicts with other active domains"),
++                           scsihostsrc->adapter, scsihostsrc->bus,
++                           scsihostsrc->target, scsihostsrc->unit);
++        }
++        return -1;
++    }
++
++    if (!(key = qemuGetSharedDeviceKey(dev_path)))
+         return -1;
+ 
+     qemuDriverLock(driver);
+-- 
+2.34.1
+

@@ -1,0 +1,124 @@
+From b7d9527c9d9cc782933a5b852869cbd10e370a3a Mon Sep 17 00:00:00 2001
+Message-Id: <b7d9527c9d9cc782933a5b852869cbd10e370a3a@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 1 Dec 2022 13:32:07 +0100
+Subject: [PATCH] util: json: Split out array->strinlist conversion from
+ virJSONValueObjectGetStringArray
+
+Introduce virJSONValueArrayToStringList which does only the conversion
+from an array to a stringlist.
+
+This will allow refactoring the callers to be more careful in case when
+they want to handle the existance of the member in the parent object
+differently.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 6765bdeaf7e9cbdb4c39d47f3b77fb28a498408a)
+https://bugzilla.redhat.com/show_bug.cgi?id=2149752
+---
+ src/libvirt_private.syms |  1 +
+ src/util/virjson.c       | 43 ++++++++++++++++++++++------------------
+ src/util/virjson.h       |  2 ++
+ 3 files changed, 27 insertions(+), 19 deletions(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 5b7a056151..fa734dfd33 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -2513,6 +2513,7 @@ virJSONValueArrayForeachSteal;
+ virJSONValueArrayGet;
+ virJSONValueArraySize;
+ virJSONValueArraySteal;
++virJSONValueArrayToStringList;
+ virJSONValueCopy;
+ virJSONValueFree;
+ virJSONValueFromString;
+diff --git a/src/util/virjson.c b/src/util/virjson.c
+index 6e13e97e15..5f1565107d 100644
+--- a/src/util/virjson.c
++++ b/src/util/virjson.c
+@@ -1312,10 +1312,7 @@ virJSONValueObjectStealObject(virJSONValue *object,
+ char **
+ virJSONValueObjectGetStringArray(virJSONValue *object, const char *key)
+ {
+-    g_auto(GStrv) ret = NULL;
+     virJSONValue *data;
+-    size_t n;
+-    size_t i;
+ 
+     data = virJSONValueObjectGetArray(object, key);
+     if (!data) {
+@@ -1325,32 +1322,40 @@ virJSONValueObjectGetStringArray(virJSONValue *object, const char *key)
+         return NULL;
+     }
+ 
+-    n = virJSONValueArraySize(data);
+-    ret = g_new0(char *, n + 1);
++    return virJSONValueArrayToStringList(data);
++}
++
++
++/**
++ * virJSONValueArrayToStringList:
++ * @data: a JSON array containing strings to convert
++ *
++ * Converts @data a JSON array containing strings to a NULL-terminated string
++ * list. @data must be a JSON array. In case @data is doesn't contain only
++ * strings an error is reported.
++ */
++char **
++virJSONValueArrayToStringList(virJSONValue *data)
++{
++    size_t n = virJSONValueArraySize(data);
++    g_auto(GStrv) ret = g_new0(char *, n + 1);
++    size_t i;
++
+     for (i = 0; i < n; i++) {
+         virJSONValue *child = virJSONValueArrayGet(data, i);
+-        const char *tmp;
+ 
+-        if (!child) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR,
+-                           _("%s array element is missing item %zu"),
+-                           key, i);
++        if (!child ||
++            !(ret[i] = g_strdup(virJSONValueGetString(child)))) {
++            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                           _("JSON string array contains non-string element"));
+             return NULL;
+         }
+-
+-        if (!(tmp = virJSONValueGetString(child))) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR,
+-                           _("%s array element does not contain a string"),
+-                           key);
+-            return NULL;
+-        }
+-
+-        ret[i] = g_strdup(tmp);
+     }
+ 
+     return g_steal_pointer(&ret);
+ }
+ 
++
+ /**
+  * virJSONValueObjectForeachKeyValue:
+  * @object: JSON object to iterate
+diff --git a/src/util/virjson.h b/src/util/virjson.h
+index aced48a538..c9f83ab2bc 100644
+--- a/src/util/virjson.h
++++ b/src/util/virjson.h
+@@ -172,6 +172,8 @@ virJSONValueObjectGetString(virJSONValue *object,
+ char **
+ virJSONValueObjectGetStringArray(virJSONValue *object,
+                                  const char *key);
++char **
++virJSONValueArrayToStringList(virJSONValue *data);
+ const char *
+ virJSONValueObjectGetStringOrNumber(virJSONValue *object,
+                                     const char *key);
+-- 
+2.39.0
+

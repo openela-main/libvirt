@@ -1,0 +1,57 @@
+From 77b0485ba92fe5f0520321385af8a7581c286df1 Mon Sep 17 00:00:00 2001
+Message-Id: <77b0485ba92fe5f0520321385af8a7581c286df1@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 31 Oct 2022 15:38:13 +0100
+Subject: [PATCH] qemu_namespace: Don't leak memory in
+ qemuDomainGetPreservedMounts()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The aim of qemuDomainGetPreservedMounts() is to get a list of
+filesystems mounted under /dev and optionally generate a path for
+each one where they are moved temporarily when building the
+namespace. And the function tries to be a bit clever about it.
+For instance, if /dev/shm mount point exists, there's no need to
+consider /dev/shm/a nor /dev/shm/b as preserving just 'top level'
+/dev/shm gives the same result. To achieve this, the function
+iterates over the list of filesystem as returned by
+virFileGetMountSubtree() and removes the nested ones. However, it
+does so in a bit clumsy way: plain VIR_DELETE_ELEMENT() is used
+without freeing the string itself. Therefore, if all three
+aforementioned example paths appeared on the list, /dev/shm/a and
+/dev/shm/b strings would be leaked.
+
+And when I think about it more, there's no real need to shrink
+the array down (realloc()). It's going to be free()-d when
+returning from the function. Switch to
+VIR_DELETE_ELEMENT_INPLACE() then.
+
+Fixes: cdd9205dfffa3aaed935446a41f0d2dd1357c268
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit bca7a53333ead7c1afd178728de74c2977cd4b5e)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2166573
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_namespace.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_namespace.c b/src/qemu/qemu_namespace.c
+index 74ffd6fb90..2f50087c1d 100644
+--- a/src/qemu/qemu_namespace.c
++++ b/src/qemu/qemu_namespace.c
+@@ -160,7 +160,8 @@ qemuDomainGetPreservedMounts(virQEMUDriverConfig *cfg,
+ 
+             if (c && (*c == '/' || *c == '\0')) {
+                 VIR_DEBUG("Dropping path %s because of %s", mounts[j], mounts[i]);
+-                VIR_DELETE_ELEMENT(mounts, j, nmounts);
++                VIR_FREE(mounts[j]);
++                VIR_DELETE_ELEMENT_INPLACE(mounts, j, nmounts);
+             } else {
+                 j++;
+             }
+-- 
+2.39.1
+

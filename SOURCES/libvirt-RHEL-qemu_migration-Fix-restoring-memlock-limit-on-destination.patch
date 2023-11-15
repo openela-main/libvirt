@@ -1,0 +1,52 @@
+From b6c1f9ca8eb0ca8f7603ab205c7dc95b9f07b5a0 Mon Sep 17 00:00:00 2001
+Message-Id: <b6c1f9ca8eb0ca8f7603ab205c7dc95b9f07b5a0@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 18 Jul 2022 16:01:20 +0200
+Subject: [PATCH] RHEL: qemu_migration: Fix restoring memlock limit on
+ destination
+
+Restoring memory locking limit on the destination host only makes sense
+when migration succeeded as otherwise the QEMU process will be killed
+anyway. Specifically if the migration fails because the process died,
+touching the limit would produce rather unhelpful error message instead
+of the real issue:
+
+    cannot get locked memory limit of process -1: No such file or
+    directory
+
+This patch is RHEL-only caused by misplacing the call to
+qemuDomainSetMaxMemLock when the "qemu_migration: Restore original
+memory locking limit" upstream patch was backported to an older code
+base.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2107954
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index db5163e993..11f87296d6 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -5895,6 +5895,8 @@ qemuMigrationDstFinish(virQEMUDriver *driver,
+          */
+         if (inPostCopy)
+             g_clear_pointer(&priv->job.completed, qemuDomainJobInfoFree);
++
++        qemuDomainSetMaxMemLock(vm, 0, &priv->preMigrationMemlock);
+     }
+ 
+     qemuMigrationParamsReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN,
+@@ -5907,7 +5909,6 @@ qemuMigrationDstFinish(virQEMUDriver *driver,
+  cleanup:
+     g_clear_pointer(&jobInfo, qemuDomainJobInfoFree);
+     virPortAllocatorRelease(port);
+-    qemuDomainSetMaxMemLock(vm, 0, &priv->preMigrationMemlock);
+     if (priv->mon)
+         qemuMonitorSetDomainLog(priv->mon, NULL, NULL, NULL);
+     VIR_FREE(priv->origname);
+-- 
+2.35.1
+

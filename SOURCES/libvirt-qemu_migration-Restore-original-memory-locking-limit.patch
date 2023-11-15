@@ -1,0 +1,133 @@
+From 8cccd9634ecd91a5b7343eddc037e0fa7de2f9f6 Mon Sep 17 00:00:00 2001
+Message-Id: <8cccd9634ecd91a5b7343eddc037e0fa7de2f9f6@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 22 Jun 2022 16:12:02 +0200
+Subject: [PATCH] qemu_migration: Restore original memory locking limit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+For RDMA migration we update memory locking limit, but never set it back
+once migration finishes (on the destination host) or aborts (on the
+source host).
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit d4d3bb813031275c2c7cf72724b83c97ce82ab7a)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2089433
+
+Conflicts:
+	src/qemu/qemu_migration.c
+            - post-copy resovery not backported
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c    | 12 ++++++++++++
+ src/qemu/qemu_domain.h    |  3 +++
+ src/qemu/qemu_migration.c | 10 ++++++++--
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index a81789f194..c24d1e4d53 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2389,6 +2389,11 @@ qemuDomainObjPrivateXMLFormat(virBuffer *buf,
+                           priv->originalMemlock);
+     }
+ 
++    if (priv->preMigrationMemlock > 0) {
++        virBufferAsprintf(buf, "<preMigrationMemlock>%llu</preMigrationMemlock>\n",
++                          priv->preMigrationMemlock);
++    }
++
+     return 0;
+ }
+ 
+@@ -3117,6 +3122,13 @@ qemuDomainObjPrivateXMLParse(xmlXPathContextPtr ctxt,
+         goto error;
+     }
+ 
++    if (virXPathULongLong("string(./preMigrationMemlock)", ctxt,
++                          &priv->preMigrationMemlock) == -2) {
++        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                       _("failed to parse pre-migration memlock limit"));
++        return -1;
++    }
++
+     return 0;
+ 
+  error:
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 6d1d23439a..d6e8a7a0fb 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -146,6 +146,9 @@ struct _qemuDomainObjPrivate {
+     int nbdPort; /* Port used for migration with NBD */
+     unsigned short migrationPort;
+     int preMigrationState;
++    unsigned long long preMigrationMemlock; /* Original RLIMIT_MEMLOCK in case
++                                               it was changed for the current
++                                               migration job. */
+ 
+     virChrdevs *devs;
+ 
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 10338f8e87..35ad201580 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -2974,7 +2974,8 @@ qemuMigrationDstPrepareAny(virQEMUDriver *driver,
+ 
+     if (STREQ_NULLABLE(protocol, "rdma") &&
+         vm->def->mem.hard_limit > 0 &&
+-        qemuDomainSetMaxMemLock(vm, vm->def->mem.hard_limit << 10, NULL) < 0) {
++        qemuDomainSetMaxMemLock(vm, vm->def->mem.hard_limit << 10,
++                                &priv->preMigrationMemlock) < 0) {
+         goto stopjob;
+     }
+ 
+@@ -3451,6 +3452,7 @@ qemuMigrationSrcConfirmPhase(virQEMUDriver *driver,
+                                          VIR_DOMAIN_EVENT_STOPPED_MIGRATED);
+         virObjectEventStateQueue(driver->domainEventState, event);
+         qemuDomainEventEmitJobCompleted(driver, vm);
++        priv->preMigrationMemlock = 0;
+     } else {
+         virErrorPtr orig_err;
+         int reason;
+@@ -3471,6 +3473,7 @@ qemuMigrationSrcConfirmPhase(virQEMUDriver *driver,
+ 
+         qemuMigrationParamsReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
+                                  jobPriv->migParams, priv->job.apiFlags);
++        qemuDomainSetMaxMemLock(vm, 0, &priv->preMigrationMemlock);
+ 
+         qemuDomainSaveStatus(vm);
+     }
+@@ -4224,7 +4227,8 @@ qemuMigrationSrcRun(virQEMUDriver *driver,
+     case MIGRATION_DEST_HOST:
+         if (STREQ(spec->dest.host.protocol, "rdma") &&
+             vm->def->mem.hard_limit > 0 &&
+-            qemuDomainSetMaxMemLock(vm, vm->def->mem.hard_limit << 10, NULL) < 0) {
++            qemuDomainSetMaxMemLock(vm, vm->def->mem.hard_limit << 10,
++                                    &priv->preMigrationMemlock) < 0) {
+             goto exit_monitor;
+         }
+         rc = qemuMonitorMigrateToHost(priv->mon, migrate_flags,
+@@ -5408,6 +5412,7 @@ qemuMigrationSrcPerformPhase(virQEMUDriver *driver,
+     if (ret < 0) {
+         qemuMigrationParamsReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
+                                  jobPriv->migParams, priv->job.apiFlags);
++        qemuDomainSetMaxMemLock(vm, 0, &priv->preMigrationMemlock);
+         qemuMigrationJobFinish(driver, vm);
+     } else {
+         qemuMigrationJobContinue(vm);
+@@ -5881,6 +5886,7 @@ qemuMigrationDstFinish(virQEMUDriver *driver,
+  cleanup:
+     g_clear_pointer(&jobInfo, qemuDomainJobInfoFree);
+     virPortAllocatorRelease(port);
++    qemuDomainSetMaxMemLock(vm, 0, &priv->preMigrationMemlock);
+     if (priv->mon)
+         qemuMonitorSetDomainLog(priv->mon, NULL, NULL, NULL);
+     VIR_FREE(priv->origname);
+-- 
+2.35.1
+

@@ -1,0 +1,49 @@
+From 9c2fd182a02d64004e30900c52e3fcdb550de0bd Mon Sep 17 00:00:00 2001
+Message-Id: <9c2fd182a02d64004e30900c52e3fcdb550de0bd@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 22 Jun 2022 16:35:50 +0200
+Subject: [PATCH] Add VIR_MIGRATE_ZEROCOPY flag
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The flag can be used to enable zero-copy mechanism for migrating memory
+pages.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 8744beecb36600e773c8a8c4823db2bf4b3e262d)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2089433
+
+Conflicts:
+	include/libvirt/libvirt-domain.h
+            - post-copy recovery not backported
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ include/libvirt/libvirt-domain.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index 5f0a9b7572..792973ce2d 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -860,6 +860,14 @@ typedef enum {
+       */
+     VIR_MIGRATE_NON_SHARED_SYNCHRONOUS_WRITES = (1 << 18),
+ 
++    /* Use zero-copy mechanism for migrating memory pages. For QEMU/KVM this
++     * means QEMU will be temporarily allowed to lock all guest pages in host's
++     * memory, although only those that are queued for transfer will be locked
++     * at the same time.
++     *
++     * Since: 8.5.0
++     */
++    VIR_MIGRATE_ZEROCOPY = (1 << 20),
+ } virDomainMigrateFlags;
+ 
+ 
+-- 
+2.35.1
+

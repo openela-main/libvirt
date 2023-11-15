@@ -1,0 +1,39 @@
+From 521e9a7731ac678ca790da4b04dabe4369efb984 Mon Sep 17 00:00:00 2001
+Message-Id: <521e9a7731ac678ca790da4b04dabe4369efb984@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 1 Mar 2023 17:09:42 +0100
+Subject: [PATCH] qemu: domain: Fix logic when tainting domain
+
+Originally the code was skipping all repeated taints with the same taint
+flag but a logic bug introduced in commit 30626ed15b239c424ae inverted
+the condition. This caused that actually the first occurence was NOT
+logged but any subsequent was.
+
+This was noticed when going through oVirt logs as they use custom guest
+agent commands and the logs are totally spammed with this message.
+
+Fixes: 30626ed15b239c424ae891f096057a696eadd715
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Laine Stump <laine@redhat.com>
+(cherry picked from commit 9134b40d0b43a5e1a9928b0a0d948205941d9807)
+https://bugzilla.redhat.com/show_bug.cgi?id=2174447
+---
+ src/qemu/qemu_domain.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index c24d1e4d53..c70661fc49 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -6369,7 +6369,7 @@ void qemuDomainObjTaintMsg(virQEMUDriver *driver,
+     const char *extrasuffix = "";
+     va_list args;
+ 
+-    if (virDomainObjTaint(obj, taint)) {
++    if (!virDomainObjTaint(obj, taint)) {
+         /* If an extra message was given we must always
+          * emit the taint warning, otherwise it is a
+          * one-time only warning per VM
+-- 
+2.39.2
+

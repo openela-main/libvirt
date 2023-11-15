@@ -1,0 +1,105 @@
+From 85b7d8295d72214b08f0fff93c473baaa88a569b Mon Sep 17 00:00:00 2001
+Message-Id: <85b7d8295d72214b08f0fff93c473baaa88a569b@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 14 Feb 2022 15:57:21 +0100
+Subject: [PATCH] qemu: Make 'struct _qemuMonitorMessage' private
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Move the declaration of the struct into 'qemu_monitor_priv.h' as other
+code has no business in peeking into the monitor messages.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit f9ae469a6ebb17e0990096e826f049c1c46cd760)
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
+---
+ src/qemu/qemu_monitor.h      | 14 --------------
+ src/qemu/qemu_monitor_json.c |  3 +++
+ src/qemu/qemu_monitor_priv.h | 16 ++++++++++++++++
+ tests/qemucapsprobemock.c    |  3 +++
+ 4 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index a4a4edf5a6..d00967d84f 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -34,21 +34,7 @@
+ #include "virenum.h"
+ 
+ typedef struct _qemuMonitor qemuMonitor;
+-
+ typedef struct _qemuMonitorMessage qemuMonitorMessage;
+-struct _qemuMonitorMessage {
+-    int txFD;
+-
+-    const char *txBuffer;
+-    int txOffset;
+-    int txLength;
+-
+-    /* Used by the JSON monitor to hold reply / error */
+-    void *rxObject;
+-
+-    /* True if rxObject is ready, or a fatal error occurred on the monitor channel */
+-    bool finished;
+-};
+ 
+ typedef enum {
+     QEMU_MONITOR_EVENT_PANIC_INFO_TYPE_NONE = 0,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 34a46b9b41..7d8755246f 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -44,6 +44,9 @@
+ # include "libvirt_qemu_probes.h"
+ #endif
+ 
++#define LIBVIRT_QEMU_MONITOR_PRIV_H_ALLOW
++#include "qemu_monitor_priv.h"
++
+ #define VIR_FROM_THIS VIR_FROM_QEMU
+ 
+ VIR_LOG_INIT("qemu.qemu_monitor_json");
+diff --git a/src/qemu/qemu_monitor_priv.h b/src/qemu/qemu_monitor_priv.h
+index 31bb3526b9..6115f830de 100644
+--- a/src/qemu/qemu_monitor_priv.h
++++ b/src/qemu/qemu_monitor_priv.h
+@@ -24,5 +24,21 @@
+ 
+ #include "qemu_monitor.h"
+ 
++
++struct _qemuMonitorMessage {
++    int txFD;
++
++    const char *txBuffer;
++    int txOffset;
++    int txLength;
++
++    /* Used by the JSON monitor to hold reply / error */
++    void *rxObject;
++
++    /* True if rxObject is ready, or a fatal error occurred on the monitor channel */
++    bool finished;
++};
++
++
+ void
+ qemuMonitorResetCommandID(qemuMonitor *mon);
+diff --git a/tests/qemucapsprobemock.c b/tests/qemucapsprobemock.c
+index 915036d178..2717ed5d84 100644
+--- a/tests/qemucapsprobemock.c
++++ b/tests/qemucapsprobemock.c
+@@ -25,6 +25,9 @@
+ #include "qemu/qemu_monitor.h"
+ #include "qemu/qemu_monitor_json.h"
+ 
++#define LIBVIRT_QEMU_MONITOR_PRIV_H_ALLOW
++#include "qemu/qemu_monitor_priv.h"
++
+ #define REAL_SYM(realFunc) \
+     do { \
+         if (!realFunc && !(realFunc = dlsym(RTLD_NEXT, __FUNCTION__))) { \
+-- 
+2.40.1

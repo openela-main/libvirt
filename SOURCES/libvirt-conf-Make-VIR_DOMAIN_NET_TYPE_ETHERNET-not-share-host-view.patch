@@ -1,0 +1,46 @@
+From 666b68a93006c4299747d159bcacb7164b8c5d91 Mon Sep 17 00:00:00 2001
+Message-Id: <666b68a93006c4299747d159bcacb7164b8c5d91@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 24 Nov 2022 10:28:59 +0100
+Subject: [PATCH] conf: Make VIR_DOMAIN_NET_TYPE_ETHERNET not share 'host view'
+
+When setting up QoS for a domain <interface/>, or when reporting
+its statistics we may need to swap TX/RX values. This is all
+explained in comment to virDomainNetTypeSharesHostView().
+However, this function claims that VIR_DOMAIN_NET_TYPE_ETHERNET
+also shares the 'host view', meaning the TX/RX values must be
+swapped. But that's not true.
+
+An easy reproducer is to start a domain with two <interface/>-s:
+one type of network, the other of type ethernet and configure the
+same <bandwidth/> for both. Reversed setting can then be observed
+(e.g. via tc).
+
+Reported-by: Oleg Vasilev <oleg.vasilev@virtuozzo.com>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 0862cb3ce46253a58ca02d36b2b6a6397a60bfc7)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2172578
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/conf/domain_conf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 401ddaa1a0..427e7d1bb5 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -30472,9 +30472,9 @@ virDomainNetTypeSharesHostView(const virDomainNetDef *net)
+     virDomainNetType actualType = virDomainNetGetActualType(net);
+     switch (actualType) {
+     case VIR_DOMAIN_NET_TYPE_DIRECT:
+-    case VIR_DOMAIN_NET_TYPE_ETHERNET:
+         return true;
+     case VIR_DOMAIN_NET_TYPE_USER:
++    case VIR_DOMAIN_NET_TYPE_ETHERNET:
+     case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
+     case VIR_DOMAIN_NET_TYPE_SERVER:
+     case VIR_DOMAIN_NET_TYPE_CLIENT:
+-- 
+2.39.2
+

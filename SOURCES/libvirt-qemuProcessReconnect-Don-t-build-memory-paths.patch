@@ -1,0 +1,57 @@
+From c5c8bb4aafc8f247e6da146a6683174038611600 Mon Sep 17 00:00:00 2001
+Message-Id: <c5c8bb4aafc8f247e6da146a6683174038611600@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 28 Sep 2022 10:12:36 +0200
+Subject: [PATCH] qemuProcessReconnect: Don't build memory paths
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Let me take you on a short trip to history. A long time ago,
+libvirt would configure all QEMUs to use $hugetlbfs/libvirt/qemu
+for their hugepages setup. This was problematic, because it did
+not allow enough separation between guests. Therefore in
+v3.0.0-rc1~367 the path changed to a per-domain basis:
+
+  $hugetlbfs/libvirt/qemu/$domainShortName
+
+And to help with migration on daemon restart a call to
+qemuProcessBuildDestroyMemoryPaths() was added to
+qemuProcessReconnect() (well, it was named
+qemuProcessBuildDestroyHugepagesPath() back then, see
+v3.10.0-rc1~174). This was desirable then, because the memory
+hotplug code did not call the function, it simply assumes
+per-domain paths to exist. But this changed in v3.5.0-rc1~92
+after which the per-domain paths are created on memory hotplug
+too.
+
+Therefore, it's no longer necessary to create these paths in
+qemuProcessReconnect(). They are created exactly when needed
+(domain startup and memory hotplug).
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 3478cca80ea7382cfdbff836d5d0b92aa014297b)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2123196
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_process.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 1164340aa9..0fb665bc82 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -8869,9 +8869,6 @@ qemuProcessReconnect(void *opaque)
+         goto cleanup;
+     }
+ 
+-    if (qemuProcessBuildDestroyMemoryPaths(driver, obj, NULL, true) < 0)
+-        goto error;
+-
+     if ((qemuDomainAssignAddresses(obj->def, priv->qemuCaps,
+                                    driver, obj, false)) < 0) {
+         goto error;
+-- 
+2.38.0
+

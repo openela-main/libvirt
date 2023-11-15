@@ -1,0 +1,97 @@
+From 6cf9cd8f6d9e90eadd58d8a37129e7401876e4e8 Mon Sep 17 00:00:00 2001
+Message-Id: <6cf9cd8f6d9e90eadd58d8a37129e7401876e4e8@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 4 May 2022 16:28:03 +0200
+Subject: [PATCH] cputest: Give better names to baseline tests
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 3daa68e26514dc114d71f4c44f7d728e93a53cd0)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1851227
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ tests/cputest.c                                      | 12 ++++++------
+ ... x86_64-baseline-Westmere+Nehalem-migratable.xml} |  0
+ ...l => x86_64-baseline-Westmere+Nehalem-result.xml} |  0
+ ...ne-6.xml => x86_64-baseline-Westmere+Nehalem.xml} |  0
+ ...ded.xml => x86_64-baseline-features-expanded.xml} |  0
+ ...esult.xml => x86_64-baseline-features-result.xml} |  0
+ ...4-baseline-4.xml => x86_64-baseline-features.xml} |  0
+ ...anded.xml => x86_64-baseline-simple-expanded.xml} |  0
+ ...-result.xml => x86_64-baseline-simple-result.xml} |  0
+ ..._64-baseline-3.xml => x86_64-baseline-simple.xml} |  0
+ 10 files changed, 6 insertions(+), 6 deletions(-)
+ rename tests/cputestdata/{x86_64-baseline-6-migratable.xml => x86_64-baseline-Westmere+Nehalem-migratable.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-6-result.xml => x86_64-baseline-Westmere+Nehalem-result.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-6.xml => x86_64-baseline-Westmere+Nehalem.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-4-expanded.xml => x86_64-baseline-features-expanded.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-4-result.xml => x86_64-baseline-features-result.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-4.xml => x86_64-baseline-features.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-3-expanded.xml => x86_64-baseline-simple-expanded.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-3-result.xml => x86_64-baseline-simple-result.xml} (100%)
+ rename tests/cputestdata/{x86_64-baseline-3.xml => x86_64-baseline-simple.xml} (100%)
+
+diff --git a/tests/cputest.c b/tests/cputest.c
+index 20d56836be..b939e20718 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -1051,12 +1051,12 @@ mymain(void)
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "incompatible-vendors", 0, -1);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "no-vendor", 0, 0);
+     DO_TEST_BASELINE(VIR_ARCH_X86_64, "some-vendors", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "3", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "3", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "4", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "4", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "6", 0, 0);
+-    DO_TEST_BASELINE(VIR_ARCH_X86_64, "6", VIR_CONNECT_BASELINE_CPU_MIGRATABLE, 0);
++    DO_TEST_BASELINE(VIR_ARCH_X86_64, "simple", 0, 0);
++    DO_TEST_BASELINE(VIR_ARCH_X86_64, "simple", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
++    DO_TEST_BASELINE(VIR_ARCH_X86_64, "features", 0, 0);
++    DO_TEST_BASELINE(VIR_ARCH_X86_64, "features", VIR_CONNECT_BASELINE_CPU_EXPAND_FEATURES, 0);
++    DO_TEST_BASELINE(VIR_ARCH_X86_64, "Westmere+Nehalem", 0, 0);
++    DO_TEST_BASELINE(VIR_ARCH_X86_64, "Westmere+Nehalem", VIR_CONNECT_BASELINE_CPU_MIGRATABLE, 0);
+ 
+     DO_TEST_BASELINE(VIR_ARCH_PPC64, "incompatible-vendors", 0, -1);
+     DO_TEST_BASELINE(VIR_ARCH_PPC64, "no-vendor", 0, 0);
+diff --git a/tests/cputestdata/x86_64-baseline-6-migratable.xml b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-migratable.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-6-migratable.xml
+rename to tests/cputestdata/x86_64-baseline-Westmere+Nehalem-migratable.xml
+diff --git a/tests/cputestdata/x86_64-baseline-6-result.xml b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem-result.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-6-result.xml
+rename to tests/cputestdata/x86_64-baseline-Westmere+Nehalem-result.xml
+diff --git a/tests/cputestdata/x86_64-baseline-6.xml b/tests/cputestdata/x86_64-baseline-Westmere+Nehalem.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-6.xml
+rename to tests/cputestdata/x86_64-baseline-Westmere+Nehalem.xml
+diff --git a/tests/cputestdata/x86_64-baseline-4-expanded.xml b/tests/cputestdata/x86_64-baseline-features-expanded.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-4-expanded.xml
+rename to tests/cputestdata/x86_64-baseline-features-expanded.xml
+diff --git a/tests/cputestdata/x86_64-baseline-4-result.xml b/tests/cputestdata/x86_64-baseline-features-result.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-4-result.xml
+rename to tests/cputestdata/x86_64-baseline-features-result.xml
+diff --git a/tests/cputestdata/x86_64-baseline-4.xml b/tests/cputestdata/x86_64-baseline-features.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-4.xml
+rename to tests/cputestdata/x86_64-baseline-features.xml
+diff --git a/tests/cputestdata/x86_64-baseline-3-expanded.xml b/tests/cputestdata/x86_64-baseline-simple-expanded.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-3-expanded.xml
+rename to tests/cputestdata/x86_64-baseline-simple-expanded.xml
+diff --git a/tests/cputestdata/x86_64-baseline-3-result.xml b/tests/cputestdata/x86_64-baseline-simple-result.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-3-result.xml
+rename to tests/cputestdata/x86_64-baseline-simple-result.xml
+diff --git a/tests/cputestdata/x86_64-baseline-3.xml b/tests/cputestdata/x86_64-baseline-simple.xml
+similarity index 100%
+rename from tests/cputestdata/x86_64-baseline-3.xml
+rename to tests/cputestdata/x86_64-baseline-simple.xml
+-- 
+2.35.1
+

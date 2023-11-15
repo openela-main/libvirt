@@ -1,0 +1,70 @@
+From 94a416e1b67c72c69c19944937acc619503484b3 Mon Sep 17 00:00:00 2001
+Message-Id: <94a416e1b67c72c69c19944937acc619503484b3@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:03 +0200
+Subject: [PATCH] util: make reuse of ccw device address format constant
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit b41163005c0874b1d4809523227cd1921f4852d2)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/device_conf.h  | 1 -
+ src/qemu/qemu_command.c | 2 +-
+ src/util/virccw.c       | 2 +-
+ src/util/virccw.h       | 2 ++
+ 4 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index 60d90bbf19..950d333e2e 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -202,7 +202,6 @@ int virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+                                       virCCWDeviceAddress *addr);
+ bool virDomainDeviceCCWAddressEqual(virCCWDeviceAddress *addr1,
+                                     virCCWDeviceAddress *addr2);
+-#define VIR_CCW_DEVICE_ADDRESS_FMT "%x.%x.%04x"
+ 
+ int virDomainDeviceDriveAddressParseXML(xmlNodePtr node,
+                                         virDomainDeviceDriveAddress *addr);
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index d23af97e0c..a7855d3370 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -613,7 +613,7 @@ qemuBuildDeviceAddressProps(virJSONValue *props,
+         return 0;
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_CCW: {
+-        g_autofree char *devno = g_strdup_printf("%x.%x.%04x",
++        g_autofree char *devno = g_strdup_printf(VIR_CCW_DEVICE_ADDRESS_FMT,
+                                                  info->addr.ccw.cssid,
+                                                  info->addr.ccw.ssid,
+                                                  info->addr.ccw.devno);
+diff --git a/src/util/virccw.c b/src/util/virccw.c
+index 409287b380..5a19d3a112 100644
+--- a/src/util/virccw.c
++++ b/src/util/virccw.c
+@@ -25,5 +25,5 @@
+ char*
+ virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+ {
+-    return g_strdup_printf("%x.%x.%04x", addr->cssid, addr->ssid, addr->devno);
++    return g_strdup_printf(VIR_CCW_DEVICE_ADDRESS_FMT, addr->cssid, addr->ssid, addr->devno);
+ }
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index 21a03406fa..127359c299 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -22,6 +22,8 @@
+ 
+ #include "internal.h"
+ 
++#define VIR_CCW_DEVICE_ADDRESS_FMT "%x.%x.%04x"
++
+ typedef struct _virCCWDeviceAddress virCCWDeviceAddress;
+ struct _virCCWDeviceAddress {
+     unsigned int cssid;
+-- 
+2.39.1
+

@@ -1,0 +1,47 @@
+From f0d0a6a9701522eee013682eb0ef566ef7cdac61 Mon Sep 17 00:00:00 2001
+Message-Id: <f0d0a6a9701522eee013682eb0ef566ef7cdac61@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 22 Feb 2016 12:51:51 +0100
+Subject: [PATCH] RHEL: Add rhel machine types to qemuDomainMachineNeedsFDC
+
+RHEL-only.
+
+pc-q35-rhel7.0.0 and pc-q35-rhel7.1.0 do not need an explicit
+isa-fdc controller.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1227880
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index a8401bac30..40fe9985e6 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -8767,8 +8767,19 @@ qemuDomainHasBuiltinIDE(const virDomainDef *def)
+ bool
+ qemuDomainNeedsFDC(const virDomainDef *def)
+ {
+-    /* all supported Q35 machines need explicit FDC */
+-    return qemuDomainIsQ35(def);
++    const char *p;
++
++    /* all supported Q35 machines need explicit FDC except for old RHEL-7
++     * machine types */
++    if (!qemuDomainIsQ35(def))
++        return false;
++
++    if ((p = STRSKIP(def->os.machine, "pc-q35-")) &&
++        (STRPREFIX(p, "rhel7.0.0") ||
++         STRPREFIX(p, "rhel7.1.0")))
++        return false;
++
++    return true;
+ }
+ 
+ 
+-- 
+2.34.1
+

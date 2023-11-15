@@ -1,0 +1,53 @@
+From 31986239312c0e460800f5b9921f6593f1556015 Mon Sep 17 00:00:00 2001
+Message-Id: <31986239312c0e460800f5b9921f6593f1556015@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 9 Nov 2022 10:45:27 +0100
+Subject: [PATCH] qemu: qemuBlockGetNamedNodeData: Remove pointless error path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We don't need automatic freeing for 'blockNamedNodeData' and we can
+directly return it rather than checking it for NULL-ness first.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 3fe74ebd9037d695df906ed137d22a8d8d77e169)
+
+ Conflicts:
+	src/qemu/qemu_block.c
+
+    - qemuDomainObjEnter/ExitMonitor still needs 'driver'
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
+---
+ src/qemu/qemu_block.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_block.c b/src/qemu/qemu_block.c
+index aa566d0097..c9229d1918 100644
+--- a/src/qemu/qemu_block.c
++++ b/src/qemu/qemu_block.c
+@@ -3020,7 +3020,7 @@ qemuBlockGetNamedNodeData(virDomainObj *vm,
+ {
+     qemuDomainObjPrivate *priv = vm->privateData;
+     virQEMUDriver *driver = priv->driver;
+-    g_autoptr(GHashTable) blockNamedNodeData = NULL;
++    GHashTable *blockNamedNodeData = NULL;
+     bool supports_flat = virQEMUCapsGet(priv->qemuCaps,
+                                         QEMU_CAPS_QMP_QUERY_NAMED_BLOCK_NODES_FLAT);
+ 
+@@ -3031,10 +3031,7 @@ qemuBlockGetNamedNodeData(virDomainObj *vm,
+ 
+     qemuDomainObjExitMonitor(driver, vm);
+ 
+-    if (!blockNamedNodeData)
+-        return NULL;
+-
+-    return g_steal_pointer(&blockNamedNodeData);
++    return blockNamedNodeData;
+ }
+ 
+ 
+-- 
+2.40.1

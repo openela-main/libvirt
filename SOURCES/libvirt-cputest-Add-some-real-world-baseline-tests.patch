@@ -1,0 +1,498 @@
+From b37a398da4323407de24d19afac937eac80170cc Mon Sep 17 00:00:00 2001
+Message-Id: <b37a398da4323407de24d19afac937eac80170cc@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 21 Apr 2022 18:25:15 +0200
+Subject: [PATCH] cputest: Add some real world baseline tests
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 63d633b9a4fc42da7e2acaf45501914607d968a5)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1851227
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ tests/cputest.c                               | 118 +++++++++++++++---
+ ...id-baseline-Broadwell-IBRS+Cascadelake.xml |  11 ++
+ ..._64-cpuid-baseline-Cascadelake+Icelake.xml |  14 +++
+ ...puid-baseline-Cascadelake+Skylake-IBRS.xml |  12 ++
+ ..._64-cpuid-baseline-Cascadelake+Skylake.xml |   8 ++
+ ...-cpuid-baseline-Cooperlake+Cascadelake.xml |  17 +++
+ ...6_64-cpuid-baseline-Cooperlake+Icelake.xml |  14 +++
+ .../x86_64-cpuid-baseline-EPYC+Rome.xml       |  13 ++
+ .../x86_64-cpuid-baseline-Haswell+Skylake.xml |  14 +++
+ ...-baseline-Haswell-noTSX-IBRS+Broadwell.xml |  14 +++
+ ...seline-Haswell-noTSX-IBRS+Skylake-IBRS.xml |  14 +++
+ ...id-baseline-Haswell-noTSX-IBRS+Skylake.xml |  14 +++
+ .../x86_64-cpuid-baseline-Ryzen+Rome.xml      |  13 ++
+ ...4-cpuid-baseline-Skylake-Client+Server.xml |   9 ++
+ 14 files changed, 271 insertions(+), 14 deletions(-)
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Broadwell-IBRS+Cascadelake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Icelake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake-IBRS.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Icelake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-EPYC+Rome.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Haswell+Skylake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Broadwell.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake-IBRS.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Ryzen+Rome.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-baseline-Skylake-Client+Server.xml
+
+diff --git a/tests/cputest.c b/tests/cputest.c
+index b939e20718..b39ec7e18b 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -58,6 +58,8 @@ struct data {
+     const char *name;
+     virDomainCapsCPUModels *models;
+     const char *modelsName;
++    const char **cpus;
++    int ncpus;
+     unsigned int flags;
+     int result;
+ };
+@@ -561,6 +563,60 @@ cpuTestCPUID(bool guest, const void *arg)
+ }
+ 
+ 
++static int
++cpuTestCPUIDBaseline(const void *arg)
++{
++    const struct data *data = arg;
++    int ret = -1;
++    virCPUDef **cpus = NULL;
++    virCPUDef *baseline = NULL;
++    g_autofree char *result = NULL;
++    size_t i;
++
++    cpus = g_new0(virCPUDef *, data->ncpus);
++    for (i = 0; i < data->ncpus; i++) {
++        g_autofree char *name = NULL;
++
++        name = g_strdup_printf("cpuid-%s-json", data->cpus[i]);
++        if (!(cpus[i] = cpuTestLoadXML(data->arch, name)))
++            goto cleanup;
++    }
++
++    baseline = virCPUBaseline(data->arch, cpus, data->ncpus, NULL, NULL, false);
++    if (!baseline)
++        goto cleanup;
++
++    result = g_strdup_printf("cpuid-baseline-%s", data->name);
++
++    if (cpuTestCompareXML(data->arch, baseline, result) < 0)
++        goto cleanup;
++
++    for (i = 0; i < data->ncpus; i++) {
++        virCPUCompareResult cmp;
++
++        cmp = virCPUCompare(data->arch, cpus[i], baseline, false);
++        if (cmp != VIR_CPU_COMPARE_SUPERSET &&
++            cmp != VIR_CPU_COMPARE_IDENTICAL) {
++            VIR_TEST_VERBOSE("\nbaseline CPU is incompatible with CPU %zu", i);
++            VIR_TEST_VERBOSE("%74s", "... ");
++            ret = -1;
++            goto cleanup;
++        }
++    }
++
++    ret = 0;
++
++ cleanup:
++    if (cpus) {
++        for (i = 0; i < data->ncpus; i++)
++            virCPUDefFree(cpus[i]);
++        VIR_FREE(cpus);
++    }
++    virCPUDefFree(baseline);
++    return ret;
++}
++
++
+ static int
+ cpuTestHostCPUID(const void *arg)
+ {
+@@ -888,13 +944,13 @@ mymain(void)
+         goto cleanup;
+     }
+ 
+-#define DO_TEST(arch, api, name, host, cpu, \
++#define DO_TEST(arch, api, name, host, cpu, cpus, ncpus, \
+                 models, flags, result) \
+     do { \
+         struct data data = { \
+             arch, host, cpu, models, \
+             models == NULL ? NULL : #models, \
+-            flags, result \
++            cpus, ncpus, flags, result \
+         }; \
+         g_autofree char *testLabel = NULL; \
+  \
+@@ -907,12 +963,12 @@ mymain(void)
+ #define DO_TEST_COMPARE(arch, host, cpu, result) \
+     DO_TEST(arch, cpuTestCompare, \
+             host "/" cpu " (" #result ")", \
+-            host, cpu, NULL, 0, result)
++            host, cpu, NULL, 0, NULL, 0, result)
+ 
+ #define DO_TEST_UPDATE_ONLY(arch, host, cpu) \
+     DO_TEST(arch, cpuTestUpdate, \
+             cpu " on " host, \
+-            host, cpu, NULL, 0, 0)
++            host, cpu, NULL, 0, NULL, 0, 0)
+ 
+ #define DO_TEST_UPDATE(arch, host, cpu, result) \
+     do { \
+@@ -930,31 +986,31 @@ mymain(void)
+             suffix = " (migratable)"; \
+         label = g_strdup_printf("%s%s", name, suffix); \
+         DO_TEST(arch, cpuTestBaseline, label, NULL, \
+-                "baseline-" name, NULL, flags, result); \
++                "baseline-" name, NULL, 0, NULL, flags, result); \
+     } while (0)
+ 
+ #define DO_TEST_HASFEATURE(arch, host, feature, result) \
+     DO_TEST(arch, cpuTestHasFeature, \
+             host "/" feature " (" #result ")", \
+-            host, feature, NULL, 0, result)
++            host, feature, NULL, 0, NULL, 0, result)
+ 
+ #define DO_TEST_GUESTCPU(arch, host, cpu, models, result) \
+     DO_TEST(arch, cpuTestGuestCPU, \
+             host "/" cpu " (" #models ")", \
+-            host, cpu, models, 0, result)
++            host, cpu, NULL, 0, models, 0, result)
+ 
+ #if WITH_QEMU
+ # define DO_TEST_JSON(arch, host, json) \
+     do { \
+         if (json == JSON_MODELS) { \
+             DO_TEST(arch, cpuTestGuestCPUID, host, host, \
+-                    NULL, NULL, 0, 0); \
++                    NULL, NULL, 0, NULL, 0, 0); \
+         } \
+         if (json != JSON_NONE) { \
+             DO_TEST(arch, cpuTestJSONCPUID, host, host, \
+-                    NULL, NULL, json, 0); \
++                    NULL, NULL, 0, NULL, json, 0); \
+             DO_TEST(arch, cpuTestJSONSignature, host, host, \
+-                    NULL, NULL, 0, 0); \
++                    NULL, NULL, 0, NULL, 0, 0); \
+         } \
+     } while (0)
+ #else
+@@ -964,18 +1020,26 @@ mymain(void)
+ #define DO_TEST_CPUID(arch, host, json) \
+     do { \
+         DO_TEST(arch, cpuTestHostCPUID, host, host, \
+-                NULL, NULL, 0, 0); \
++                NULL, NULL, 0, NULL, 0, 0); \
+         DO_TEST(arch, cpuTestGuestCPUID, host, host, \
+-                NULL, NULL, json, 0); \
++                NULL, NULL, 0, NULL, json, 0); \
+         DO_TEST(arch, cpuTestCPUIDSignature, host, host, \
+-                NULL, NULL, 0, 0); \
++                NULL, NULL, 0, NULL, 0, 0); \
+         DO_TEST_JSON(arch, host, json); \
+         if (json != JSON_NONE) { \
+             DO_TEST(arch, cpuTestUpdateLive, host, host, \
+-                    NULL, NULL, json, 0); \
++                    NULL, NULL, 0, NULL, json, 0); \
+         } \
+     } while (0)
+ 
++#define DO_TEST_CPUID_BASELINE(arch, label, cpu1, cpu2) \
++    do { \
++        const char *cpus[] = {cpu1, cpu2}; \
++        DO_TEST(arch, cpuTestCPUIDBaseline, \
++                label " (" cpu1 ", " cpu2 ")", \
++                NULL, label, cpus, 2, NULL, 0, 0); \
++    } while (0)
++
+     /* host to host comparison */
+     DO_TEST_COMPARE(VIR_ARCH_X86_64, "host", "host", VIR_CPU_COMPARE_IDENTICAL);
+     DO_TEST_COMPARE(VIR_ARCH_X86_64, "host", "host-better", VIR_CPU_COMPARE_INCOMPATIBLE);
+@@ -1157,6 +1221,32 @@ mymain(void)
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Ice-Lake-Server", JSON_MODELS);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Cooperlake", JSON_MODELS);
+ 
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Ryzen+Rome",
++                           "Ryzen-7-1800X-Eight-Core", "Ryzen-9-3900X-12-Core");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "EPYC+Rome",
++                           "EPYC-7601-32-Core", "EPYC-7502-32-Core");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Haswell-noTSX-IBRS+Skylake",
++                           "Xeon-E5-2609-v3", "Xeon-Gold-6148");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Haswell-noTSX-IBRS+Skylake-IBRS",
++                           "Xeon-E5-2609-v3", "Xeon-Gold-6130");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Broadwell-IBRS+Cascadelake",
++                           "Xeon-E5-2623-v4", "Xeon-Platinum-8268");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Cascadelake+Skylake-IBRS",
++                           "Xeon-Platinum-8268", "Xeon-Gold-6130");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Cascadelake+Skylake",
++                           "Xeon-Platinum-9242", "Xeon-Gold-6148");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Cascadelake+Icelake",
++                           "Xeon-Platinum-9242", "Ice-Lake-Server");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Cooperlake+Icelake",
++                           "Cooperlake", "Ice-Lake-Server");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Cooperlake+Cascadelake",
++                           "Cooperlake", "Xeon-Platinum-9242");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Skylake-Client+Server",
++                           "Core-i5-6600", "Xeon-Gold-6148");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Haswell-noTSX-IBRS+Broadwell",
++                           "Xeon-E5-2609-v3", "Xeon-E5-2650-v4");
++    DO_TEST_CPUID_BASELINE(VIR_ARCH_X86_64, "Haswell+Skylake",
++                           "Xeon-E7-8890-v3", "Xeon-Gold-5115");
+  cleanup:
+ #if WITH_QEMU
+     qemuTestDriverFree(&driver);
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Broadwell-IBRS+Cascadelake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Broadwell-IBRS+Cascadelake.xml
+new file mode 100644
+index 0000000000..4e3f253e9b
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Broadwell-IBRS+Cascadelake.xml
+@@ -0,0 +1,11 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Skylake-Client-IBRS</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='disable' name='mpx'/>
++  <feature policy='disable' name='xsavec'/>
++  <feature policy='disable' name='xgetbv1'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Icelake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Icelake.xml
+new file mode 100644
+index 0000000000..e372a3e446
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Icelake.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Cooperlake</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='mpx'/>
++  <feature policy='require' name='umip'/>
++  <feature policy='require' name='xsaves'/>
++  <feature policy='disable' name='avx512-bf16'/>
++  <feature policy='disable' name='mds-no'/>
++  <feature policy='disable' name='pschange-mc-no'/>
++  <feature policy='disable' name='taa-no'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake-IBRS.xml b/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake-IBRS.xml
+new file mode 100644
+index 0000000000..e559e01583
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake-IBRS.xml
+@@ -0,0 +1,12 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Cascadelake-Server</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='umip'/>
++  <feature policy='require' name='pku'/>
++  <feature policy='require' name='xsaves'/>
++  <feature policy='require' name='skip-l1dfl-vmentry'/>
++  <feature policy='disable' name='avx512vnni'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake.xml
+new file mode 100644
+index 0000000000..906259df0b
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Cascadelake+Skylake.xml
+@@ -0,0 +1,8 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Skylake-Server</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='clflushopt'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml
+new file mode 100644
+index 0000000000..46c32c996f
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Cascadelake.xml
+@@ -0,0 +1,17 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Cooperlake</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='vmx'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='mpx'/>
++  <feature policy='require' name='umip'/>
++  <feature policy='require' name='md-clear'/>
++  <feature policy='require' name='xsaves'/>
++  <feature policy='require' name='ibpb'/>
++  <feature policy='require' name='amd-ssbd'/>
++  <feature policy='require' name='tsx-ctrl'/>
++  <feature policy='disable' name='avx512-bf16'/>
++  <feature policy='disable' name='taa-no'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Icelake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Icelake.xml
+new file mode 100644
+index 0000000000..e372a3e446
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Cooperlake+Icelake.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Cooperlake</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='mpx'/>
++  <feature policy='require' name='umip'/>
++  <feature policy='require' name='xsaves'/>
++  <feature policy='disable' name='avx512-bf16'/>
++  <feature policy='disable' name='mds-no'/>
++  <feature policy='disable' name='pschange-mc-no'/>
++  <feature policy='disable' name='taa-no'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-EPYC+Rome.xml b/tests/cputestdata/x86_64-cpuid-baseline-EPYC+Rome.xml
+new file mode 100644
+index 0000000000..e1984b2890
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-EPYC+Rome.xml
+@@ -0,0 +1,13 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>EPYC</model>
++  <vendor>AMD</vendor>
++  <feature policy='require' name='x2apic'/>
++  <feature policy='require' name='tsc-deadline'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='cmp_legacy'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='disable' name='svm'/>
++  <feature policy='disable' name='monitor'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Haswell+Skylake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Haswell+Skylake.xml
+new file mode 100644
+index 0000000000..e687a679b3
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Haswell+Skylake.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Haswell</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='vme'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='f16c'/>
++  <feature policy='require' name='rdrand'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='arat'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='xsaveopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='require' name='abm'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Broadwell.xml b/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Broadwell.xml
+new file mode 100644
+index 0000000000..651457b17a
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Broadwell.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Haswell-noTSX</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='vme'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='f16c'/>
++  <feature policy='require' name='rdrand'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='arat'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='xsaveopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='require' name='abm'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake-IBRS.xml b/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake-IBRS.xml
+new file mode 100644
+index 0000000000..8bda1c02e2
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake-IBRS.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Haswell-noTSX-IBRS</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='vme'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='f16c'/>
++  <feature policy='require' name='rdrand'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='arat'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='xsaveopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='require' name='abm'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake.xml b/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake.xml
+new file mode 100644
+index 0000000000..651457b17a
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Haswell-noTSX-IBRS+Skylake.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Haswell-noTSX</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='vme'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='f16c'/>
++  <feature policy='require' name='rdrand'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='arat'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='xsaveopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='require' name='abm'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Ryzen+Rome.xml b/tests/cputestdata/x86_64-cpuid-baseline-Ryzen+Rome.xml
+new file mode 100644
+index 0000000000..051402b9d5
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Ryzen+Rome.xml
+@@ -0,0 +1,13 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>EPYC</model>
++  <vendor>AMD</vendor>
++  <feature policy='require' name='x2apic'/>
++  <feature policy='require' name='tsc-deadline'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='cmp_legacy'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='disable' name='sha-ni'/>
++  <feature policy='disable' name='monitor'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-baseline-Skylake-Client+Server.xml b/tests/cputestdata/x86_64-cpuid-baseline-Skylake-Client+Server.xml
+new file mode 100644
+index 0000000000..d46ff26eeb
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-baseline-Skylake-Client+Server.xml
+@@ -0,0 +1,9 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='allow'>Skylake-Client</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='clflushopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++</cpu>
+-- 
+2.35.1
+
