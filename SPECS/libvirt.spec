@@ -228,87 +228,59 @@
 
 Summary: Library providing a simple virtualization API
 Name: libvirt
-Version: 9.0.0
-Release: 10.3%{?dist}%{?extra_release}
-License: LGPLv2+
+Version: 9.5.0
+Release: 7%{?dist}%{?extra_release}
+License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
 %if %(echo %{version} | grep -q "\.0$"; echo $?) == 1
     %define mainturl stable_updates/
 %endif
-Source: https://libvirt.org/sources/%{?mainturl}libvirt-%{version}.tar.xz
+Source: https://download.libvirt.org/%{?mainturl}libvirt-%{version}.tar.xz
 Source1: symlinks
-Patch1: libvirt-vircgroupv2-fix-cpu.weight-limits-check.patch
-Patch2: libvirt-domain_validate-drop-cpu.shares-cgroup-check.patch
-Patch3: libvirt-docs-document-correct-cpu-shares-limits-with-both-cgroups-v1-and-v2.patch
-Patch4: libvirt-qemu_interface-Fix-managed-no-case-when-creating-an-ethernet-interface.patch
-Patch5: libvirt-conf-clarify-some-external-TPM-error-messages.patch
-Patch6: libvirt-qemu-hotplug-Remove-legacy-quirk-for-dimm-address-generation.patch
-Patch7: libvirt-qemu-alias-Remove-oldAlias-argument-of-qemuAssignDeviceMemoryAlias.patch
-Patch8: libvirt-qemu-Remove-memAliasOrderMismatch-field-from-VM-private-data.patch
-Patch9: libvirt-rpc-Fix-error-message-in-virNetServerSetClientLimits.patch
-Patch10: libvirt-src-Don-t-use-virReportSystemError-on-virProcessGetStatInfo-failure.patch
-Patch11: libvirt-qemu-Provide-virDomainGetCPUStats-implementation-for-session-connection.patch
-Patch12: libvirt-virsh-Make-domif-setlink-work-more-than-once.patch
-Patch13: libvirt-qemu_fd-Remove-declaration-for-qemuFDPassNewDirect.patch
-Patch14: libvirt-qemuStorageSourcePrivateDataFormat-Rename-tmp-to-objectsChildBuf.patch
-Patch15: libvirt-qemu-command-Handle-FD-passing-commandline-via-qemuBuildBlockStorageSourceAttachDataCommandline.patch
-Patch16: libvirt-qemuFDPassTransferCommand-Mark-that-FD-was-passed.patch
-Patch17: libvirt-qemu-fd-Add-helpers-allowing-storing-FD-set-data-in-status-XML.patch
-Patch18: libvirt-qemu-domain-Store-fdset-ID-for-disks-passed-to-qemu-via-FD.patch
-Patch19: libvirt-qemu-block-Properly-handle-FD-passed-disk-hot-un-plug.patch
-Patch20: libvirt-qemuProcessStop-Fix-detection-of-outgoing-migration-for-external-devices.patch
-Patch21: libvirt-qemuExtTPMStop-Restore-TPM-state-label-more-often.patch
-Patch22: libvirt-qemuProcessLaunch-Tighten-rules-for-external-devices-wrt-incoming-migration.patch
-Patch23: libvirt-qemu_process-Produce-better-debug-message-wrt-domain-namespaces.patch
-Patch24: libvirt-qemu_namespace-Deal-with-nested-mounts-when-umount-ing-dev.patch
-Patch25: libvirt-qemuProcessRefreshDisks-Don-t-skip-filling-of-disk-information-if-tray-state-didn-t-change.patch
-Patch26: libvirt-qemu_extdevice-Do-cleanup-host-only-for-VIR_DOMAIN_TPM_TYPE_EMULATOR.patch
-Patch27: libvirt-qemu-blockjob-Handle-pending-blockjob-state-only-when-we-need-it.patch
-Patch28: libvirt-rpc-client-Don-t-check-return-value-of-virNetMessageNew.patch
-Patch29: libvirt-rpc-Don-t-warn-about-max_client_requests-in-single-threaded-daemons.patch
-Patch30: libvirt-qemu_snapshot-remove-memory-snapshot-when-deleting-external-snapshot.patch
-Patch31: libvirt-qemu_snapshot-refactor-qemuSnapshotDeleteExternalPrepare.patch
-Patch32: libvirt-docs-Fix-examples-in-virt-qemu-sev-validate-man-page.patch
-Patch33: libvirt-docs-refer-to-firmware-instead-of-loader.patch
-Patch34: libvirt-docs-kbase-fix-example-for-SEV-validation.patch
-Patch35: libvirt-qemu_passt-Report-error-when-getting-passt-PID-failed.patch
-Patch36: libvirt-qemu_passt-Avoid-double-daemonizing-passt.patch
-Patch37: libvirt-qemu_passt-Report-passt-s-error-on-failed-start.patch
-Patch38: libvirt-qemu_passt-Deduplicate-passt-killing-code.patch
-Patch39: libvirt-qemu_passt-Let-passt-write-the-PID-file.patch
-Patch40: libvirt-qemu_passt-Remove-passt-socket-file-on-exit.patch
-Patch41: libvirt-tests-qemucapabilitiesdata-Update-for-the-qemu-8.0-development-cycle.patch
-Patch42: libvirt-qemu-capabilities-Introduce-QEMU_CAPS_NETDEV_STREAM_RECONNECT.patch
-Patch43: libvirt-qemu-add-reconnect-5-to-passt-qemu-commandline-options-when-available.patch
-Patch44: libvirt-qemu-respond-to-NETDEV_STREAM_DISCONNECTED-event.patch
-Patch45: libvirt-qemu-domain-Fix-logic-when-tainting-domain.patch
-Patch46: libvirt-qemu-agent-Make-fetching-of-can-offline-member-from-guest-query-vcpus-optional.patch
-Patch47: libvirt-qemu-validate-Fix-logic-for-validating-presence-of-the-HPET-timer.patch
-Patch48: libvirt-util-add-an-API-to-retrieve-the-resolved-path-to-a-virCommand-s-binary.patch
-Patch49: libvirt-security-make-args-to-virSecuritySELinuxContextAddRange-const.patch
-Patch50: libvirt-security-make-it-possible-to-set-SELinux-label-of-child-process-from-its-binary.patch
-Patch51: libvirt-qemu-set-SELinux-label-of-passt-process-to-its-own-binary-s-label.patch
-Patch52: libvirt-po-Updated-translation-files-from-upstream.patch
-Patch53: libvirt-virnuma-Move-virNumaNodesetToCPUset-out-of-WITH_NUMACTL.patch
-Patch54: libvirt-virnuma-Introduce-virNumaCPUSetToNodeset.patch
-Patch55: libvirt-virnumamock-Introduce-virNumaGetNodeOfCPU-mock.patch
-Patch56: libvirt-qemuxml2argvtest-Use-virnuma-mock.patch
-Patch57: libvirt-qemuxml2argvdata-Adjust-maximum-NUMA-node-used.patch
-Patch58: libvirt-qemuxml2argvdata-Extend-vCPUs-placement-in-memory-hotplug-dimm-addr.xml.patch
-Patch59: libvirt-qemuxml2argvmock-Drop-virNuma-mocks.patch
-Patch60: libvirt-qemu-Move-cpuset-preference-evaluation-into-a-separate-function.patch
-Patch61: libvirt-qemu-Fix-qemuDomainGetEmulatorPinInfo.patch
-Patch62: libvirt-qemuBuildMemoryBackendProps-Join-two-conditions.patch
-Patch63: libvirt-qemu-Add-nodemaskRet-argument-to-qemuBuildMemoryBackendProps.patch
-Patch64: libvirt-qemu-Add-nodemask-argument-to-qemuBuildThreadContextProps.patch
-Patch65: libvirt-qemuBuildThreadContextProps-Prune-.node-affinity-wrt-emulatorpin.patch
-Patch66: libvirt-docs-Document-memory-allocation-and-emulator-pinning-limitation.patch
-Patch67: libvirt-conf-Fix-migration-in-some-firmware-autoselection-scenarios.patch
-Patch68: libvirt-virpci-Resolve-leak-in-virPCIVirtualFunctionList-cleanup.patch
-Patch69: libvirt-qemu-Generate-shorter-channel-target-paths.patch
-Patch70: libvirt-qemu-Move-channelTargetDir-into-stateDir.patch
-Patch71: libvirt-qemu_domain-Drop-unused-variables-from-qemuDomainChrDefDropDefaultPath.patch
+Patch1: libvirt-nodedev-transient-mdev-update-on-nodeDeviceCreateXML.patch
+Patch2: libvirt-nodedev-refactor-mdevctl-thread-functions.patch
+Patch3: libvirt-nodedev-update-mdevs-from-the-mdevctl-thread.patch
+Patch4: libvirt-tests-remove-acpi-support-from-s390x-ccw-hotplug-tests.patch
+Patch5: libvirt-tests-add-capabilities-for-QEMU-8.1.0-on-s390x.patch
+Patch6: libvirt-qemu-add-run-with-async-teardown-capability.patch
+Patch7: libvirt-qemu-allow-use-of-async-teardown-in-domain.patch
+Patch8: libvirt-conf-domcaps-Add-async-teardown-domain-capability.patch
+Patch9: libvirt-qemu-S390-does-not-provide-physical-address-size.patch
+Patch10: libvirt-nodedev-report-mdev-persistence-properly.patch
+Patch11: libvirt-node_device-Don-t-leak-error-message-buffer-from-virMdevctlListDefined-Active.patch
+Patch12: libvirt-storage-Fix-returning-of-locked-objects-from-virStoragePoolObjListSearch.patch
+Patch13: libvirt-Revert-qemu_passt-Actually-use-logfd.patch
+Patch14: libvirt-Revert-qemu_passt-Precreate-passt-logfile.patch
+Patch15: libvirt-tests-Use-DO_TEST_CAPS_-_ABI_UPDATE-for-ppc64.patch
+Patch16: libvirt-tests-Switch-to-firmware-autoselection-for-hvf.patch
+Patch17: libvirt-tests-Use-virt-4.0-machine-type-for-aarch64.patch
+Patch18: libvirt-tests-Consistently-use-path-to-guest_VARS.fd.patch
+Patch19: libvirt-tests-Turn-abi-update.xml-into-a-symlink.patch
+Patch20: libvirt-tests-Rename-firmware-auto-efi-nvram-path.patch
+Patch21: libvirt-qemu-Fix-return-value-for-qemuFirmwareFillDomainLegacy.patch
+Patch22: libvirt-qemu-Fix-lookup-against-stateless-combined-pflash.patch
+Patch23: libvirt-tests-Add-some-more-DO_TEST-ABI_UPDATE-macros.patch
+Patch24: libvirt-tests-Add-more-tests-for-firmware-selection.patch
+Patch25: libvirt-tests-Update-firmware-descriptor-files.patch
+Patch26: libvirt-tests-Drop-tags-from-BIOS-firmware-descriptor.patch
+Patch27: libvirt-tests-Include-microvm-in-firmwaretest.patch
+Patch28: libvirt-qemu-Don-t-overwrite-NVRAM-template-for-legacy-firmware.patch
+Patch29: libvirt-qemu-Generate-NVRAM-path-in-more-cases.patch
+Patch30: libvirt-qemu-Filter-firmware-based-on-loader.readonly.patch
+Patch31: libvirt-qemu-Match-NVRAM-template-extension-for-new-domains.patch
+Patch32: libvirt-conf-Don-t-default-to-raw-format-for-loader-NVRAM.patch
+Patch33: libvirt-tests-Rename-firmware-auto-efi-format-loader-qcow2-nvram-path.patch
+Patch34: libvirt-tests-Reintroduce-firmware-auto-efi-format-mismatch.patch
+Patch35: libvirt-util-use-stubDriverType-instead-of-just-stubDriver.patch
+Patch36: libvirt-util-add-stub-driver-name-to-virPCIDevice-object.patch
+Patch37: libvirt-util-rename-virPCIDeviceGetDriverPathAndName.patch
+Patch38: libvirt-util-permit-existing-binding-to-VFIO-variant-driver.patch
+Patch39: libvirt-util-probe-stub-driver-from-within-function-that-binds-to-stub-driver.patch
+Patch40: libvirt-util-honor-stubDriverName-when-probing-binding-stub-driver-for-a-device.patch
+Patch41: libvirt-node_device-support-binding-other-drivers-with-virNodeDeviceDetachFlags.patch
+Patch42: libvirt-qemu-turn-two-multiline-log-messages-into-single-line.patch
+Patch43: libvirt-docs-update-description-of-virsh-nodedev-detach-driver-option.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -383,7 +355,7 @@ BuildRequires: util-linux
 %if %{with_qemu}
 # For managing ACLs
 BuildRequires: libacl-devel
-# From QEMU RPMs
+# From QEMU RPMs, used by virstoragetest
 BuildRequires: /usr/bin/qemu-img
 %endif
 # For LVM drivers
@@ -505,19 +477,25 @@ Summary: Server side daemon and supporting files for libvirt library
 
 # The client side, i.e. shared libs are in a subpackage
 Requires: libvirt-libs = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-lock = %{version}-%{release}
+Requires: libvirt-daemon-plugin-lockd = %{version}-%{release}
+Requires: libvirt-daemon-log = %{version}-%{release}
+Requires: libvirt-daemon-proxy = %{version}-%{release}
+
+%description daemon
+Server side daemon required to manage the virtualization capabilities
+of recent versions of Linux. Requires a hypervisor specific sub-RPM
+for specific drivers.
+
+%package daemon-common
+Summary: Files and utilities used by daemons
+Requires: libvirt-libs = %{version}-%{release}
 # The libvirt-guests.sh script requires virsh from libvirt-client subpackage,
 # but not every deployment wants to use libvirt-guests service. Using
 # Recommends here will install libvirt-client by default (if available), but
 # RPM won't complain if the package is unavailable, masked, or removed later.
 Recommends: libvirt-client = %{version}-%{release}
-# netcat is needed on the server side so that clients that have
-# libvirt < 6.9.0 can connect, but newer versions will prefer
-# virt-ssh-helper. Making this a Recommends means that it gets
-# installed by default, but can still be removed if compatibility
-# with old clients is not required
-Recommends: /usr/bin/nc
-# for modprobe of pci devices
-Requires: module-init-tools
 # for /sbin/ip
 Requires: iproute
 # for /sbin/tc
@@ -528,10 +506,8 @@ Requires: polkit >= 0.112
 Requires: dmidecode
 %endif
 # For service management
-Requires(post): /usr/bin/systemctl
-%if %{with_numad}
-Requires: numad
-%endif
+Requires(posttrans): /usr/bin/systemctl
+Requires(preun): /usr/bin/systemctl
 # libvirtd depends on 'messagebus' service
 Requires: dbus
 # For uid creation during pre
@@ -548,15 +524,50 @@ Obsoletes: libvirt-admin < 7.3.0
 Provides: libvirt-admin = %{version}-%{release}
 Obsoletes: libvirt-bash-completion < 7.3.0
 
-%description daemon
-Server side daemon required to manage the virtualization capabilities
-of recent versions of Linux. Requires a hypervisor specific sub-RPM
-for specific drivers.
+%description daemon-common
+Miscellaneous files and utilities used by other libvirt daemons
+
+%package daemon-lock
+Summary: Server side daemon for managing locks
+Requires: libvirt-libs = %{version}-%{release}
+
+%description daemon-lock
+Server side daemon used to manage locks held against virtual machine
+resources
+
+%package daemon-plugin-lockd
+Summary: lockd client plugin for virtlockd
+Requires: libvirt-libs = %{version}-%{release}
+Requires: libvirt-daemon-lock = %{version}-%{release}
+
+%description daemon-plugin-lockd
+A client-side plugin that implements disk locking using POSIX fcntl advisory
+locks via communication with the virtlockd daemon
+
+%package daemon-log
+Summary: Server side daemon for managing logs
+Requires: libvirt-libs = %{version}-%{release}
+
+%description daemon-log
+Server side daemon used to manage logs from virtual machine consoles
+
+%package daemon-proxy
+Summary: Server side daemon providing libvirtd proxy
+Requires: libvirt-libs = %{version}-%{release}
+# netcat is needed on the server side so that clients that have
+# libvirt < 6.9.0 can connect, but newer versions will prefer
+# virt-ssh-helper. Making this a Recommends means that it gets
+# installed by default, but can still be removed if compatibility
+# with old clients is not required
+Recommends: /usr/bin/nc
+
+%description daemon-proxy
+Server side daemon providing functionality previously provided by
+the monolithic libvirtd
 
 %package daemon-config-network
 Summary: Default configuration files for the libvirtd daemon
 
-Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
 
 %description daemon-config-network
@@ -565,7 +576,6 @@ Default configuration files for setting up NAT based networking
 %package daemon-config-nwfilter
 Summary: Network filter configuration files for the libvirtd daemon
 
-Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-driver-nwfilter = %{version}-%{release}
 
 %description daemon-config-nwfilter
@@ -573,7 +583,7 @@ Network filter configuration files for cleaning guest traffic
 
 %package daemon-driver-network
 Summary: Network driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 Requires: dnsmasq >= 2.41
 Requires: iptables
@@ -585,7 +595,7 @@ bridge capabilities.
 
 %package daemon-driver-nwfilter
 Summary: Nwfilter driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 Requires: iptables
 Requires: ebtables
@@ -597,12 +607,14 @@ iptables and ip6tables capabilities
 
 %package daemon-driver-nodedev
 Summary: Nodedev driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 # needed for device enumeration
 Requires: systemd >= 185
 # For managing persistent mediated devices
 Requires: mdevctl
+# for modprobe of pci devices
+Requires: module-init-tools
 
 %description daemon-driver-nodedev
 The nodedev driver plugin for the libvirtd daemon, providing
@@ -611,7 +623,7 @@ capabilities.
 
 %package daemon-driver-interface
 Summary: Interface driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 %if %{with_netcf}
 Requires: netcf-libs >= 0.2.2
@@ -623,7 +635,7 @@ an implementation of the host network interface APIs.
 
 %package daemon-driver-secret
 Summary: Secret driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 
 %description daemon-driver-secret
@@ -632,7 +644,7 @@ an implementation of the secret key APIs.
 
 %package daemon-driver-storage-core
 Summary: Storage driver plugin including base backends for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 Requires: nfs-utils
 # For mkfs
@@ -783,7 +795,8 @@ parted and more.
 %if %{with_qemu}
 %package daemon-driver-qemu
 Summary: QEMU driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-log = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 Requires: /usr/bin/qemu-img
 # For image compression
@@ -793,6 +806,9 @@ Requires: lzop
 Requires: xz
 Requires: systemd-container
 Requires: swtpm-tools
+    %if %{with_numad}
+Requires: numad
+    %endif
     %if (0%{?fedora} >= 36) || (0%{?rhel} >= 9)
 Recommends: passt
 Recommends: passt-selinux
@@ -807,11 +823,16 @@ QEMU
 %if %{with_lxc}
 %package daemon-driver-lxc
 Summary: LXC driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 # There really is a hard cross-driver dependency here
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
 Requires: systemd-container
+# for modprobe of nbd driver
+Requires: module-init-tools
+    %if %{with_numad}
+Requires: numad
+    %endif
 
 %description daemon-driver-lxc
 The LXC driver plugin for the libvirtd daemon, providing
@@ -822,7 +843,7 @@ the Linux kernel
 %if %{with_vbox}
 %package daemon-driver-vbox
 Summary: VirtualBox driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 
 %description daemon-driver-vbox
@@ -834,7 +855,7 @@ VirtualBox
 %if %{with_libxl}
 %package daemon-driver-libxl
 Summary: Libxl driver plugin for the libvirtd daemon
-Requires: libvirt-daemon = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 Obsoletes: libvirt-daemon-driver-xen < 4.3.0
 
@@ -848,7 +869,16 @@ Libxl
 %package daemon-qemu
 Summary: Server side daemon & driver required to run QEMU guests
 
+    %if %{with_modular_daemons}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-log = %{version}-%{release}
+Requires: libvirt-daemon-lock = %{version}-%{release}
+Requires: libvirt-daemon-plugin-lockd = %{version}-%{release}
+Requires: libvirt-daemon-proxy = %{version}-%{release}
+Recommends: libvirt-daemon = %{version}-%{release}
+    %else
 Requires: libvirt-daemon = %{version}-%{release}
+    %endif
 Requires: libvirt-daemon-driver-qemu = %{version}-%{release}
 Requires: libvirt-daemon-driver-interface = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
@@ -867,7 +897,16 @@ capabilities of the QEMU TCG emulators
 %package daemon-kvm
 Summary: Server side daemon & driver required to run KVM guests
 
+    %if %{with_modular_daemons}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-log = %{version}-%{release}
+Requires: libvirt-daemon-lock = %{version}-%{release}
+Requires: libvirt-daemon-plugin-lockd = %{version}-%{release}
+Requires: libvirt-daemon-proxy = %{version}-%{release}
+Recommends: libvirt-daemon = %{version}-%{release}
+    %else
 Requires: libvirt-daemon = %{version}-%{release}
+    %endif
 Requires: libvirt-daemon-driver-qemu = %{version}-%{release}
 Requires: libvirt-daemon-driver-interface = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
@@ -886,7 +925,13 @@ capabilities of the KVM hypervisor
 %package daemon-lxc
 Summary: Server side daemon & driver required to run LXC guests
 
+    %if %{with_modular_daemons}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-proxy = %{version}-%{release}
+Recommends: libvirt-daemon = %{version}-%{release}
+    %else
 Requires: libvirt-daemon = %{version}-%{release}
+    %endif
 Requires: libvirt-daemon-driver-lxc = %{version}-%{release}
 Requires: libvirt-daemon-driver-interface = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
@@ -904,7 +949,15 @@ capabilities of LXC
 %package daemon-xen
 Summary: Server side daemon & driver required to run XEN guests
 
+    %if %{with_modular_daemons}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-lock = %{version}-%{release}
+Requires: libvirt-daemon-plugin-lockd = %{version}-%{release}
+Requires: libvirt-daemon-proxy = %{version}-%{release}
+Recommends: libvirt-daemon = %{version}-%{release}
+    %else
 Requires: libvirt-daemon = %{version}-%{release}
+    %endif
 Requires: libvirt-daemon-driver-libxl = %{version}-%{release}
 Requires: libvirt-daemon-driver-interface = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
@@ -923,7 +976,13 @@ capabilities of XEN
 %package daemon-vbox
 Summary: Server side daemon & driver required to run VirtualBox guests
 
+    %if %{with_modular_daemons}
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-proxy = %{version}-%{release}
+Recommends: libvirt-daemon = %{version}-%{release}
+    %else
 Requires: libvirt-daemon = %{version}-%{release}
+    %endif
 Requires: libvirt-daemon-driver-vbox = %{version}-%{release}
 Requires: libvirt-daemon-driver-interface = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
@@ -1002,15 +1061,16 @@ Requires: pkgconfig
 Include header files & development libraries for the libvirt C library.
 
 %if %{with_sanlock}
-%package lock-sanlock
+%package daemon-plugin-sanlock
 Summary: Sanlock lock manager plugin for QEMU driver
 Requires: sanlock >= 2.4
 #for virt-sanlock-cleanup require augeas
 Requires: augeas
-Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
+Obsoletes: libvirt-lock-sanlock < 9.1.0
+Provides: libvirt-lock-sanlock = %{version}-%{release}
 
-%description lock-sanlock
+%description daemon-plugin-sanlock
 Includes the Sanlock lock manager plugin for the QEMU
 driver
 %endif
@@ -1221,6 +1281,7 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/libvirt.spec)
 
 %meson \
            -Drunstatedir=%{_rundir} \
+           -Dinitconfdir=%{_sysconfdir}/sysconfig \
            %{?arg_qemu} \
            %{?arg_openvz} \
            %{?arg_lxc} \
@@ -1463,210 +1524,289 @@ rm -rf $RPM_BUILD_ROOT%{mingw64_libexecdir}/libvirt-guests.sh
 # raising the test timeout
 VIR_TEST_DEBUG=1 %meson_test --no-suite syntax-check --timeout-multiplier 10
 
-%define libvirt_daemon_schedule_restart() mkdir -p %{_localstatedir}/lib/rpm-state/libvirt || : \
-/bin/systemctl is-active %1.service 1>/dev/null 2>&1 && \
-  touch %{_localstatedir}/lib/rpm-state/libvirt/restart-%1 || :
+%define libvirt_rpmstatedir %{_localstatedir}/lib/rpm-state/libvirt
 
-%define libvirt_daemon_finish_restart() rm -f %{_localstatedir}/lib/rpm-state/libvirt/restart-%1 \
-rmdir %{_localstatedir}/lib/rpm-state/libvirt 2>/dev/null || :
+# Mark units such that presets will later be applied to them. Meant
+# to be called during %pre. Units that already exist on the system
+# will not be marked, with the assumption that presets have already
+# been applied at some point in the past. This makes it safe to call
+# this macro for all units each time %pre runs.
+%define libvirt_systemd_schedule_preset() \
+    mkdir -p %{libvirt_rpmstatedir} || : \
+    for unit in %{?*}; do \
+        if ! test -e %{_unitdir}/$unit; then \
+            touch %{libvirt_rpmstatedir}/preset-$unit || : \
+        fi \
+    done \
+    %{nil}
 
-%define libvirt_daemon_needs_restart() -f %{_localstatedir}/lib/rpm-state/libvirt/restart-%1
+# Apply presets for units that have previously been marked. Meant to
+# be called during %posttrans. Note that foo.service must be passed
+# as the first argument, before all the various foo*.socket
+# associated with it, for things to work correctly. This is necessary
+# because Also=foo.socket is usually present in foo.service's
+# [Install] section, and we want that configuration to take
+# precedence over foo.socket's own presets.
+%define libvirt_systemd_perform_preset() \
+    %{?7:%{error:Too many arguments}} \
+    for unit in %{?2} %{?3} %{?4} %{?5} %{?6} %1; do \
+        if test -e %{libvirt_rpmstatedir}/preset-$unit; then \
+            /usr/bin/systemctl --no-reload preset $unit || : \
+        fi \
+        rm -f %{libvirt_rpmstatedir}/preset-$unit \
+    done \
+    rmdir %{libvirt_rpmstatedir} 2>/dev/null || : \
+    %{nil}
 
-%define libvirt_daemon_perform_restart() if test %libvirt_daemon_needs_restart %1 \
-then \
-  /bin/systemctl try-restart %1.service >/dev/null 2>&1 || : \
-fi \
-%libvirt_daemon_finish_restart %1
+# Mark a single unit for restart. Meant to be called during %pre.
+%define libvirt_systemd_schedule_restart() \
+    mkdir -p %{libvirt_rpmstatedir} || : \
+    touch %{libvirt_rpmstatedir}/restart-%1 || : \
+    %{nil}
+
+# Restart a unit that was previously marked. Meant to be called
+# during %posttrans. If systemd is not running, no action will be
+# performed.
+%define libvirt_systemd_perform_restart() \
+    if test -d /run/systemd/system && \
+       test -e %{libvirt_rpmstatedir}/restart-%1; then \
+        /usr/bin/systemctl try-restart %1 >/dev/null 2>&1 || : \
+    fi \
+    rm -f %{libvirt_rpmstatedir}/restart-%1 \
+    rmdir %{libvirt_rpmstatedir} 2>/dev/null || : \
+    %{nil}
+
+# Mark a single unit for reload. Meant to be called during %pre.
+%define libvirt_systemd_schedule_reload() \
+    mkdir -p %{libvirt_rpmstatedir} || : \
+    touch %{libvirt_rpmstatedir}/reload-%1 || : \
+    %{nil}
+
+# Reload a unit that was previously marked. Meant to be called during
+# %posttrans. If systemd is not running, no action will be performed.
+%define libvirt_systemd_perform_reload() \
+    if test -d /run/systemd/system && \
+       test -e %{libvirt_rpmstatedir}/reload-%1; then \
+        /usr/bin/systemctl try-reload-or-restart %1 >/dev/null 2>&1 || : \
+    fi \
+    rm -f %{libvirt_rpmstatedir}/reload-%1 \
+    rmdir %{libvirt_rpmstatedir} 2>/dev/null || : \
+    %{nil}
+
+# Disable a single unit, optionally stopping it if systemd is
+# running. Meant to be called during %preun.
+%define libvirt_systemd_disable() \
+    if test -d /run/systemd/system; then \
+        /usr/bin/systemctl --no-reload disable --now %{?*} || : \
+    else \
+        /usr/bin/systemctl --no-reload disable %{?*} || : \
+    fi \
+    %{nil}
+
+# %pre implementation for services that should be restarted on
+# upgrade. Note that foo.service must be passed as the first
+# argument, before all the various foo*.socket associated with it.
+%define libvirt_systemd_restart_pre() \
+    %libvirt_systemd_schedule_preset %{?*} \
+    %libvirt_systemd_schedule_restart %1 \
+    %{nil}
+
+# %pre implementation for services that should be reloaded on
+# upgrade. Note that foo.service must be passed as the first
+# argument, before all the various foo*.socket associated with it.
+%define libvirt_systemd_reload_pre() \
+    %libvirt_systemd_schedule_preset %{?*} \
+    %libvirt_systemd_schedule_reload %1 \
+    %{nil}
+
+# %pre implementation for services that should be neither restarted
+# nor reloaded on upgrade.
+%define libvirt_systemd_noaction_pre() \
+    %libvirt_systemd_schedule_preset %{?*} \
+    %{nil}
+
+# %posttrans implementation for all services. We can use a single
+# macro to cover all scenarios, because each operation will only be
+# performed if it had previously been scheduled. Note that
+# foo.service must be passed as the first argument, before all the
+# various foo*.socket associated with it.
+%define libvirt_systemd_posttrans() \
+    %libvirt_systemd_perform_preset %{?*} \
+    %libvirt_systemd_perform_reload %1 \
+    %libvirt_systemd_perform_restart %1 \
+    %{nil}
+
+# %preun implementation for all services.
+%define libvirt_systemd_preun() \
+    if [ $1 -lt 1 ]; then \
+        %libvirt_systemd_disable %{?*} \
+    fi \
+    %{nil}
 
 # For daemons with only UNIX sockets
-%define libvirt_daemon_systemd_post() %systemd_post %1.socket %1-ro.socket %1-admin.socket %1.service
-%define libvirt_daemon_systemd_preun() %systemd_preun %1.service %1-ro.socket %1-admin.socket %1.socket
+
+%define libvirt_systemd_unix_pre() %libvirt_systemd_restart_pre %1.service %1.socket %1-ro.socket %1-admin.socket
+%define libvirt_systemd_unix_posttrans() %libvirt_systemd_posttrans %1.service %1.socket %1-ro.socket %1-admin.socket
+%define libvirt_systemd_unix_preun() %libvirt_systemd_preun %1.service %1.socket %1-ro.socket %1-admin.socket
 
 # For daemons with UNIX and INET sockets
-%define libvirt_daemon_systemd_post_inet() %systemd_post %1.socket %1-ro.socket %1-admin.socket %1-tls.socket %1-tcp.socket %1.service
-%define libvirt_daemon_systemd_preun_inet() %systemd_preun %1.service %1-ro.socket %1-admin.socket %1-tls.socket %1-tcp.socket %1.socket
+%define libvirt_systemd_inet_pre() %libvirt_systemd_restart_pre %1.service %1.socket %1-ro.socket %1-admin.socket %1-tls.socket %1-tcp.socket
+%define libvirt_systemd_inet_posttrans() %libvirt_systemd_posttrans %1.service %1.socket %1-ro.socket %1-admin.socket %1-tls.socket %1-tcp.socket
+%define libvirt_systemd_inet_preun() %libvirt_systemd_preun %1.service %1.socket %1-ro.socket %1-admin.socket %1-tls.socket %1-tcp.socket
 
 # For daemons with only UNIX sockets and no unprivileged read-only access
-%define libvirt_daemon_systemd_post_priv() %systemd_post %1.socket %1-admin.socket %1.service
-%define libvirt_daemon_systemd_preun_priv() %systemd_preun %1.service %1-admin.socket %1.socket
+%define libvirt_systemd_privileged_pre() %libvirt_systemd_reload_pre %1.service %1.socket %1-admin.socket
+%define libvirt_systemd_privileged_posttrans() %libvirt_systemd_posttrans %1.service %1.socket %1-admin.socket
+%define libvirt_systemd_privileged_preun() %libvirt_systemd_preun %1.service %1.socket %1-admin.socket
+
+# For one-shot daemons that have no associated sockets and should never be restarted
+%define libvirt_systemd_oneshot_pre() %libvirt_systemd_noaction_pre %1.service
+%define libvirt_systemd_oneshot_posttrans() %libvirt_systemd_posttrans %1.service
+%define libvirt_systemd_oneshot_preun() %libvirt_systemd_preun %1.service
+
+# For packages that install configuration for other daemons
+%define libvirt_systemd_config_pre() %libvirt_systemd_schedule_restart %1.service
+%define libvirt_systemd_config_posttrans() %libvirt_systemd_perform_restart %1.service
 
 %pre daemon
-%libvirt_sysconfig_pre libvirtd virtproxyd virtlogd virtlockd libvirt-guests
-# 'libvirt' group is just to allow password-less polkit access to
-# libvirtd. The uid number is irrelevant, so we use dynamic allocation
-# described at the above link.
+%libvirt_sysconfig_pre libvirtd
+%libvirt_systemd_inet_pre libvirtd
+
+%posttrans daemon
+%libvirt_sysconfig_posttrans libvirtd
+%libvirt_systemd_inet_posttrans libvirtd
+
+%preun daemon
+%libvirt_systemd_inet_preun libvirtd
+
+%pre daemon-common
+%libvirt_sysconfig_pre libvirt-guests
+%libvirt_systemd_oneshot_pre libvirt-guests
+# 'libvirt' group is just to allow password-less polkit access to libvirt
+# daemons. The uid number is irrelevant, so we use dynamic allocation.
 getent group libvirt >/dev/null || groupadd -r libvirt
 exit 0
 
-%post daemon
-%libvirt_daemon_systemd_post_priv virtlogd
-%libvirt_daemon_systemd_post_priv virtlockd
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post_inet virtproxyd
-%else
-%libvirt_daemon_systemd_post_inet libvirtd
-%endif
-%systemd_post libvirt-guests.service
-%libvirt_daemon_schedule_restart libvirtd
+%posttrans daemon-common
+%libvirt_sysconfig_posttrans libvirt-guests
+%libvirt_systemd_oneshot_posttrans libvirt-guests
 
-%preun daemon
-%systemd_preun libvirt-guests.service
-%libvirt_daemon_systemd_preun_inet libvirtd
-%libvirt_daemon_systemd_preun_inet virtproxyd
-%libvirt_daemon_systemd_preun_priv virtlogd
-%libvirt_daemon_systemd_preun_priv virtlockd
+%preun daemon-common
+%libvirt_systemd_oneshot_preun libvirt-guests
 
-%postun daemon
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
-if [ $1 -ge 1 ] ; then
-    /bin/systemctl reload-or-try-restart virtlockd.service virtlogd.service >/dev/null 2>&1 || :
-fi
-%systemd_postun libvirt-guests.service
+%pre daemon-lock
+%libvirt_sysconfig_pre virtlockd
+%libvirt_systemd_privileged_pre virtlockd
 
-%posttrans daemon
-%libvirt_sysconfig_posttrans libvirtd virtproxyd virtlogd virtlockd libvirt-guests
-if test %libvirt_daemon_needs_restart libvirtd
-then
-    # See if user has previously modified their install to
-    # tell libvirtd to use --listen
-    grep -E '^LIBVIRTD_ARGS=.*--listen' /etc/sysconfig/libvirtd 1>/dev/null 2>&1
-    if test $? = 0
-    then
-        # Then lets keep honouring --listen and *not* use
-        # systemd socket activation, because switching things
-        # might confuse mgmt tool like puppet/ansible that
-        # expect the old style libvirtd
-        /bin/systemctl mask \
-                libvirtd.socket \
-                libvirtd-ro.socket \
-                libvirtd-admin.socket \
-                libvirtd-tls.socket \
-                libvirtd-tcp.socket >/dev/null 2>&1 || :
-        /bin/systemctl try-restart libvirtd.service >/dev/null 2>&1 || :
-    else
-        # Old libvirtd owns the sockets and will delete them on
-        # shutdown. Can't use a try-restart as libvirtd will simply
-        # own the sockets again when it comes back up. Thus we must
-        # do this particular ordering, so that we get libvirtd
-        # running with socket activation in use
-        /bin/systemctl stop libvirtd.service >/dev/null 2>&1 || :
-        /bin/systemctl try-restart \
-                libvirtd.socket \
-                libvirtd-ro.socket \
-                libvirtd-admin.socket >/dev/null 2>&1 || :
-        /bin/systemctl start libvirtd.service >/dev/null 2>&1 || :
-    fi
-fi
-%libvirt_daemon_finish_restart libvirtd
+%posttrans daemon-lock
+%libvirt_sysconfig_posttrans virtlockd
+%libvirt_systemd_privileged_posttrans virtlockd
+
+%preun daemon-lock
+%libvirt_systemd_privileged_preun virtlockd
+
+%pre daemon-log
+%libvirt_sysconfig_pre virtlogd
+%libvirt_systemd_privileged_pre virtlogd
+
+%posttrans daemon-log
+%libvirt_sysconfig_posttrans virtlogd
+%libvirt_systemd_privileged_posttrans virtlogd
+
+%preun daemon-log
+%libvirt_systemd_privileged_preun virtlogd
+
+%pre daemon-proxy
+%libvirt_sysconfig_pre virtproxyd
+%libvirt_systemd_inet_pre virtproxyd
+
+%posttrans daemon-proxy
+%libvirt_sysconfig_posttrans virtproxyd
+%libvirt_systemd_inet_posttrans virtproxyd
+
+%preun daemon-proxy
+%libvirt_systemd_inet_preun virtproxyd
 
 %pre daemon-driver-network
 %libvirt_sysconfig_pre virtnetworkd
+%libvirt_systemd_unix_pre virtnetworkd
 
 %post daemon-driver-network
 %if %{with_firewalld_zone}
     %firewalld_reload
 %endif
 
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtnetworkd
-%endif
-%libvirt_daemon_schedule_restart virtnetworkd
+%posttrans daemon-driver-network
+%libvirt_sysconfig_posttrans virtnetworkd
+%libvirt_systemd_unix_posttrans virtnetworkd
 
 %preun daemon-driver-network
-%libvirt_daemon_systemd_preun virtnetworkd
+%libvirt_systemd_unix_preun virtnetworkd
 
 %postun daemon-driver-network
 %if %{with_firewalld_zone}
     %firewalld_reload
 %endif
 
-%posttrans daemon-driver-network
-%libvirt_sysconfig_posttrans virtnetworkd
-%libvirt_daemon_perform_restart virtnetworkd
-
 %pre daemon-driver-nwfilter
 %libvirt_sysconfig_pre virtnwfilterd
-
-%post daemon-driver-nwfilter
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtnwfilterd
-%endif
-%libvirt_daemon_schedule_restart virtnwfilterd
-
-%preun daemon-driver-nwfilter
-%libvirt_daemon_systemd_preun virtnwfilterd
+%libvirt_systemd_unix_pre virtnwfilterd
 
 %posttrans daemon-driver-nwfilter
 %libvirt_sysconfig_posttrans virtnwfilterd
-%libvirt_daemon_perform_restart virtnwfilterd
+%libvirt_systemd_unix_posttrans virtnwfilterd
+
+%preun daemon-driver-nwfilter
+%libvirt_systemd_unix_preun virtnwfilterd
 
 %pre daemon-driver-nodedev
 %libvirt_sysconfig_pre virtnodedevd
-
-%post daemon-driver-nodedev
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtnodedevd
-%endif
-%libvirt_daemon_schedule_restart virtnodedevd
-
-%preun daemon-driver-nodedev
-%libvirt_daemon_systemd_preun virtnodedevd
+%libvirt_systemd_unix_pre virtnodedevd
 
 %posttrans daemon-driver-nodedev
 %libvirt_sysconfig_posttrans virtnodedevd
-%libvirt_daemon_perform_restart virtnodedevd
+%libvirt_systemd_unix_posttrans virtnodedevd
+
+%preun daemon-driver-nodedev
+%libvirt_systemd_unix_preun virtnodedevd
 
 %pre daemon-driver-interface
 %libvirt_sysconfig_pre virtinterfaced
-
-%post daemon-driver-interface
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtinterfaced
-%endif
-%libvirt_daemon_schedule_restart virtinterfaced
-
-%preun daemon-driver-interface
-%libvirt_daemon_systemd_preun virtinterfaced
+%libvirt_systemd_unix_pre virtinterfaced
 
 %posttrans daemon-driver-interface
 %libvirt_sysconfig_posttrans virtinterfaced
-%libvirt_daemon_perform_restart virtinterfaced
+%libvirt_systemd_unix_posttrans virtinterfaced
+
+%preun daemon-driver-interface
+%libvirt_systemd_unix_preun virtinterfaced
 
 %pre daemon-driver-secret
 %libvirt_sysconfig_pre virtsecretd
-
-%post daemon-driver-secret
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtsecretd
-%endif
-%libvirt_daemon_schedule_restart virtsecretd
-
-%preun daemon-driver-secret
-%libvirt_daemon_systemd_preun virtsecretd
+%libvirt_systemd_unix_pre virtsecretd
 
 %posttrans daemon-driver-secret
 %libvirt_sysconfig_posttrans virtsecretd
-%libvirt_daemon_perform_restart virtsecretd
+%libvirt_systemd_unix_posttrans virtsecretd
+
+%preun daemon-driver-secret
+%libvirt_systemd_unix_preun virtsecretd
 
 %pre daemon-driver-storage-core
 %libvirt_sysconfig_pre virtstoraged
-
-%post daemon-driver-storage-core
-%if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtstoraged
-%endif
-%libvirt_daemon_schedule_restart virtstoraged
-
-%preun daemon-driver-storage-core
-%libvirt_daemon_systemd_preun virtstoraged
+%libvirt_systemd_unix_pre virtstoraged
 
 %posttrans daemon-driver-storage-core
 %libvirt_sysconfig_posttrans virtstoraged
-%libvirt_daemon_perform_restart virtstoraged
+%libvirt_systemd_unix_posttrans virtstoraged
+
+%preun daemon-driver-storage-core
+%libvirt_systemd_unix_preun virtstoraged
 
 %if %{with_qemu}
 %pre daemon-driver-qemu
 %libvirt_sysconfig_pre virtqemud
+%libvirt_systemd_unix_pre virtqemud
 # We want soft static allocation of well-known ids, as disk images
 # are commonly shared across NFS mounts by id rather than name; see
 # https://fedoraproject.org/wiki/Packaging:UsersAndGroups
@@ -1681,73 +1821,56 @@ if ! getent passwd qemu >/dev/null; then
 fi
 exit 0
 
-%post daemon-driver-qemu
-    %if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtqemud
-    %endif
-%libvirt_daemon_schedule_restart virtqemud
-
-%preun daemon-driver-qemu
-%libvirt_daemon_systemd_preun virtqemud
-
 %posttrans daemon-driver-qemu
 %libvirt_sysconfig_posttrans virtqemud
-%libvirt_daemon_perform_restart virtqemud
+%libvirt_systemd_unix_posttrans virtqemud
+
+%preun daemon-driver-qemu
+%libvirt_systemd_unix_preun virtqemud
 %endif
 
 %if %{with_lxc}
 %pre daemon-driver-lxc
 %libvirt_sysconfig_pre virtlxcd
-
-%post daemon-driver-lxc
-    %if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtlxcd
-    %endif
-%libvirt_daemon_schedule_restart virtlxcd
-
-%preun daemon-driver-lxc
-%libvirt_daemon_systemd_preun virtlxcd
+%libvirt_systemd_unix_pre virtlxcd
 
 %posttrans daemon-driver-lxc
 %libvirt_sysconfig_posttrans virtlxcd
-%libvirt_daemon_perform_restart virtlxcd
+%libvirt_systemd_unix_posttrans virtlxcd
+
+%preun daemon-driver-lxc
+%libvirt_systemd_unix_preun virtlxcd
 %endif
 
 %if %{with_vbox}
-%post daemon-driver-vbox
-    %if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtvboxd
-    %endif
-%libvirt_daemon_schedule_restart virtvboxd
-
 %pre daemon-driver-vbox
 %libvirt_sysconfig_pre virtvboxd
-
-%preun daemon-driver-vbox
-%libvirt_daemon_systemd_preun virtvboxd
+%libvirt_systemd_unix_pre virtvboxd
 
 %posttrans daemon-driver-vbox
 %libvirt_sysconfig_posttrans virtvboxd
-%libvirt_daemon_perform_restart virtvboxd
+%libvirt_systemd_unix_posttrans virtvboxd
+
+%preun daemon-driver-vbox
+%libvirt_systemd_unix_preun virtvboxd
 %endif
 
 %if %{with_libxl}
-%post daemon-driver-libxl
-    %if %{with_modular_daemons}
-%libvirt_daemon_systemd_post virtxend
-    %endif
-%libvirt_daemon_schedule_restart virtxend
-
 %pre daemon-driver-libxl
 %libvirt_sysconfig_pre virtxend
-
-%preun daemon-driver-libxl
-%libvirt_daemon_systemd_preun virtxend
+%libvirt_systemd_unix_pre virtxend
 
 %posttrans daemon-driver-libxl
 %libvirt_sysconfig_posttrans virtxend
-%libvirt_daemon_perform_restart virtxend
+%libvirt_systemd_unix_posttrans virtxend
+
+%preun daemon-driver-libxl
+%libvirt_systemd_unix_preun virtxend
 %endif
+
+%pre daemon-config-network
+%libvirt_systemd_config_pre libvirtd
+%libvirt_systemd_config_pre virtnetworkd
 
 %post daemon-config-network
 if test $1 -eq 1 && test ! -f %{_sysconfdir}/libvirt/qemu/networks/default.xml ; then
@@ -1785,15 +1908,15 @@ if test $1 -eq 1 && test ! -f %{_sysconfdir}/libvirt/qemu/networks/default.xml ;
     ln -s ../default.xml %{_sysconfdir}/libvirt/qemu/networks/autostart/default.xml
     # libvirt saves this file with mode 0600
     chmod 0600 %{_sysconfdir}/libvirt/qemu/networks/default.xml
-
-    # Make sure libvirt picks up the new network defininiton
-    %libvirt_daemon_schedule_restart libvirtd
-    %libvirt_daemon_schedule_restart virtnetworkd
 fi
 
 %posttrans daemon-config-network
-%libvirt_daemon_perform_restart libvirtd
-%libvirt_daemon_perform_restart virtnetworkd
+%libvirt_systemd_config_posttrans libvirtd
+%libvirt_systemd_config_posttrans virtnetworkd
+
+%pre daemon-config-nwfilter
+%libvirt_systemd_config_pre libvirtd
+%libvirt_systemd_config_pre virtnwfilterd
 
 %post daemon-config-nwfilter
 for datadir_file in %{_datadir}/libvirt/nwfilter/*.xml; do
@@ -1803,13 +1926,10 @@ for datadir_file in %{_datadir}/libvirt/nwfilter/*.xml; do
     install -m 0600 "$datadir_file" "$sysconfdir_file"
   fi
 done
-# Make sure libvirt picks up the new nwfilter defininitons
-%libvirt_daemon_schedule_restart libvirtd
-%libvirt_daemon_schedule_restart virtnwfilterd
 
 %posttrans daemon-config-nwfilter
-%libvirt_daemon_perform_restart libvirtd
-%libvirt_daemon_perform_restart virtnwfilterd
+%libvirt_systemd_config_posttrans libvirtd
+%libvirt_systemd_config_posttrans virtnwfilterd
 
 %if %{with_lxc}
 %pre login-shell
@@ -1830,27 +1950,18 @@ exit 0
 %{_unitdir}/libvirtd-admin.socket
 %{_unitdir}/libvirtd-tcp.socket
 %{_unitdir}/libvirtd-tls.socket
-%{_unitdir}/virtproxyd.service
-%{_unitdir}/virtproxyd.socket
-%{_unitdir}/virtproxyd-ro.socket
-%{_unitdir}/virtproxyd-admin.socket
-%{_unitdir}/virtproxyd-tcp.socket
-%{_unitdir}/virtproxyd-tls.socket
-%{_unitdir}/virt-guest-shutdown.target
-%{_unitdir}/virtlogd.service
-%{_unitdir}/virtlogd.socket
-%{_unitdir}/virtlogd-admin.socket
-%{_unitdir}/virtlockd.service
-%{_unitdir}/virtlockd.socket
-%{_unitdir}/virtlockd-admin.socket
-%{_unitdir}/libvirt-guests.service
 %config(noreplace) %{_sysconfdir}/libvirt/libvirtd.conf
-%config(noreplace) %{_sysconfdir}/libvirt/virtproxyd.conf
-%config(noreplace) %{_sysconfdir}/libvirt/virtlogd.conf
-%config(noreplace) %{_sysconfdir}/libvirt/virtlockd.conf
-%config(noreplace) %{_sysconfdir}/sasl2/libvirt.conf
 %config(noreplace) %{_prefix}/lib/sysctl.d/60-libvirtd.conf
 %config(noreplace) %{_sysconfdir}/logrotate.d/libvirtd
+%{_datadir}/augeas/lenses/libvirtd.aug
+%{_datadir}/augeas/lenses/tests/test_libvirtd.aug
+%attr(0755, root, root) %{_sbindir}/libvirtd
+%{_mandir}/man8/libvirtd.8*
+
+%files daemon-common
+%{_unitdir}/virt-guest-shutdown.target
+%{_unitdir}/libvirt-guests.service
+%config(noreplace) %{_sysconfdir}/sasl2/libvirt.conf
 %dir %{_datadir}/libvirt/
 %ghost %dir %{_rundir}/libvirt/
 %ghost %dir %{_rundir}/libvirt/common/
@@ -1861,44 +1972,63 @@ exit 0
 %dir %attr(0711, root, root) %{_localstatedir}/cache/libvirt/
 %dir %attr(0755, root, root) %{_libdir}/libvirt/
 %dir %attr(0755, root, root) %{_libdir}/libvirt/connection-driver/
-%dir %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/
 %dir %attr(0755, root, root) %{_libdir}/libvirt/storage-backend/
 %dir %attr(0755, root, root) %{_libdir}/libvirt/storage-file/
-%attr(0755, root, root) %{_libdir}/libvirt/lock-driver/lockd.so
-%{_datadir}/augeas/lenses/libvirtd.aug
-%{_datadir}/augeas/lenses/tests/test_libvirtd.aug
-%{_datadir}/augeas/lenses/virtlogd.aug
-%{_datadir}/augeas/lenses/tests/test_virtlogd.aug
-%{_datadir}/augeas/lenses/virtlockd.aug
-%{_datadir}/augeas/lenses/tests/test_virtlockd.aug
-%{_datadir}/augeas/lenses/virtproxyd.aug
-%{_datadir}/augeas/lenses/tests/test_virtproxyd.aug
-%{_datadir}/augeas/lenses/libvirt_lockd.aug
-%if %{with_qemu}
-%{_datadir}/augeas/lenses/tests/test_libvirt_lockd.aug
-%endif
 %{_datadir}/polkit-1/actions/org.libvirt.unix.policy
 %{_datadir}/polkit-1/actions/org.libvirt.api.policy
 %{_datadir}/polkit-1/rules.d/50-libvirt.rules
 %dir %attr(0700, root, root) %{_localstatedir}/log/libvirt/
 %attr(0755, root, root) %{_libexecdir}/libvirt_iohelper
 %attr(0755, root, root) %{_bindir}/virt-ssh-helper
-%attr(0755, root, root) %{_sbindir}/libvirtd
-%attr(0755, root, root) %{_sbindir}/virtproxyd
-%attr(0755, root, root) %{_sbindir}/virtlogd
-%attr(0755, root, root) %{_sbindir}/virtlockd
 %attr(0755, root, root) %{_libexecdir}/libvirt-guests.sh
 %{_mandir}/man1/virt-admin.1*
 %{_mandir}/man1/virt-host-validate.1*
 %{_mandir}/man8/virt-ssh-helper.8*
 %{_mandir}/man8/libvirt-guests.8*
-%{_mandir}/man8/libvirtd.8*
-%{_mandir}/man8/virtlogd.8*
-%{_mandir}/man8/virtlockd.8*
-%{_mandir}/man8/virtproxyd.8*
 %{_bindir}/virt-host-validate
 %{_bindir}/virt-admin
 %{_datadir}/bash-completion/completions/virt-admin
+
+%files daemon-lock
+%{_unitdir}/virtlockd.service
+%{_unitdir}/virtlockd.socket
+%{_unitdir}/virtlockd-admin.socket
+%config(noreplace) %{_sysconfdir}/libvirt/virtlockd.conf
+%{_datadir}/augeas/lenses/virtlockd.aug
+%{_datadir}/augeas/lenses/tests/test_virtlockd.aug
+%{_datadir}/augeas/lenses/libvirt_lockd.aug
+%if %{with_qemu}
+%{_datadir}/augeas/lenses/tests/test_libvirt_lockd.aug
+%endif
+%attr(0755, root, root) %{_sbindir}/virtlockd
+%{_mandir}/man8/virtlockd.8*
+
+%files daemon-plugin-lockd
+%dir %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/
+%attr(0755, root, root) %{_libdir}/libvirt/lock-driver/lockd.so
+
+%files daemon-log
+%{_unitdir}/virtlogd.service
+%{_unitdir}/virtlogd.socket
+%{_unitdir}/virtlogd-admin.socket
+%config(noreplace) %{_sysconfdir}/libvirt/virtlogd.conf
+%{_datadir}/augeas/lenses/virtlogd.aug
+%{_datadir}/augeas/lenses/tests/test_virtlogd.aug
+%attr(0755, root, root) %{_sbindir}/virtlogd
+%{_mandir}/man8/virtlogd.8*
+
+%files daemon-proxy
+%{_unitdir}/virtproxyd.service
+%{_unitdir}/virtproxyd.socket
+%{_unitdir}/virtproxyd-ro.socket
+%{_unitdir}/virtproxyd-admin.socket
+%{_unitdir}/virtproxyd-tcp.socket
+%{_unitdir}/virtproxyd-tls.socket
+%config(noreplace) %{_sysconfdir}/libvirt/virtproxyd.conf
+%{_datadir}/augeas/lenses/virtproxyd.aug
+%{_datadir}/augeas/lenses/tests/test_virtproxyd.aug
+%attr(0755, root, root) %{_sbindir}/virtproxyd
+%{_mandir}/man8/virtproxyd.8*
 
 %files daemon-config-network
 %dir %{_datadir}/libvirt/networks/
@@ -2072,6 +2202,8 @@ exit 0
 %ghost %dir %{_rundir}/libvirt/qemu/slirp/
 %ghost %dir %{_rundir}/libvirt/qemu/swtpm/
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/
+%dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/channel/
+%dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/channel/target/
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/checkpoint/
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/dump/
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/nvram/
@@ -2176,13 +2308,14 @@ exit 0
 %endif
 
 %if %{with_sanlock}
-%files lock-sanlock
+%files daemon-plugin-sanlock
     %if %{with_qemu}
 %config(noreplace) %{_sysconfdir}/libvirt/qemu-sanlock.conf
     %endif
     %if %{with_libxl}
 %config(noreplace) %{_sysconfdir}/libvirt/libxl-sanlock.conf
     %endif
+%dir %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/
 %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/sanlock.so
 %{_datadir}/augeas/lenses/libvirt_sanlock.aug
 %{_datadir}/augeas/lenses/tests/test_libvirt_sanlock.aug
@@ -2400,59 +2533,106 @@ exit 0
 %endif
 
 %changelog
-* Thu Aug 24 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-10.3.el9_2
-- qemu: Generate shorter channel target paths (rhbz#2233744)
-- qemu: Move channelTargetDir into stateDir (rhbz#2233744)
-- qemu_domain: Drop unused variables from qemuDomainChrDefDropDefaultPath() (rhbz#2233744)
+* Fri Sep  8 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-7
+- util: use "stubDriverType" instead of just "stubDriver" (rhbz#2074209)
+- util: add stub driver name to virPCIDevice object (rhbz#2074209)
+- util: rename virPCIDeviceGetDriverPathAndName (rhbz#2074209)
+- util: permit existing binding to VFIO variant driver (rhbz#2074209)
+- util: probe stub driver from within function that binds to stub driver (rhbz#2074209)
+- util: honor stubDriverName when probing/binding stub driver for a device (rhbz#2074209)
+- node_device: support binding other drivers with virNodeDeviceDetachFlags() (rhbz#2074209)
+- qemu: turn two multiline log messages into single line (rhbz#2074209)
+- docs: update description of virsh nodedev-detach --driver option (rhbz#2074209)
+- rpm: Fix typo in daemon name (rhbz#2236057)
+- rpm: Recommend libvirt-daemon for with_modular_daemons distros (rhbz#2236500)
 
-* Mon May 29 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-10.2.el9_2
-- virpci: Resolve leak in virPCIVirtualFunctionList cleanup (CVE-2023-2700, rhbz#2208596)
+* Fri Aug 25 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-6
+- tests: Use DO_TEST_CAPS_*_ABI_UPDATE() for ppc64 (rhbz#2196178)
+- tests: Switch to firmware autoselection for hvf (rhbz#2196178)
+- tests: Use virt-4.0 machine type for aarch64 (rhbz#2196178)
+- tests: Consistently use /path/to/guest_VARS.fd (rhbz#2196178)
+- tests: Turn abi-update.xml into a symlink (rhbz#2196178)
+- tests: Rename firmware-auto-efi-nvram-path (rhbz#2196178)
+- qemu: Fix return value for qemuFirmwareFillDomainLegacy() (rhbz#2196178)
+- qemu: Fix lookup against stateless/combined pflash (rhbz#2196178)
+- tests: Add some more DO_TEST*ABI_UPDATE* macros (rhbz#2196178)
+- tests: Add more tests for firmware selection (rhbz#2196178)
+- tests: Update firmware descriptor files (rhbz#2196178)
+- tests: Drop tags from BIOS firmware descriptor (rhbz#2196178)
+- tests: Include microvm in firmwaretest (rhbz#2196178)
+- qemu: Don't overwrite NVRAM template for legacy firmware (rhbz#2196178)
+- qemu: Generate NVRAM path in more cases (rhbz#2196178)
+- qemu: Filter firmware based on loader.readonly (rhbz#2196178)
+- qemu: Match NVRAM template extension for new domains (rhbz#2196178)
+- conf: Don't default to raw format for loader/NVRAM (rhbz#2196178)
+- tests: Rename firmware-auto-efi-format-loader-qcow2-nvram-path (rhbz#2196178)
+- tests: Reintroduce firmware-auto-efi-format-mismatch (rhbz#2196178)
+- rpm: Reorder scriptlets (rhbz#2210058)
+- rpm: Reduce use of with_modular_daemons (rhbz#2210058)
+- rpm: Remove custom libvirtd restart logic (rhbz#2210058)
+- rpm: Introduce new macros for handling of systemd units (rhbz#2210058)
+- rpm: Switch to new macros for handling of systemd units (rhbz#2210058)
+- rpm: Delete unused macros (rhbz#2210058)
 
-* Fri Apr 14 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-10.1.el9_2
-- virnuma: Move virNumaNodesetToCPUset() out of WITH_NUMACTL (rhbz#2185039)
-- virnuma: Introduce virNumaCPUSetToNodeset() (rhbz#2185039)
-- virnumamock: Introduce virNumaGetNodeOfCPU() mock (rhbz#2185039)
-- qemuxml2argvtest: Use virnuma mock (rhbz#2185039)
-- qemuxml2argvdata: Adjust maximum NUMA node used (rhbz#2185039)
-- qemuxml2argvdata: Extend vCPUs placement in memory-hotplug-dimm-addr.xml (rhbz#2185039)
-- qemuxml2argvmock: Drop virNuma* mocks (rhbz#2185039)
-- qemu: Move cpuset preference evaluation into a separate function (rhbz#2185039)
-- qemu: Fix qemuDomainGetEmulatorPinInfo() (rhbz#2185039)
-- qemuBuildMemoryBackendProps: Join two conditions (rhbz#2185039)
-- qemu: Add @nodemaskRet argument to qemuBuildMemoryBackendProps() (rhbz#2185039)
-- qemu: Add @nodemask argument to qemuBuildThreadContextProps() (rhbz#2185039)
-- qemuBuildThreadContextProps: Prune .node-affinity wrt <emulatorpin/> (rhbz#2185039)
-- docs: Document memory allocation and emulator pinning limitation (rhbz#2185039)
-- conf: Fix migration in some firmware autoselection scenarios (rhbz#2186383)
+* Wed Aug  2 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-5
+- Revert "qemu_passt: Actually use @logfd" (rhbz#2209191)
+- Revert "qemu_passt: Precreate passt logfile" (rhbz#2209191)
 
-* Wed Mar 22 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-10
-- po: Updated translation files from upstream (rhbz#2139664)
+* Mon Jul 31 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-4
+- storage: Fix returning of locked objects from 'virStoragePoolObjListSearch' (CVE-2023-3750, rhbz#2221851)
 
-* Thu Mar 16 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-9
-- util: add an API to retrieve the resolved path to a virCommand's binary (rhbz#2172267)
-- security: make args to virSecuritySELinuxContextAddRange() const (rhbz#2172267)
-- security: make it possible to set SELinux label of child process from its binary (rhbz#2172267)
-- qemu: set SELinux label of passt process to its own binary's label (rhbz#2172267)
-- rpm: Recommend passt-selinux (rhbz#2172267)
+* Fri Jul 21 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-3
+- tests: remove acpi support from s390x ccw hotplug tests (rhbz#2168499)
+- tests: add capabilities for QEMU 8.1.0 on s390x (rhbz#2168499)
+- qemu: add run-with async-teardown capability (rhbz#2168499)
+- qemu: allow use of async teardown in domain (rhbz#2168499)
+- conf: domcaps: Add 'async-teardown' domain capability (rhbz#2168499)
+- qemu: S390 does not provide physical address size (rhbz#2224016)
+- nodedev: report mdev persistence properly (rhbz#2143158)
+- node_device: Don't leak error message buffer from virMdevctlListDefined|Active (rhbz#2143158)
 
-* Fri Mar 10 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-8
-- docs: Fix examples in virt-qemu-sev-validate man page (rhbz#2172347)
-- docs: refer to --firmware instead of --loader (rhbz#2172347)
-- rpm: add missing deps for the virt-qemu-sev-validate (rhbz#2172347)
-- docs/kbase: fix example for SEV validation (rhbz#2172347)
-- qemu_passt: Report error when getting passt PID failed (rhbz#2169244)
-- qemu_passt: Avoid double daemonizing passt (rhbz#2169244)
-- qemu_passt: Report passt's error on failed start (rhbz#2169244)
-- qemu_passt: Deduplicate passt killing code (rhbz#2169244)
-- qemu_passt: Let passt write the PID file (rhbz#2169244)
-- qemu_passt: Remove passt socket file on exit (rhbz#2169244)
-- tests: qemucapabilitiesdata: Update for the qemu-8.0 development cycle (rhbz#2172098)
-- qemu: capabilities: Introduce QEMU_CAPS_NETDEV_STREAM_RECONNECT (rhbz#2172098)
-- qemu: add reconnect=5 to passt qemu commandline options when available (rhbz#2172098)
-- qemu: respond to NETDEV_STREAM_DISCONNECTED event (rhbz#2172098)
-- qemu: domain: Fix logic when tainting domain (rhbz#2174446)
-- qemu: agent: Make fetching of 'can-offline' member from 'guest-query-vcpus' optional (rhbz#2174446)
-- qemu: validate: Fix logic for validating presence of the HPET timer (rhbz#2175813)
+* Mon Jul 17 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-2
+- nodedev: transient mdev update on nodeDeviceCreateXML (rhbz#2143158)
+- nodedev: refactor mdevctl thread functions (rhbz#2143158)
+- nodedev: update mdevs from the mdevctl thread (rhbz#2143158)
+
+* Mon Jul  3 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-1
+- Rebased to libvirt-9.5.0 (rhbz#2175785)
+
+* Wed Jun 28 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-0rc1.1
+- Rebased to libvirt-9.5.0-rc1 (rhbz#2175785)
+- The rebase also fixes the following bugs:
+    rhbz#2160356, rhbz#2209191, rhbz#2210287, rhbz#2209853, rhbz#2171860
+    rhbz#2138150, rhbz#2171384
+
+* Fri Jun  2 2023 Jiri Denemark <jdenemar@redhat.com> - 9.4.0-1
+- Rebased to libvirt-9.4.0 (rhbz#2175785)
+- The rebase also fixes the following bugs:
+    rhbz#2119007, rhbz#2193315, rhbz#2209658, rhbz#2143158, rhbz#2208946
+    rhbz#2138150, rhbz#2203657, rhbz#2180679, rhbz#2203709
+
+* Tue May 16 2023 Jiri Denemark <jdenemar@redhat.com> - 9.3.0-2
+- qemu_domin: Account for NVMe disks when calculating memlock limit on hotplug (rhbz#2014030)
+
+* Fri May  5 2023 Jiri Denemark <jdenemar@redhat.com> - 9.3.0-1
+- Rebased to libvirt-9.3.0 (rhbz#2175785)
+- The rebase also fixes the following bugs:
+    rhbz#2181235, rhbz#2176215, rhbz#2187133, rhbz#2178885, rhbz#2174700
+    rhbz#2160435, rhbz#2184966, rhbz#2187278, rhbz#2014030, rhbz#2185184
+    rhbz#2156300
+
+* Mon Apr  3 2023 Jiri Denemark <jdenemar@redhat.com> - 9.2.0-1
+- Rebased to libvirt-9.2.0 (rhbz#2175785)
+- The rebase also fixes the following bugs:
+    rhbz#2178885, rhbz#2000410, rhbz#2175582, rhbz#2154750, rhbz#2175449
+    rhbz#2181234, rhbz#2078693, rhbz#2176924, rhbz#2156300, rhbz#2173142
+    rhbz#2171973, rhbz#2178866, rhbz#2182961, rhbz#2174397, rhbz#2179030
+    rhbz#2161965, rhbz#2035985
+
+* Mon Mar 13 2023 Jiri Denemark <jdenemar@redhat.com> - 9.1.0-1
+- Rebased to libvirt-9.1.0 (rhbz#2175785)
+- The rebase also fixes the following bugs:
+    rhbz#2004850, rhbz#2137346, rhbz#2166235, rhbz#1961326
 
 * Wed Feb 22 2023 Jiri Denemark <jdenemar@redhat.com> - 9.0.0-7
 - qemu_snapshot: remove memory snapshot when deleting external snapshot (rhbz#2170826)

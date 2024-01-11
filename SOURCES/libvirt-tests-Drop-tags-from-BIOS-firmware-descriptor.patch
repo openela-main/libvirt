@@ -1,0 +1,34 @@
+From eda27de700194d435b2ca03d4578f34b5388ecc2 Mon Sep 17 00:00:00 2001
+Message-ID: <eda27de700194d435b2ca03d4578f34b5388ecc2.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Mon, 31 Jul 2023 17:05:58 +0200
+Subject: [PATCH] tests: Drop tags from BIOS firmware descriptor
+
+They aren't used for anything.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit da6b98394bcce6c128edafb3eefe9570d8b96e84)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json
+index 137ff70779..378e6d93a5 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json
+@@ -28,8 +28,5 @@
+         "acpi-s4"
+     ],
+     "tags": [
+-        "CONFIG_BOOTSPLASH=n",
+-        "CONFIG_ROM_SIZE=256",
+-        "CONFIG_USE_SMM=n"
+     ]
+ }
+-- 
+2.42.0

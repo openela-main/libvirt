@@ -1,0 +1,127 @@
+From b775a84c8e8d95cb407e56b0ee289b124027f94d Mon Sep 17 00:00:00 2001
+Message-ID: <b775a84c8e8d95cb407e56b0ee289b124027f94d.1689974709.git.jdenemar@redhat.com>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Wed, 5 Jul 2023 08:20:23 +0200
+Subject: [PATCH] tests: remove acpi support from s390x ccw hotplug tests
+
+In newer QEMU libvirt combinations acpi support is no longer tolerated
+and ignored. Therfore before upgrading the test capabilities to QEMU
+8.1.0 replies removing the acpi feature from the domain XMLs.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit d8e95ab6b7c45acc121746e2e24edcfca3d8d8a0)
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2168499
+
+Signed-off-by: Boris Fiuczynski <bfiuczyn@redhat.com>
+---
+ .../qemuhotplug-base-ccw-live+ccw-virtio.xml                     | 1 -
+ ...lug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-explicit.xml | 1 -
+ ...plug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-reverse.xml | 1 -
+ .../qemuhotplug-base-ccw-live-with-2-ccw-virtio.xml              | 1 -
+ ...tplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2-explicit.xml | 1 -
+ .../qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2.xml   | 1 -
+ .../qemuhotplug-base-ccw-live-with-ccw-virtio.xml                | 1 -
+ tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live.xml       | 1 -
+ 8 files changed, 8 deletions(-)
+
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live+ccw-virtio.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live+ccw-virtio.xml
+index 798a7ab732..6e879ded86 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live+ccw-virtio.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live+ccw-virtio.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-explicit.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-explicit.xml
+index 0c76410ff1..86d8da651d 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-explicit.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-explicit.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-reverse.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-reverse.xml
+index 5d2769c420..9b16951e46 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-reverse.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio+ccw-virtio-1-reverse.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio.xml
+index 845c0e1c98..b5292a7ed2 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-2-ccw-virtio.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2-explicit.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2-explicit.xml
+index 29b8fdd6c8..f37868101c 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2-explicit.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2-explicit.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2.xml
+index 29b8fdd6c8..f37868101c 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio+ccw-virtio-2.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio.xml
+index 82402ffe1b..42f89a07a2 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live-with-ccw-virtio.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live.xml
+index 6eb60b13a9..f0570b5cf4 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-ccw-live.xml
+@@ -9,7 +9,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+-- 
+2.41.0

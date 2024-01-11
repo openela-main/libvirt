@@ -1,0 +1,46 @@
+From 4caf97c3e61003bff99551aae9eb2816ab88fb96 Mon Sep 17 00:00:00 2001
+Message-ID: <4caf97c3e61003bff99551aae9eb2816ab88fb96.1694154048.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Sat, 8 Jul 2023 23:05:44 -0400
+Subject: [PATCH] util: honor stubDriverName when probing/binding stub driver
+ for a device
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 928296b044647fd3cbe409db6903afc791863a90)
+https://bugzilla.redhat.com/2074209
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/util/virpci.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index f1936795da..1158e468bf 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -1290,17 +1290,20 @@ virPCIDeviceUnbindFromStub(virPCIDevice *dev)
+ static int
+ virPCIDeviceBindToStub(virPCIDevice *dev)
+ {
+-    const char *stubDriverName;
++    const char *stubDriverName = dev->stubDriverName;
+     g_autofree char *stubDriverPath = NULL;
+     g_autofree char *driverLink = NULL;
+ 
+-    /* Check the device is configured to use one of the known stub drivers */
++
+     if (dev->stubDriverType == VIR_PCI_STUB_DRIVER_NONE) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("No stub driver configured for PCI device %1$s"),
+                        dev->name);
+         return -1;
+-    } else if (!(stubDriverName = virPCIStubDriverTypeToString(dev->stubDriverType))) {
++    }
++
++    if (!stubDriverName
++        && !(stubDriverName = virPCIStubDriverTypeToString(dev->stubDriverType))) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("Unknown stub driver configured for PCI device %1$s"),
+                        dev->name);
+-- 
+2.42.0

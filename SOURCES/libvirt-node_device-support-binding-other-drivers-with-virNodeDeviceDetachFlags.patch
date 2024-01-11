@@ -1,0 +1,184 @@
+From dac0752fa5bc62cda2faafe4b68c7ed0ccf99d19 Mon Sep 17 00:00:00 2001
+Message-ID: <dac0752fa5bc62cda2faafe4b68c7ed0ccf99d19.1694154048.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Sun, 9 Jul 2023 00:37:45 -0400
+Subject: [PATCH] node_device: support binding other drivers with
+ virNodeDeviceDetachFlags()
+
+In the past, the only allowable values for the "driver" field of
+virNodeDeviceDetachFlags() were "kvm" or "vfio" for the QEMU driver,
+and "xen" for the libxl driver. Then "kvm" was deprecated and removed,
+so the driver name became essentially irrelevant (because it is always
+called via a particular hypervisor driver, and so the "xen" or "vfio"
+can be (and almost always is) implied.
+
+With the advent of VFIO variant drivers, the ability to explicitly
+specify a driver name once again becomes useful - it can be used to
+name the exact VFIO driver that we want bound to the device in place
+of vfio-pci, so this patch allows those other names to be passed down
+the call chain, where the code in virpci.c can make use of them.
+
+The names "vfio", "kvm", and "xen" retain their special meaning, though:
+
+  1) because there may be some application or configuration that still
+     calls virNodeDeviceDetachFlags() with driverName="vfio", this
+     single value is substituted with the synonym of NULL, which means
+     "bind the default driver for this device and hypervisor". This
+     will currently result in the vfio-pci driver being bound to the
+     device.
+
+  2) in the case of the libxl driver, "xen" means to use the standard
+     driver used in the case of Xen ("pciback").
+
+  3) "kvm" as a driver name always results in an error, as legacy KVM
+     device assignment was removed from the kernel around 10 years ago.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 24beaffec33efa3fa077d7b8596d97aa9a038a01)
+https://bugzilla.redhat.com/2074209
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/hypervisor/domain_driver.c | 11 ++++++-----
+ src/hypervisor/domain_driver.h |  2 ++
+ src/libxl/libxl_driver.c       |  3 ++-
+ src/qemu/qemu_driver.c         | 33 +++++++++++++++++++--------------
+ 4 files changed, 29 insertions(+), 20 deletions(-)
+
+diff --git a/src/hypervisor/domain_driver.c b/src/hypervisor/domain_driver.c
+index a70f75f3ae..d9469ad6f9 100644
+--- a/src/hypervisor/domain_driver.c
++++ b/src/hypervisor/domain_driver.c
+@@ -462,6 +462,7 @@ virDomainDriverNodeDeviceReAttach(virNodeDevicePtr dev,
+ int
+ virDomainDriverNodeDeviceDetachFlags(virNodeDevicePtr dev,
+                                      virHostdevManager *hostdevMgr,
++                                     virPCIStubDriver driverType,
+                                      const char *driverName)
+ {
+     g_autoptr(virPCIDevice) pci = NULL;
+@@ -471,8 +472,10 @@ virDomainDriverNodeDeviceDetachFlags(virNodeDevicePtr dev,
+     g_autoptr(virConnect) nodeconn = NULL;
+     g_autoptr(virNodeDevice) nodedev = NULL;
+ 
+-    if (!driverName)
++    if (driverType == VIR_PCI_STUB_DRIVER_NONE) {
++        virReportError(VIR_ERR_INTERNAL_ERROR, "%s", _("driver type not set"));
+         return -1;
++    }
+ 
+     if (!(nodeconn = virGetConnectNodeDev()))
+         return -1;
+@@ -504,10 +507,8 @@ virDomainDriverNodeDeviceDetachFlags(virNodeDevicePtr dev,
+     if (!pci)
+         return -1;
+ 
+-    if (STREQ(driverName, "vfio"))
+-        virPCIDeviceSetStubDriverType(pci, VIR_PCI_STUB_DRIVER_VFIO);
+-    else if (STREQ(driverName, "xen"))
+-        virPCIDeviceSetStubDriverType(pci, VIR_PCI_STUB_DRIVER_XEN);
++    virPCIDeviceSetStubDriverType(pci, driverType);
++    virPCIDeviceSetStubDriverName(pci, driverName);
+ 
+     return virHostdevPCINodeDeviceDetach(hostdevMgr, pci);
+ }
+diff --git a/src/hypervisor/domain_driver.h b/src/hypervisor/domain_driver.h
+index 4241c86932..9942f58fda 100644
+--- a/src/hypervisor/domain_driver.h
++++ b/src/hypervisor/domain_driver.h
+@@ -22,6 +22,7 @@
+ 
+ #include "node_device_conf.h"
+ #include "virhostdev.h"
++#include "virpci.h"
+ 
+ char *
+ virDomainDriverGenerateRootHash(const char *drivername,
+@@ -58,6 +59,7 @@ int virDomainDriverNodeDeviceReAttach(virNodeDevicePtr dev,
+ 
+ int virDomainDriverNodeDeviceDetachFlags(virNodeDevicePtr dev,
+                                          virHostdevManager *hostdevMgr,
++                                         virPCIStubDriver driverType,
+                                          const char *driverName);
+ 
+ int virDomainDriverAddIOThreadCheck(virDomainDef *def,
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index d99bc37bf6..3f7950f398 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -5879,7 +5879,8 @@ libxlNodeDeviceDetachFlags(virNodeDevicePtr dev,
+ 
+     /* virNodeDeviceDetachFlagsEnsureACL() is being called by
+      * virDomainDriverNodeDeviceDetachFlags() */
+-    return virDomainDriverNodeDeviceDetachFlags(dev, hostdev_mgr, driverName);
++    return virDomainDriverNodeDeviceDetachFlags(dev, hostdev_mgr,
++                                                VIR_PCI_STUB_DRIVER_XEN, NULL);
+ }
+ 
+ static int
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index f20544590d..d471cb5f09 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -70,7 +70,6 @@
+ #include "domain_driver.h"
+ #include "domain_postparse.h"
+ #include "domain_validate.h"
+-#include "virpci.h"
+ #include "virpidfile.h"
+ #include "virprocess.h"
+ #include "libvirt_internal.h"
+@@ -11398,24 +11397,28 @@ qemuNodeDeviceDetachFlags(virNodeDevicePtr dev,
+ 
+     virCheckFlags(0, -1);
+ 
+-    if (!driverName)
+-        driverName = "vfio";
+-
+-    /* Only the 'vfio' driver is supported and a special error message for
+-     * the previously supported 'kvm' driver is provided below. */
+-    if (STRNEQ(driverName, "vfio") && STRNEQ(driverName, "kvm")) {
+-        virReportError(VIR_ERR_INVALID_ARG,
+-                       _("unknown driver name '%1$s'"), driverName);
+-        return -1;
+-    }
++    /* For historical reasons, if driverName is "vfio", that is the
++     * same as NULL, i.e. the default vfio driver for this device
++     */
++    if (STREQ_NULLABLE(driverName, "vfio"))
++        driverName = NULL;
+ 
+-    if (STREQ(driverName, "kvm")) {
++    /* the "kvm" driver name was used a very long time ago to force
++     * "legacy KVM device assignment", which hasn't been supported in
++     * over 10 years.
++     */
++    if (STREQ_NULLABLE(driverName, "kvm")) {
+         virReportError(VIR_ERR_ARGUMENT_UNSUPPORTED, "%s",
+-                       _("KVM device assignment is no longer "
++                       _("'legacy KVM' device assignment is no longer "
+                          "supported on this system"));
+         return -1;
+     }
+ 
++    /* for any other driver, we can't know whether or not it is a VFIO
++     * driver until the device has been bound to it, so we will defer
++     * further validation until then.
++     */
++
+     if (!qemuHostdevHostSupportsPassthroughVFIO()) {
+         virReportError(VIR_ERR_ARGUMENT_UNSUPPORTED, "%s",
+                        _("VFIO device assignment is currently not "
+@@ -11425,7 +11428,9 @@ qemuNodeDeviceDetachFlags(virNodeDevicePtr dev,
+ 
+     /* virNodeDeviceDetachFlagsEnsureACL() is being called by
+      * virDomainDriverNodeDeviceDetachFlags() */
+-    return virDomainDriverNodeDeviceDetachFlags(dev, hostdev_mgr, driverName);
++    return virDomainDriverNodeDeviceDetachFlags(dev, hostdev_mgr,
++                                                VIR_PCI_STUB_DRIVER_VFIO,
++                                                driverName);
+ }
+ 
+ static int
+-- 
+2.42.0

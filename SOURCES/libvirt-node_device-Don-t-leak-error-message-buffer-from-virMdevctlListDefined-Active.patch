@@ -1,0 +1,79 @@
+From f158b6573ac39bdd1ba36c3900e65afffe57f3ca Mon Sep 17 00:00:00 2001
+Message-ID: <f158b6573ac39bdd1ba36c3900e65afffe57f3ca.1689974710.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 19 Jul 2023 15:22:22 +0200
+Subject: [PATCH] node_device: Don't leak error message buffer from
+ virMdevctlListDefined|Active
+
+nodeDeviceUpdateMediatedDevices invokes virMdevctlListDefined and
+virMdevctlListActive both of which were passed the same 'errmsg' buffer.
+
+Since virCommandSetErrorBuffer() always allocates the error buffer one
+of them was leaked.
+
+Fix it by populating the 'errmsg' buffer only on failure of
+virMdevctlListActive|Defined which invoke the command.
+
+Add a comment to nodeDeviceGetMdevctlListCommand reminding how
+virCommandSetErrorBuffer() works.
+
+Fixes: 44a0f2f0c8f
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2143158
+
+(cherry picked from commit 7ca777cc09242cb3a30b12d5e0e396c6aaf1a5e7)
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+---
+ src/node_device/node_device_driver.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/node_device/node_device_driver.c b/src/node_device/node_device_driver.c
+index 5dc45ddbb4..2ef9197adc 100644
+--- a/src/node_device/node_device_driver.c
++++ b/src/node_device/node_device_driver.c
+@@ -1044,6 +1044,15 @@ virMdevctlSetAutostart(virNodeDeviceDef *def, bool autostart, char **errmsg)
+ }
+ 
+ 
++/**
++ * nodeDeviceGetMdevctlListCommand:
++ * @defined: list mdevctl entries with persistent config
++ * @output: filled with the output of mdevctl once invoked
++ * @errmsg: always allocated, optionally filled with error from 'mdevctl'
++ *
++ * Prepares a virCommand structure to invoke 'mdevctl' caller is responsible to
++ * free the buffers which are filled by the virCommand infrastructure.
++ */
+ virCommand*
+ nodeDeviceGetMdevctlListCommand(bool defined,
+                                 char **output,
+@@ -1624,9 +1633,11 @@ virMdevctlListDefined(virNodeDeviceDef ***devs, char **errmsg)
+ {
+     int status;
+     g_autofree char *output = NULL;
+-    g_autoptr(virCommand) cmd = nodeDeviceGetMdevctlListCommand(true, &output, errmsg);
++    g_autofree char *errbuf = NULL;
++    g_autoptr(virCommand) cmd = nodeDeviceGetMdevctlListCommand(true, &output, &errbuf);
+ 
+     if (virCommandRun(cmd, &status) < 0 || status != 0) {
++        *errmsg = g_steal_pointer(&errbuf);
+         return -1;
+     }
+ 
+@@ -1642,9 +1653,11 @@ virMdevctlListActive(virNodeDeviceDef ***devs, char **errmsg)
+ {
+     int status;
+     g_autofree char *output = NULL;
+-    g_autoptr(virCommand) cmd = nodeDeviceGetMdevctlListCommand(false, &output, errmsg);
++    g_autofree char *errbuf = NULL;
++    g_autoptr(virCommand) cmd = nodeDeviceGetMdevctlListCommand(false, &output, &errbuf);
+ 
+     if (virCommandRun(cmd, &status) < 0 || status != 0) {
++        *errmsg = g_steal_pointer(&errbuf);
+         return -1;
+     }
+ 
+-- 
+2.41.0

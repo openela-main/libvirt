@@ -1,0 +1,2903 @@
+From 9f522e8531a5b34c0d5f125704a270faf9009484 Mon Sep 17 00:00:00 2001
+Message-ID: <9f522e8531a5b34c0d5f125704a270faf9009484.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Thu, 11 May 2023 18:29:17 +0200
+Subject: [PATCH] tests: Update firmware descriptor files
+
+These are imported from Fedora 38's edk2 package.
+
+The files that are being replaced date back to RHEL 7 and no
+longer represent what libvirt is likely to encounter on an
+actual production system.
+
+Notably, the paths have all changed, with both x86_64 and
+aarch64 builds now living under /usr/share/edk2 and the AAVMF
+name being having been phased out.
+
+Additionally, the 4MB qcow2 format builds have been introduced
+on x86_64 and given high priority, effectively making qcow2
+the default format across architectures.
+
+The impact of these changes on the test suite is, predictably,
+quite severe.
+
+For the cases where paths to firmware files were explicitly
+provided as part of the input, they have been adjusted so that
+the modern paths are used instead of the legacy ones. Other
+than that, input files have been left untouched.
+
+The following expected changes can be seen in output files:
+
+  * where qcow2 firmware was used on x86_64, Secure Boot
+    support is now enabled;
+
+  * all ABI_UPDATE test cases for x86_64 now use qcow2
+    formatted firmware;
+
+  * test cases where legacy paths were manually provided
+    no longer get additional information about the firmware
+    added to the output XML.
+
+Some of the changes described above highlight why, in order
+to guarantee a stable guest ABI over time and regardless of
+changes to the host's configuration, it was necessary to move
+firmware selection from VM startup time to VM creation time.
+
+In a few cases, updating the firmware descriptors changes the
+behavior in a way that's undesired and uncovers latent bugs
+in libvirt:
+
+  * firmware-manual-efi-secboot-legacy-paths ends up with
+    Secure Boot disabled, despite the input XML specifically
+    requesting it to be enabled;
+
+  * firmware-manual-efi-rw-modern-paths loses the
+    loader.readonly=no part of the configuration and starts
+    using an NVRAM file;
+
+  * firmware-manual-efi-nvram-template-nonstandard starts
+    failing altogether with a fairly obscure error message.
+
+We're going to address all these issues with upcoming changes.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit a97c56888c5e9116925044f225940afed4a39adf)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ .../etc/qemu/firmware/20-bios.json            |  1 +
+ .../etc/qemu/firmware/40-ovmf-sb-keys.json    |  1 -
+ .../etc/qemu/firmware/59-combined.json        |  1 +
+ .../{42-masked.json => 92-masked.json}        |  0
+ ...ovmf.json => 60-edk2-ovmf-x64-amdsev.json} | 11 +--
+ .../firmware/60-edk2-ovmf-x64-inteltdx.json   | 24 ++++++
+ ...30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json | 36 +++++++++
+ ... 31-edk2-ovmf-2m-raw-x64-sb-enrolled.json} |  6 +-
+ .../40-edk2-ovmf-4m-qcow2-x64-sb.json}        | 16 ++--
+ ...b.json => 41-edk2-ovmf-2m-raw-x64-sb.json} |  7 +-
+ ...-qcow2.json => 50-edk2-aarch64-qcow2.json} | 14 ++--
+ ...on => 50-edk2-ovmf-4m-qcow2-x64-nosb.json} |  9 ++-
+ .../firmware/50-edk2-ovmf-x64-microvm.json    | 22 ++++++
+ ...70-aavmf.json => 51-edk2-aarch64-raw.json} | 11 +--
+ ...json => 51-edk2-ovmf-2m-raw-x64-nosb.json} |  8 +-
+ .../52-edk2-aarch64-verbose-qcow2.json        | 32 ++++++++
+ .../53-edk2-aarch64-verbose-raw.json}         | 10 ++-
+ ...less.json => 60-edk2-ovmf-x64-amdsev.json} |  6 +-
+ .../firmware/60-edk2-ovmf-x64-inteltdx.json   | 29 +++++++
+ ...ovmf-sb-combined.json => 90-combined.json} |  4 +-
+ .../firmware/{40-bios.json => 91-bios.json}   |  0
+ .../{42-masked.json => 92-masked.json}        |  0
+ tests/qemufirmwaretest.c                      | 76 ++++++++++++-------
+ .../aarch64-virt-graphics.aarch64-latest.args |  4 +-
+ .../aarch64-virt-graphics.xml                 |  4 +-
+ .../aarch64-virt-headless.aarch64-latest.args |  4 +-
+ .../aarch64-virt-headless.xml                 |  4 +-
+ ...mware-auto-efi-aarch64.aarch64-latest.args |  2 +-
+ ...efi-abi-update-aarch64.aarch64-latest.args |  2 +-
+ ...are-auto-efi-abi-update.x86_64-latest.args |  8 +-
+ ...-auto-efi-enrolled-keys.x86_64-latest.args |  2 +-
+ ...efi-format-loader-qcow2.x86_64-latest.args |  5 +-
+ ...-loader-raw-abi-update.aarch64-latest.args |  2 +-
+ ...-efi-format-loader-raw.aarch64-latest.args |  2 +-
+ ...nvram-qcow2-network-nbd.x86_64-latest.args |  2 +-
+ ...format-nvram-qcow2-path.x86_64-latest.args |  5 +-
+ ...-efi-format-nvram-qcow2.x86_64-latest.args |  5 +-
+ ...uto-efi-loader-insecure.x86_64-latest.args |  2 +-
+ ...re-auto-efi-loader-path.x86_64-latest.args |  2 +-
+ .../firmware-auto-efi-loader-path.xml         |  2 +-
+ ...oader-secure-abi-update.x86_64-latest.args |  2 +-
+ ...-auto-efi-loader-secure.x86_64-latest.args |  2 +-
+ ...to-efi-no-enrolled-keys.x86_64-latest.args |  2 +-
+ ...are-auto-efi-no-secboot.x86_64-latest.args |  2 +-
+ ...are-auto-efi-nvram-file.x86_64-latest.args |  2 +-
+ ...efi-nvram-network-iscsi.x86_64-latest.args |  2 +-
+ ...o-efi-nvram-network-nbd.x86_64-latest.args |  2 +-
+ ...are-auto-efi-nvram-path.x86_64-latest.args |  2 +-
+ ...re-auto-efi-nvram-template-nonstandard.xml |  2 +-
+ ...auto-efi-nvram-template.x86_64-latest.args |  2 +-
+ .../firmware-auto-efi-nvram-template.xml      |  2 +-
+ ...-auto-efi-rw-abi-update.x86_64-latest.args |  2 +-
+ .../firmware-auto-efi-rw.x86_64-latest.args   |  2 +-
+ ...rmware-auto-efi-secboot.x86_64-latest.args |  2 +-
+ ...rmware-auto-efi-smm-off.x86_64-latest.args |  2 +-
+ ...ware-auto-efi-stateless.x86_64-latest.args |  2 +-
+ .../firmware-auto-efi.x86_64-latest.args      |  2 +-
+ ...anual-efi-acpi-aarch64.aarch64-latest.args |  4 +-
+ .../firmware-manual-efi-acpi-aarch64.xml      |  4 +-
+ ...are-manual-efi-acpi-q35.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-acpi-q35.xml          |  2 +-
+ ...are-manual-efi-features.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-features.xml          |  2 +-
+ ...anual-efi-loader-secure.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-loader-secure.xml     |  2 +-
+ ...al-efi-no-enrolled-keys.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-no-enrolled-keys.xml  |  4 +-
+ ...e-manual-efi-no-secboot.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-no-secboot.xml        |  4 +-
+ ...ual-efi-noacpi-aarch64.aarch64-latest.args |  4 +-
+ .../firmware-manual-efi-noacpi-aarch64.xml    |  4 +-
+ .../firmware-manual-efi-noacpi-q35.xml        |  2 +-
+ ...e-manual-efi-nvram-file.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-nvram-file.xml        |  2 +-
+ ...efi-nvram-network-iscsi.x86_64-latest.args |  2 +-
+ ...irmware-manual-efi-nvram-network-iscsi.xml |  2 +-
+ ...l-efi-nvram-network-nbd.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-nvram-network-nbd.xml |  2 +-
+ .../firmware-manual-efi-nvram-stateless.xml   |  2 +-
+ ...am-template-nonstandard.x86_64-latest.args | 37 ---------
+ ...ram-template-nonstandard.x86_64-latest.err |  1 +
+ ...-manual-efi-nvram-template-nonstandard.xml |  2 +-
+ ...re-manual-efi-nvram-template-stateless.xml |  4 +-
+ ...nual-efi-nvram-template.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-nvram-template.xml    |  4 +-
+ ...ual-efi-rw-modern-paths.x86_64-latest.args |  6 +-
+ ...ware-manual-efi-secboot.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-secboot.xml           |  4 +-
+ ...re-manual-efi-stateless.x86_64-latest.args |  2 +-
+ .../firmware-manual-efi-stateless.xml         |  2 +-
+ .../firmware-manual-efi.x86_64-latest.args    |  2 +-
+ .../qemuxml2argvdata/firmware-manual-efi.xml  |  2 +-
+ ...-aarch64-virt-headless.aarch64-latest.args |  2 +-
+ ...hvf-x86_64-q35-headless.x86_64-latest.args |  2 +-
+ .../pvpanic-pci-aarch64.aarch64-latest.args   |  2 +-
+ ...pci-no-address-aarch64.aarch64-latest.args |  2 +-
+ .../virtio-iommu-aarch64.aarch64-latest.args  |  2 +-
+ tests/qemuxml2argvtest.c                      |  2 +-
+ .../aarch64-virt-graphics.aarch64-latest.xml  |  4 +-
+ .../aarch64-virt-headless.aarch64-latest.xml  |  4 +-
+ ...rmware-auto-efi-aarch64.aarch64-latest.xml |  4 +-
+ ...-efi-abi-update-aarch64.aarch64-latest.xml |  4 +-
+ ...ware-auto-efi-abi-update.x86_64-latest.xml |  4 +-
+ ...e-auto-efi-enrolled-keys.x86_64-latest.xml |  4 +-
+ ...-efi-format-loader-qcow2.x86_64-latest.xml |  9 ++-
+ ...t-loader-raw-abi-update.aarch64-latest.xml |  4 +-
+ ...o-efi-format-loader-raw.aarch64-latest.xml |  4 +-
+ ...-nvram-qcow2-network-nbd.x86_64-latest.xml |  2 +-
+ ...-format-nvram-qcow2-path.x86_64-latest.xml |  9 ++-
+ ...o-efi-format-nvram-qcow2.x86_64-latest.xml |  9 ++-
+ ...auto-efi-loader-insecure.x86_64-latest.xml |  4 +-
+ ...are-auto-efi-loader-path.x86_64-latest.xml |  4 +-
+ ...loader-secure-abi-update.x86_64-latest.xml |  4 +-
+ ...e-auto-efi-loader-secure.x86_64-latest.xml |  4 +-
+ ...uto-efi-no-enrolled-keys.x86_64-latest.xml |  4 +-
+ ...ware-auto-efi-no-secboot.x86_64-latest.xml |  4 +-
+ ...ware-auto-efi-nvram-file.x86_64-latest.xml |  4 +-
+ ...-efi-nvram-network-iscsi.x86_64-latest.xml |  2 +-
+ ...to-efi-nvram-network-nbd.x86_64-latest.xml |  2 +-
+ ...ware-auto-efi-nvram-path.x86_64-latest.xml |  4 +-
+ ...ram-template-nonstandard.x86_64-latest.xml |  2 +-
+ ...-auto-efi-nvram-template.x86_64-latest.xml |  4 +-
+ ...e-auto-efi-rw-abi-update.x86_64-latest.xml |  4 +-
+ .../firmware-auto-efi-rw.x86_64-latest.xml    |  4 +-
+ ...irmware-auto-efi-secboot.x86_64-latest.xml |  4 +-
+ ...irmware-auto-efi-smm-off.x86_64-latest.xml |  4 +-
+ ...mware-auto-efi-stateless.x86_64-latest.xml |  2 +-
+ .../firmware-auto-efi.x86_64-latest.xml       |  4 +-
+ ...fi-aarch64-legacy-paths.aarch64-latest.xml |  6 +-
+ ...manual-efi-acpi-aarch64.aarch64-latest.xml |  4 +-
+ ...ware-manual-efi-acpi-q35.x86_64-latest.xml |  4 +-
+ ...ware-manual-efi-features.x86_64-latest.xml |  4 +-
+ ...manual-efi-loader-secure.x86_64-latest.xml |  4 +-
+ ...rolled-keys-legacy-paths.x86_64-latest.xml |  6 +-
+ ...ual-efi-no-enrolled-keys.x86_64-latest.xml |  4 +-
+ ...-no-secboot-legacy-paths.x86_64-latest.xml |  6 +-
+ ...re-manual-efi-no-secboot.x86_64-latest.xml |  4 +-
+ ...nual-efi-noacpi-aarch64.aarch64-latest.xml |  4 +-
+ ...re-manual-efi-nvram-file.x86_64-latest.xml |  4 +-
+ ...-efi-nvram-network-iscsi.x86_64-latest.xml |  2 +-
+ ...al-efi-nvram-network-nbd.x86_64-latest.xml |  2 +-
+ ...ram-template-nonstandard.x86_64-latest.xml |  4 +-
+ ...anual-efi-nvram-template.x86_64-latest.xml |  4 +-
+ ...nual-efi-rw-legacy-paths.x86_64-latest.xml |  6 +-
+ ...nual-efi-rw-modern-paths.x86_64-latest.xml |  9 ++-
+ ...efi-secboot-legacy-paths.x86_64-latest.xml |  8 +-
+ ...mware-manual-efi-secboot.x86_64-latest.xml |  4 +-
+ ...are-manual-efi-stateless.x86_64-latest.xml |  2 +-
+ .../firmware-manual-efi.x86_64-latest.xml     |  4 +-
+ ...f-aarch64-virt-headless.aarch64-latest.xml |  4 +-
+ .../hvf-x86_64-q35-headless.x86_64-latest.xml |  4 +-
+ .../pvpanic-pci-aarch64.aarch64-latest.xml    |  4 +-
+ ...-pci-no-address-aarch64.aarch64-latest.xml |  4 +-
+ .../virtio-iommu-aarch64.aarch64-latest.xml   |  4 +-
+ 154 files changed, 454 insertions(+), 339 deletions(-)
+ create mode 120000 tests/qemufirmwaredata/etc/qemu/firmware/20-bios.json
+ delete mode 120000 tests/qemufirmwaredata/etc/qemu/firmware/40-ovmf-sb-keys.json
+ create mode 120000 tests/qemufirmwaredata/etc/qemu/firmware/59-combined.json
+ rename tests/qemufirmwaredata/etc/qemu/firmware/{42-masked.json => 92-masked.json} (100%)
+ rename tests/qemufirmwaredata/out/usr/share/qemu/firmware/{61-ovmf.json => 60-edk2-ovmf-x64-amdsev.json} (60%)
+ create mode 100644 tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json
+ create mode 100644 tests/qemufirmwaredata/usr/share/qemu/firmware/30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{50-ovmf-sb-keys.json => 31-edk2-ovmf-2m-raw-x64-sb-enrolled.json} (78%)
+ rename tests/qemufirmwaredata/{out/usr/share/qemu/firmware/50-ovmf-sb-keys.json => usr/share/qemu/firmware/40-edk2-ovmf-4m-qcow2-x64-sb.json} (59%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{60-ovmf-sb.json => 41-edk2-ovmf-2m-raw-x64-sb.json} (77%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{66-aavmf-qcow2.json => 50-edk2-aarch64-qcow2.json} (53%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{65-ovmf-qcow2.json => 50-edk2-ovmf-4m-qcow2-x64-nosb.json} (68%)
+ create mode 100644 tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-x64-microvm.json
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{70-aavmf.json => 51-edk2-aarch64-raw.json} (64%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{61-ovmf.json => 51-edk2-ovmf-2m-raw-x64-nosb.json} (69%)
+ create mode 100644 tests/qemufirmwaredata/usr/share/qemu/firmware/52-edk2-aarch64-verbose-qcow2.json
+ rename tests/qemufirmwaredata/{out/usr/share/qemu/firmware/70-aavmf.json => usr/share/qemu/firmware/53-edk2-aarch64-verbose-raw.json} (57%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{45-ovmf-sev-stateless.json => 60-edk2-ovmf-x64-amdsev.json} (73%)
+ create mode 100644 tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{55-ovmf-sb-combined.json => 90-combined.json} (85%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{40-bios.json => 91-bios.json} (100%)
+ rename tests/qemufirmwaredata/usr/share/qemu/firmware/{42-masked.json => 92-masked.json} (100%)
+ delete mode 100644 tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args
+ create mode 100644 tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err
+
+diff --git a/tests/qemufirmwaredata/etc/qemu/firmware/20-bios.json b/tests/qemufirmwaredata/etc/qemu/firmware/20-bios.json
+new file mode 120000
+index 0000000000..2c274dddc2
+--- /dev/null
++++ b/tests/qemufirmwaredata/etc/qemu/firmware/20-bios.json
+@@ -0,0 +1 @@
++../../../usr/share/qemu/firmware/91-bios.json
+\ No newline at end of file
+diff --git a/tests/qemufirmwaredata/etc/qemu/firmware/40-ovmf-sb-keys.json b/tests/qemufirmwaredata/etc/qemu/firmware/40-ovmf-sb-keys.json
+deleted file mode 120000
+index 68e8cbbc2a..0000000000
+--- a/tests/qemufirmwaredata/etc/qemu/firmware/40-ovmf-sb-keys.json
++++ /dev/null
+@@ -1 +0,0 @@
+-../../../usr/share/qemu/firmware/50-ovmf-sb-keys.json
+\ No newline at end of file
+diff --git a/tests/qemufirmwaredata/etc/qemu/firmware/59-combined.json b/tests/qemufirmwaredata/etc/qemu/firmware/59-combined.json
+new file mode 120000
+index 0000000000..da9099ffb7
+--- /dev/null
++++ b/tests/qemufirmwaredata/etc/qemu/firmware/59-combined.json
+@@ -0,0 +1 @@
++../../../usr/share/qemu/firmware/90-combined.json
+\ No newline at end of file
+diff --git a/tests/qemufirmwaredata/etc/qemu/firmware/42-masked.json b/tests/qemufirmwaredata/etc/qemu/firmware/92-masked.json
+similarity index 100%
+rename from tests/qemufirmwaredata/etc/qemu/firmware/42-masked.json
+rename to tests/qemufirmwaredata/etc/qemu/firmware/92-masked.json
+diff --git a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/61-ovmf.json b/tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json
+similarity index 60%
+rename from tests/qemufirmwaredata/out/usr/share/qemu/firmware/61-ovmf.json
+rename to tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json
+index 2a9aa23efb..2d3b821acb 100644
+--- a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/61-ovmf.json
++++ b/tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json
+@@ -4,13 +4,9 @@
+     ],
+     "mapping": {
+         "device": "flash",
+-        "mode": "split",
++        "mode": "stateless",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF_CODE.fd",
+-            "format": "raw"
+-        },
+-        "nvram-template": {
+-            "filename": "/usr/share/OVMF/OVMF_VARS.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF.amdsev.fd",
+             "format": "raw"
+         }
+     },
+@@ -18,14 +14,13 @@
+         {
+             "architecture": "x86_64",
+             "machines": [
+-                "pc-i440fx-*",
+                 "pc-q35-*"
+             ]
+         }
+     ],
+     "features": [
+-        "acpi-s3",
+         "amd-sev",
++        "amd-sev-es",
+         "verbose-dynamic"
+     ]
+ }
+diff --git a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json b/tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json
+new file mode 100644
+index 0000000000..35a625b3ec
+--- /dev/null
++++ b/tests/qemufirmwaredata/out/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json
+@@ -0,0 +1,24 @@
++{
++    "interface-types": [
++        "uefi"
++    ],
++    "mapping": {
++        "device": "flash",
++        "mode": "stateless",
++        "executable": {
++            "filename": "/usr/share/edk2/ovmf/OVMF.inteltdx.fd",
++            "format": "raw"
++        }
++    },
++    "targets": [
++        {
++            "architecture": "x86_64",
++            "machines": [
++                "pc-q35-*"
++            ]
++        }
++    ],
++    "features": [
++        "verbose-dynamic"
++    ]
++}
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json
+new file mode 100644
+index 0000000000..e709223313
+--- /dev/null
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json
+@@ -0,0 +1,36 @@
++{
++    "description": "OVMF with SB+SMM, SB enabled, MS certs enrolled",
++    "interface-types": [
++        "uefi"
++    ],
++    "mapping": {
++        "device": "flash",
++        "mode" : "split",
++        "executable": {
++            "filename": "/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2",
++            "format": "qcow2"
++        },
++        "nvram-template": {
++            "filename": "/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2",
++            "format": "qcow2"
++        }
++    },
++    "targets": [
++        {
++            "architecture": "x86_64",
++            "machines": [
++                "pc-q35-*"
++            ]
++        }
++    ],
++    "features": [
++        "acpi-s3",
++        "enrolled-keys",
++        "requires-smm",
++        "secure-boot",
++        "verbose-dynamic"
++    ],
++    "tags": [
++
++    ]
++}
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/50-ovmf-sb-keys.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/31-edk2-ovmf-2m-raw-x64-sb-enrolled.json
+similarity index 78%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/50-ovmf-sb-keys.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/31-edk2-ovmf-2m-raw-x64-sb-enrolled.json
+index c804ac1038..2ed45362c4 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/50-ovmf-sb-keys.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/31-edk2-ovmf-2m-raw-x64-sb-enrolled.json
+@@ -5,12 +5,13 @@
+     ],
+     "mapping": {
+         "device": "flash",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd",
+             "format": "raw"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/OVMF/OVMF_VARS.secboot.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd",
+             "format": "raw"
+         }
+     },
+@@ -24,7 +25,6 @@
+     ],
+     "features": [
+         "acpi-s3",
+-        "amd-sev",
+         "enrolled-keys",
+         "requires-smm",
+         "secure-boot",
+diff --git a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/50-ovmf-sb-keys.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/40-edk2-ovmf-4m-qcow2-x64-sb.json
+similarity index 59%
+rename from tests/qemufirmwaredata/out/usr/share/qemu/firmware/50-ovmf-sb-keys.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/40-edk2-ovmf-4m-qcow2-x64-sb.json
+index c251682cd9..655dd42ef1 100644
+--- a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/50-ovmf-sb-keys.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/40-edk2-ovmf-4m-qcow2-x64-sb.json
+@@ -1,17 +1,18 @@
+ {
++    "description": "OVMF with SB+SMM, empty varstore",
+     "interface-types": [
+         "uefi"
+     ],
+     "mapping": {
+         "device": "flash",
+-        "mode": "split",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
+-            "format": "raw"
++            "filename": "/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2",
++            "format": "qcow2"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/OVMF/OVMF_VARS.secboot.fd",
+-            "format": "raw"
++            "filename": "/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2",
++            "format": "qcow2"
+         }
+     },
+     "targets": [
+@@ -24,10 +25,11 @@
+     ],
+     "features": [
+         "acpi-s3",
+-        "amd-sev",
+-        "enrolled-keys",
+         "requires-smm",
+         "secure-boot",
+         "verbose-dynamic"
++    ],
++    "tags": [
++
+     ]
+ }
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/60-ovmf-sb.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/41-edk2-ovmf-2m-raw-x64-sb.json
+similarity index 77%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/60-ovmf-sb.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/41-edk2-ovmf-2m-raw-x64-sb.json
+index a5273a5e8b..06b3ece89a 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/60-ovmf-sb.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/41-edk2-ovmf-2m-raw-x64-sb.json
+@@ -5,13 +5,13 @@
+     ],
+     "mapping": {
+         "device": "flash",
+-        "mode": "split",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd",
+             "format": "raw"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/OVMF/OVMF_VARS.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF_VARS.fd",
+             "format": "raw"
+         }
+     },
+@@ -25,7 +25,6 @@
+     ],
+     "features": [
+         "acpi-s3",
+-        "amd-sev",
+         "requires-smm",
+         "secure-boot",
+         "verbose-dynamic"
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/66-aavmf-qcow2.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-aarch64-qcow2.json
+similarity index 53%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/66-aavmf-qcow2.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-aarch64-qcow2.json
+index 9d80971ee4..79f64a11a3 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/66-aavmf-qcow2.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-aarch64-qcow2.json
+@@ -1,17 +1,17 @@
+ {
+-    "description": "UEFI firmware for ARM64 virtual machines (QCOW2 format)",
++    "description": "UEFI firmware for ARM64 virtual machines",
+     "interface-types": [
+         "uefi"
+     ],
+     "mapping": {
+         "device": "flash",
+-        "mode": "split",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/AAVMF/AAVMF_CODE.qcow2",
++            "filename": "/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.qcow2",
+             "format": "qcow2"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/AAVMF/AAVMF_VARS.qcow2",
++            "filename": "/usr/share/edk2/aarch64/vars-template-pflash.qcow2",
+             "format": "qcow2"
+         }
+     },
+@@ -27,10 +27,6 @@
+ 
+     ],
+     "tags": [
+-        "-a AARCH64",
+-        "-p ArmVirtPkg/ArmVirtQemu.dsc",
+-        "-t GCC48",
+-        "-b DEBUG",
+-        "-D DEBUG_PRINT_ERROR_LEVEL=0x80000000"
++
+     ]
+ }
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/65-ovmf-qcow2.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-4m-qcow2-x64-nosb.json
+similarity index 68%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/65-ovmf-qcow2.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-4m-qcow2-x64-nosb.json
+index 3a45cf70f2..d64735f477 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/65-ovmf-qcow2.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-4m-qcow2-x64-nosb.json
+@@ -1,17 +1,17 @@
+ {
+-    "description": "UEFI firmware for x86_64 virtual machines (QCOW2 format)",
++    "description": "OVMF without SB+SMM, empty varstore",
+     "interface-types": [
+         "uefi"
+     ],
+     "mapping": {
+         "device": "flash",
+-        "mode": "split",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF_CODE.qcow2",
++            "filename": "/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2",
+             "format": "qcow2"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/OVMF/OVMF_VARS.qcow2",
++            "filename": "/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2",
+             "format": "qcow2"
+         }
+     },
+@@ -27,6 +27,7 @@
+     "features": [
+         "acpi-s3",
+         "amd-sev",
++        "amd-sev-es",
+         "verbose-dynamic"
+     ],
+     "tags": [
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-x64-microvm.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-x64-microvm.json
+new file mode 100644
+index 0000000000..3d5b393949
+--- /dev/null
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/50-edk2-ovmf-x64-microvm.json
+@@ -0,0 +1,22 @@
++{
++    "description": "OVMF for microvm",
++    "interface-types": [
++        "uefi"
++    ],
++    "mapping": {
++        "device": "memory",
++        "filename": "/usr/share/edk2/ovmf/MICROVM.fd"
++    },
++    "targets": [
++        {
++            "architecture": "x86_64",
++            "machines": [
++                "microvm"
++            ]
++        }
++    ],
++    "features": [
++    ],
++    "tags": [
++    ]
++}
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/70-aavmf.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/51-edk2-aarch64-raw.json
+similarity index 64%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/70-aavmf.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/51-edk2-aarch64-raw.json
+index 114d1475a2..cabbd396ea 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/70-aavmf.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/51-edk2-aarch64-raw.json
+@@ -5,12 +5,13 @@
+     ],
+     "mapping": {
+         "device": "flash",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/AAVMF/AAVMF_CODE.fd",
++            "filename": "/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw",
+             "format": "raw"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/AAVMF/AAVMF_VARS.fd",
++            "filename": "/usr/share/edk2/aarch64/vars-template-pflash.raw",
+             "format": "raw"
+         }
+     },
+@@ -26,10 +27,6 @@
+ 
+     ],
+     "tags": [
+-        "-a AARCH64",
+-        "-p ArmVirtPkg/ArmVirtQemu.dsc",
+-        "-t GCC48",
+-        "-b DEBUG",
+-        "-D DEBUG_PRINT_ERROR_LEVEL=0x80000000"
++
+     ]
+ }
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/61-ovmf.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/51-edk2-ovmf-2m-raw-x64-nosb.json
+similarity index 69%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/61-ovmf.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/51-edk2-ovmf-2m-raw-x64-nosb.json
+index 19bc84dfde..050853e2b8 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/61-ovmf.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/51-edk2-ovmf-2m-raw-x64-nosb.json
+@@ -1,16 +1,17 @@
+ {
+-    "description": "UEFI firmware for x86_64 virtual machines",
++    "description": "OVMF without SB+SMM, empty varstore",
+     "interface-types": [
+         "uefi"
+     ],
+     "mapping": {
+         "device": "flash",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF_CODE.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF_CODE.fd",
+             "format": "raw"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/OVMF/OVMF_VARS.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF_VARS.fd",
+             "format": "raw"
+         }
+     },
+@@ -26,6 +27,7 @@
+     "features": [
+         "acpi-s3",
+         "amd-sev",
++        "amd-sev-es",
+         "verbose-dynamic"
+     ],
+     "tags": [
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/52-edk2-aarch64-verbose-qcow2.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/52-edk2-aarch64-verbose-qcow2.json
+new file mode 100644
+index 0000000000..4173102967
+--- /dev/null
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/52-edk2-aarch64-verbose-qcow2.json
+@@ -0,0 +1,32 @@
++{
++    "description": "UEFI firmware for ARM64 virtual machines, verbose logs",
++    "interface-types": [
++        "uefi"
++    ],
++    "mapping": {
++        "device": "flash",
++        "mode" : "split",
++        "executable": {
++            "filename": "/usr/share/edk2/aarch64/QEMU_EFI-pflash.qcow2",
++            "format": "qcow2"
++        },
++        "nvram-template": {
++            "filename": "/usr/share/edk2/aarch64/vars-template-pflash.qcow2",
++            "format": "qcow2"
++        }
++    },
++    "targets": [
++        {
++            "architecture": "aarch64",
++            "machines": [
++                "virt-*"
++            ]
++        }
++    ],
++    "features": [
++        "verbose-static"
++    ],
++    "tags": [
++
++    ]
++}
+diff --git a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/70-aavmf.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/53-edk2-aarch64-verbose-raw.json
+similarity index 57%
+rename from tests/qemufirmwaredata/out/usr/share/qemu/firmware/70-aavmf.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/53-edk2-aarch64-verbose-raw.json
+index 9bd5ac2868..ec69d19858 100644
+--- a/tests/qemufirmwaredata/out/usr/share/qemu/firmware/70-aavmf.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/53-edk2-aarch64-verbose-raw.json
+@@ -1,16 +1,17 @@
+ {
++    "description": "UEFI firmware for ARM64 virtual machines, verbose logs",
+     "interface-types": [
+         "uefi"
+     ],
+     "mapping": {
+         "device": "flash",
+-        "mode": "split",
++        "mode" : "split",
+         "executable": {
+-            "filename": "/usr/share/AAVMF/AAVMF_CODE.fd",
++            "filename": "/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw",
+             "format": "raw"
+         },
+         "nvram-template": {
+-            "filename": "/usr/share/AAVMF/AAVMF_VARS.fd",
++            "filename": "/usr/share/edk2/aarch64/vars-template-pflash.raw",
+             "format": "raw"
+         }
+     },
+@@ -23,6 +24,9 @@
+         }
+     ],
+     "features": [
++        "verbose-static"
++    ],
++    "tags": [
+ 
+     ]
+ }
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/45-ovmf-sev-stateless.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json
+similarity index 73%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/45-ovmf-sev-stateless.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json
+index 5a619f3ab0..9a561bc7eb 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/45-ovmf-sev-stateless.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json
+@@ -1,5 +1,5 @@
+ {
+-    "description": "OVMF for x86_64, with SEV, without SB, without SMM, with NO varstore",
++    "description": "OVMF with SEV-ES support",
+     "interface-types": [
+         "uefi"
+     ],
+@@ -7,7 +7,7 @@
+         "device": "flash",
+         "mode": "stateless",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF.sev.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF.amdsev.fd",
+             "format": "raw"
+         }
+     },
+@@ -20,9 +20,9 @@
+         }
+     ],
+     "features": [
+-        "acpi-s3",
+         "amd-sev",
+         "amd-sev-es",
++        "amd-sev-snp",
+         "verbose-dynamic"
+     ],
+     "tags": [
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json
+new file mode 100644
+index 0000000000..44993ab1f3
+--- /dev/null
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json
+@@ -0,0 +1,29 @@
++{
++    "description": "OVMF with TDX support",
++    "interface-types": [
++        "uefi"
++    ],
++    "mapping": {
++        "device": "flash",
++        "mode": "stateless",
++        "executable": {
++            "filename": "/usr/share/edk2/ovmf/OVMF.inteltdx.fd",
++            "format": "raw"
++        }
++    },
++    "targets": [
++        {
++            "architecture": "x86_64",
++            "machines": [
++                "pc-q35-*"
++            ]
++        }
++    ],
++    "features": [
++        "intel-tdx",
++        "verbose-dynamic"
++    ],
++    "tags": [
++
++    ]
++}
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/55-ovmf-sb-combined.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/90-combined.json
+similarity index 85%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/55-ovmf-sb-combined.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/90-combined.json
+index eb3332e4ab..2c8381adf7 100644
+--- a/tests/qemufirmwaredata/usr/share/qemu/firmware/55-ovmf-sb-combined.json
++++ b/tests/qemufirmwaredata/usr/share/qemu/firmware/90-combined.json
+@@ -5,9 +5,9 @@
+     ],
+     "mapping": {
+         "device": "flash",
+-	"mode": "combined",
++        "mode": "combined",
+         "executable": {
+-            "filename": "/usr/share/OVMF/OVMF.secboot.fd",
++            "filename": "/usr/share/edk2/ovmf/OVMF.secboot.fd",
+             "format": "raw"
+         }
+     },
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/40-bios.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json
+similarity index 100%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/40-bios.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/91-bios.json
+diff --git a/tests/qemufirmwaredata/usr/share/qemu/firmware/42-masked.json b/tests/qemufirmwaredata/usr/share/qemu/firmware/92-masked.json
+similarity index 100%
+rename from tests/qemufirmwaredata/usr/share/qemu/firmware/42-masked.json
+rename to tests/qemufirmwaredata/usr/share/qemu/firmware/92-masked.json
+diff --git a/tests/qemufirmwaretest.c b/tests/qemufirmwaretest.c
+index 56df443056..86c708c7ac 100644
+--- a/tests/qemufirmwaretest.c
++++ b/tests/qemufirmwaretest.c
+@@ -67,16 +67,23 @@ testFWPrecedence(const void *opaque G_GNUC_UNUSED)
+     g_autofree char *fakehome = NULL;
+     g_auto(GStrv) fwList = NULL;
+     const char *expected[] = {
+-        PREFIX "/share/qemu/firmware/40-bios.json",
+-        SYSCONFDIR "/qemu/firmware/40-ovmf-sb-keys.json",
+-        PREFIX "/share/qemu/firmware/45-ovmf-sev-stateless.json",
+-        PREFIX "/share/qemu/firmware/50-ovmf-sb-keys.json",
+-        PREFIX "/share/qemu/firmware/55-ovmf-sb-combined.json",
+-        PREFIX "/share/qemu/firmware/60-ovmf-sb.json",
+-        PREFIX "/share/qemu/firmware/61-ovmf.json",
+-        PREFIX "/share/qemu/firmware/65-ovmf-qcow2.json",
+-        PREFIX "/share/qemu/firmware/66-aavmf-qcow2.json",
+-        PREFIX "/share/qemu/firmware/70-aavmf.json",
++        SYSCONFDIR "/qemu/firmware/20-bios.json",
++        PREFIX "/share/qemu/firmware/30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json",
++        PREFIX "/share/qemu/firmware/31-edk2-ovmf-2m-raw-x64-sb-enrolled.json",
++        PREFIX "/share/qemu/firmware/40-edk2-ovmf-4m-qcow2-x64-sb.json",
++        PREFIX "/share/qemu/firmware/41-edk2-ovmf-2m-raw-x64-sb.json",
++        PREFIX "/share/qemu/firmware/50-edk2-aarch64-qcow2.json",
++        PREFIX "/share/qemu/firmware/50-edk2-ovmf-4m-qcow2-x64-nosb.json",
++        PREFIX "/share/qemu/firmware/50-edk2-ovmf-x64-microvm.json",
++        PREFIX "/share/qemu/firmware/51-edk2-aarch64-raw.json",
++        PREFIX "/share/qemu/firmware/51-edk2-ovmf-2m-raw-x64-nosb.json",
++        PREFIX "/share/qemu/firmware/52-edk2-aarch64-verbose-qcow2.json",
++        PREFIX "/share/qemu/firmware/53-edk2-aarch64-verbose-raw.json",
++        SYSCONFDIR "/qemu/firmware/59-combined.json",
++        PREFIX "/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json",
++        PREFIX "/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json",
++        PREFIX "/share/qemu/firmware/90-combined.json",
++        PREFIX "/share/qemu/firmware/91-bios.json",
+         NULL
+     };
+     const char **e;
+@@ -231,15 +238,21 @@ mymain(void)
+             ret = -1; \
+     } while (0)
+ 
+-    DO_PARSE_TEST("usr/share/qemu/firmware/40-bios.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/45-ovmf-sev-stateless.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/50-ovmf-sb-keys.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/55-ovmf-sb-combined.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/60-ovmf-sb.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/61-ovmf.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/65-ovmf-qcow2.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/66-aavmf-qcow2.json");
+-    DO_PARSE_TEST("usr/share/qemu/firmware/70-aavmf.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/30-edk2-ovmf-4m-qcow2-x64-sb-enrolled.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/31-edk2-ovmf-2m-raw-x64-sb-enrolled.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/40-edk2-ovmf-4m-qcow2-x64-sb.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/41-edk2-ovmf-2m-raw-x64-sb.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/50-edk2-aarch64-qcow2.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/50-edk2-ovmf-4m-qcow2-x64-nosb.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/50-edk2-ovmf-x64-microvm.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/51-edk2-aarch64-raw.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/51-edk2-ovmf-2m-raw-x64-nosb.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/52-edk2-aarch64-verbose-qcow2.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/53-edk2-aarch64-verbose-raw.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/60-edk2-ovmf-x64-amdsev.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/60-edk2-ovmf-x64-inteltdx.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/90-combined.json");
++    DO_PARSE_TEST("usr/share/qemu/firmware/91-bios.json");
+ 
+     if (virTestRun("QEMU FW precedence test", testFWPrecedence, NULL) < 0)
+         ret = -1;
+@@ -259,8 +272,8 @@ mymain(void)
+ 
+     DO_SUPPORTED_TEST("pc-i440fx-3.1", VIR_ARCH_X86_64, false,
+                       "/usr/share/seabios/bios-256k.bin:NULL:"
+-                      "/usr/share/OVMF/OVMF_CODE.fd:/usr/share/OVMF/OVMF_VARS.fd:"
+-                      "/usr/share/OVMF/OVMF_CODE.qcow2:/usr/share/OVMF/OVMF_VARS.qcow2",
++                      "/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2:/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2:"
++                      "/usr/share/edk2/ovmf/OVMF_CODE.fd:/usr/share/edk2/ovmf/OVMF_VARS.fd",
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_BIOS,
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_EFI);
+     DO_SUPPORTED_TEST("pc-i440fx-3.1", VIR_ARCH_I686, false,
+@@ -268,20 +281,25 @@ mymain(void)
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_BIOS);
+     DO_SUPPORTED_TEST("pc-q35-3.1", VIR_ARCH_X86_64, true,
+                       "/usr/share/seabios/bios-256k.bin:NULL:"
+-                      "/usr/share/OVMF/OVMF_CODE.secboot.fd:/usr/share/OVMF/OVMF_VARS.secboot.fd:"
+-                      "/usr/share/OVMF/OVMF.sev.fd:NULL:"
+-                      "/usr/share/OVMF/OVMF.secboot.fd:NULL:"
+-                      "/usr/share/OVMF/OVMF_CODE.secboot.fd:/usr/share/OVMF/OVMF_VARS.fd:"
+-                      "/usr/share/OVMF/OVMF_CODE.fd:/usr/share/OVMF/OVMF_VARS.fd:"
+-                      "/usr/share/OVMF/OVMF_CODE.qcow2:/usr/share/OVMF/OVMF_VARS.qcow2",
++                      "/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2:/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2:"
++                      "/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd:/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd:"
++                      "/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2:/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2:"
++                      "/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd:/usr/share/edk2/ovmf/OVMF_VARS.fd:"
++                      "/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2:/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2:"
++                      "/usr/share/edk2/ovmf/OVMF_CODE.fd:/usr/share/edk2/ovmf/OVMF_VARS.fd:"
++                      "/usr/share/edk2/ovmf/OVMF.secboot.fd:NULL:"
++                      "/usr/share/edk2/ovmf/OVMF.amdsev.fd:NULL:"
++                      "/usr/share/edk2/ovmf/OVMF.inteltdx.fd:NULL",
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_BIOS,
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_EFI);
+     DO_SUPPORTED_TEST("pc-q35-3.1", VIR_ARCH_I686, false,
+                       "/usr/share/seabios/bios-256k.bin:NULL",
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_BIOS);
+     DO_SUPPORTED_TEST("virt-3.1", VIR_ARCH_AARCH64, false,
+-                      "/usr/share/AAVMF/AAVMF_CODE.qcow2:/usr/share/AAVMF/AAVMF_VARS.qcow2:"
+-                      "/usr/share/AAVMF/AAVMF_CODE.fd:/usr/share/AAVMF/AAVMF_VARS.fd",
++                      "/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.qcow2:/usr/share/edk2/aarch64/vars-template-pflash.qcow2:"
++                      "/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw:/usr/share/edk2/aarch64/vars-template-pflash.raw:"
++                      "/usr/share/edk2/aarch64/QEMU_EFI-pflash.qcow2:/usr/share/edk2/aarch64/vars-template-pflash.qcow2:"
++                      "/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw:/usr/share/edk2/aarch64/vars-template-pflash.raw",
+                       VIR_DOMAIN_OS_DEF_FIRMWARE_EFI);
+ 
+     virFileWrapperClearPrefixes();
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args b/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args
+index eaa558747f..f977a9b6d7 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args
+@@ -10,9 +10,9 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/path/to/guest_VARS.raw","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+ -machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-graphics.xml b/tests/qemuxml2argvdata/aarch64-virt-graphics.xml
+index 3c7da08381..4f69df91dc 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-graphics.xml
++++ b/tests/qemuxml2argvdata/aarch64-virt-graphics.xml
+@@ -11,8 +11,8 @@
+   <vcpu>4</vcpu>
+   <os>
+     <type arch='aarch64' machine='virt-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram>/path/to/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args b/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args
+index 9d13abb531..0f412aeea5 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args
+@@ -10,9 +10,9 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/path/to/guest_VARS.raw","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+ -machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-headless.xml b/tests/qemuxml2argvdata/aarch64-virt-headless.xml
+index 4cb309037b..9c8e75038d 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-headless.xml
++++ b/tests/qemuxml2argvdata/aarch64-virt-headless.xml
+@@ -11,8 +11,8 @@
+   <vcpu>4</vcpu>
+   <os>
+     <type arch='aarch64' machine='virt-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram>/path/to/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-aarch64.aarch64-latest.args
+index 7f8b5e7797..eb5cd8d5fc 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-aarch64.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.args
+index 267f197ca3..71eed54e35 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update.x86_64-latest.args
+index 29f76cd20d..790fb619e8 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update.x86_64-latest.args
+@@ -10,10 +10,10 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+ -machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+ -accel kvm \
+ -cpu qemu64 \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-enrolled-keys.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-enrolled-keys.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-enrolled-keys.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-enrolled-keys.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.args
+index 8d609e4ac4..790fb619e8 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.args
+@@ -10,13 +10,14 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+ -accel kvm \
+ -cpu qemu64 \
++-global driver=cfi.pflash01,property=secure,value=on \
+ -m size=1048576k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args
+index 7f8b5e7797..eb5cd8d5fc 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw.aarch64-latest.args
+index 7f8b5e7797..eb5cd8d5fc 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-loader-raw.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.args
+index 3dff5c6153..77babdc147 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"nbd","server":{"type":"inet","host":"example.org","port":"6000"},"export":"bar","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.args
+index 2857335df4..e8d7d580f7 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.args
+@@ -10,13 +10,14 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+ -accel kvm \
+ -cpu qemu64 \
++-global driver=cfi.pflash01,property=secure,value=on \
+ -m size=1048576k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.args
+index 8d609e4ac4..790fb619e8 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.args
+@@ -10,13 +10,14 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"qcow2","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"qcow2","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+ -accel kvm \
+ -cpu qemu64 \
++-global driver=cfi.pflash01,property=secure,value=on \
+ -m size=1048576k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-loader-insecure.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-loader-insecure.x86_64-latest.args
+index 6d388346a8..1dc1993285 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-loader-insecure.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-loader-insecure.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.x86_64-latest.args
+index 6d388346a8..1dc1993285 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.xml b/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.xml
+index 3e0af7ee4d..36bc8f7735 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.xml
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-loader-path.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-loader-secure.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-no-secboot.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-no-secboot.x86_64-latest.args
+index 6d388346a8..1dc1993285 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-no-secboot.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-no-secboot.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-file.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-file.x86_64-latest.args
+index d5f69b0d76..2268372cd8 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-file.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-file.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.args
+index c2b6b33d78..9c1460f53e 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -object '{"qom-type":"secret","id":"libvirt-pflash1-storage-auth-secret0","data":"9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1","keyid":"masterKey0","iv":"AAECAwQFBgcICQoLDA0ODw==","format":"base64"}' \
+ -blockdev '{"driver":"iscsi","portal":"example.com:6000","target":"iqn.2013-07.com.example:iscsi-nopool","lun":0,"transport":"tcp","user":"myname","password-secret":"libvirt-pflash1-storage-auth-secret0","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.args
+index e6f029cd50..b68fb184dd 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"nbd","server":{"type":"inet","host":"example.org","port":"6000"},"export":"bar","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-path.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-path.x86_64-latest.args
+index 5287ab0251..5c75c9bcca 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-path.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-path.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template-nonstandard.xml b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template-nonstandard.xml
+index a009fa5fda..c225e5ef48 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template-nonstandard.xml
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template-nonstandard.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram template='/path/to/OVMF_VARS.fd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.xml b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.xml
+index 920bf3b583..8a91594f4b 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.xml
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-nvram-template.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'/>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'/>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-rw-abi-update.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-rw.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-secboot.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-secboot.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-secboot.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-secboot.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-smm-off.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-smm-off.x86_64-latest.args
+index e8f8a57acb..b04293c6d2 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-smm-off.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-smm-off.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-stateless.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi-stateless.x86_64-latest.args
+index 5b3ab2eb6b..47803b0961 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-stateless.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-stateless.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF.sev.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF.amdsev.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,acpi=on \
+ -accel kvm \
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-auto-efi.x86_64-latest.args
+index 29f76cd20d..48f357cbf9 100644
+--- a/tests/qemuxml2argvdata/firmware-auto-efi.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-auto-efi.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.args
+index 089deeb65a..51335707f0 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.args
+@@ -10,9 +10,9 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/path/to/guest_VARS.raw","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+ -machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.xml b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.xml
+index 4ccb2ac4a5..66d234829c 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-aarch64.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='aarch64' machine='virt-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram>/path/to/guest_VARS.raw</nvram>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.x86_64-latest.args
+index 20c5eda2ec..776ac9ea7c 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.xml b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.xml
+index dd13bd27dd..369bc3c7c5 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-acpi-q35.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-features.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-features.x86_64-latest.args
+index f587e262fe..0943f3c656 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-features.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-features.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-features.xml b/tests/qemuxml2argvdata/firmware-manual-efi-features.xml
+index 092739af56..7dbef3acae 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-features.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-features.xml
+@@ -8,7 +8,7 @@
+     <firmware>
+       <feature enabled='no' name='enrolled-keys'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.x86_64-latest.args
+index 35f7f0238a..2b998868f4 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.xml b/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.xml
+index 740b7968a8..711a784c52 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-loader-secure.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
+     <nvram>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.args
+index 35f7f0238a..2b998868f4 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.xml b/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.xml
+index bc715f704b..5b215abf12 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-no-enrolled-keys.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.x86_64-latest.args
+index 20c5eda2ec..776ac9ea7c 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.xml b/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.xml
+index 463a431c44..b51209f3ca 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-no-secboot.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.args
+index 893b7b1d03..8f156ed969 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.args
+@@ -10,9 +10,9 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/path/to/guest_VARS.raw","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+ -machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.xml b/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.xml
+index 7689d36fe2..433a483be4 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-aarch64.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='aarch64' machine='virt-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram>/path/to/guest_VARS.raw</nvram>
+   </os>
+   <devices>
+     <emulator>/usr/bin/qemu-system-aarch64</emulator>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-q35.xml b/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-q35.xml
+index 792c3315d4..5654ebe434 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-q35.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-noacpi-q35.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <devices>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.x86_64-latest.args
+index d5f69b0d76..2268372cd8 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.xml
+index 46c20b2408..69c4427fcf 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-file.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='file'>
+       <source file='/path/to/guest_VARS.fd'/>
+     </nvram>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.args
+index c2b6b33d78..9c1460f53e 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -object '{"qom-type":"secret","id":"libvirt-pflash1-storage-auth-secret0","data":"9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1","keyid":"masterKey0","iv":"AAECAwQFBgcICQoLDA0ODw==","format":"base64"}' \
+ -blockdev '{"driver":"iscsi","portal":"example.com:6000","target":"iqn.2013-07.com.example:iscsi-nopool","lun":0,"transport":"tcp","user":"myname","password-secret":"libvirt-pflash1-storage-auth-secret0","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.xml
+index af925e7ce7..e1483d404a 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-iscsi.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='network'>
+       <source protocol='iscsi' name='iqn.2013-07.com.example:iscsi-nopool'>
+         <host name='example.com' port='6000'/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.args
+index e6f029cd50..b68fb184dd 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"nbd","server":{"type":"inet","host":"example.org","port":"6000"},"export":"bar","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.xml
+index 133c08e63d..3064441720 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-network-nbd.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='network'>
+       <source protocol='nbd' name='bar'>
+         <host name='example.org' port='6000'/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-stateless.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-stateless.xml
+index 4de3f30192..b352cfa341 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-stateless.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-stateless.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader stateless='yes' readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader stateless='yes' readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='file'>
+       <source file='/path/to/guest_VARS.fd'/>
+     </nvram>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args
+deleted file mode 100644
+index 6d388346a8..0000000000
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args
++++ /dev/null
+@@ -1,37 +0,0 @@
+-LC_ALL=C \
+-PATH=/bin \
+-HOME=/var/lib/libvirt/qemu/domain--1-guest \
+-USER=test \
+-LOGNAME=test \
+-XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
+-XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
+-XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+-/usr/bin/qemu-system-x86_64 \
+--name guest=guest,debug-threads=on \
+--S \
+--object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+--accel kvm \
+--cpu qemu64 \
+--m size=1048576k \
+--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
+--overcommit mem-lock=off \
+--smp 1,sockets=1,cores=1,threads=1 \
+--uuid 63840878-0deb-4095-97e6-fc444d9bc9fa \
+--display none \
+--no-user-config \
+--nodefaults \
+--chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
+--mon chardev=charmonitor,id=monitor,mode=control \
+--rtc base=utc \
+--no-shutdown \
+--boot strict=on \
+--audiodev '{"id":"audio1","driver":"none"}' \
+--global ICH9-LPC.noreboot=off \
+--watchdog-action reset \
+--sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+--msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err
+new file mode 100644
+index 0000000000..6a1618a1aa
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err
+@@ -0,0 +1 @@
++internal error: argument key 'filename' must not have null value
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.xml
+index db11357455..ffa7c5f4cd 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram template='/path/to/OVMF_VARS.fd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-stateless.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-stateless.xml
+index e4f9d04aed..e0970b3341 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-stateless.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-stateless.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader stateless='yes' readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template="/usr/share/OVMF/OVMF_VARS.fd"/>
++    <loader stateless='yes' readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template="/usr/share/edk2/ovmf/OVMF_VARS.fd"/>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.x86_64-latest.args
+index f587e262fe..0943f3c656 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.xml b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.xml
+index 647c6166cf..73d310a7eb 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template="/usr/share/OVMF/OVMF_VARS.fd"/>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template="/usr/share/edk2/ovmf/OVMF_VARS.fd"/>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args
+index c26daad29f..2d45fa4792 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.args
+@@ -11,8 +11,10 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+ -blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-pflash0-format","read-only":false,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,acpi=on \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
++-machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
+ -accel tcg \
+ -cpu qemu64 \
+ -m size=1048576k \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-secboot.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-secboot.x86_64-latest.args
+index 35f7f0238a..2b998868f4 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-secboot.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-secboot.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-secboot.xml b/tests/qemuxml2argvdata/firmware-manual-efi-secboot.xml
+index 1850c2b241..bd31948e28 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-secboot.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-secboot.xml
+@@ -5,8 +5,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-stateless.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-stateless.x86_64-latest.args
+index a27264e403..6a6146b1bc 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-stateless.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-stateless.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -machine pc-i440fx-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,acpi=on \
+ -accel tcg \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-stateless.xml b/tests/qemuxml2argvdata/firmware-manual-efi-stateless.xml
+index 641c0f275f..55c0049c34 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-stateless.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-stateless.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash' stateless='yes'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash' stateless='yes'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+   </os>
+   <features>
+     <acpi/>
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi.x86_64-latest.args
+index d5f69b0d76..2268372cd8 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/firmware-manual-efi.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/path/to/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi.xml b/tests/qemuxml2argvdata/firmware-manual-efi.xml
+index 5bbb50764a..b42f927684 100644
+--- a/tests/qemuxml2argvdata/firmware-manual-efi.xml
++++ b/tests/qemuxml2argvdata/firmware-manual-efi.xml
+@@ -5,7 +5,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram>/path/to/guest_VARS.fd</nvram>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args b/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args
+index 7559b9885f..512531afa3 100644
+--- a/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-test/.config \
+ -name guest=test,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-test/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/test_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args b/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args
+index abea7bf158..03fa63585f 100644
+--- a/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-test/.config \
+ -name guest=test,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-test/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/test_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/pvpanic-pci-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/pvpanic-pci-aarch64.aarch64-latest.args
+index 5bb5df19fd..bacf31006f 100644
+--- a/tests/qemuxml2argvdata/pvpanic-pci-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/pvpanic-pci-aarch64.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/pvpanic-pci-no-address-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/pvpanic-pci-no-address-aarch64.aarch64-latest.args
+index cc3dfc3159..f0b819d36c 100644
+--- a/tests/qemuxml2argvdata/pvpanic-pci-no-address-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/pvpanic-pci-no-address-aarch64.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvdata/virtio-iommu-aarch64.aarch64-latest.args b/tests/qemuxml2argvdata/virtio-iommu-aarch64.aarch64-latest.args
+index e4a1adf5db..dcad3bb88a 100644
+--- a/tests/qemuxml2argvdata/virtio-iommu-aarch64.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/virtio-iommu-aarch64.aarch64-latest.args
+@@ -10,7 +10,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -name guest=guest,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index ee883e2bf3..95842140f3 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1059,7 +1059,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-no-secboot");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-stateless");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-template");
+-    DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-template-nonstandard");
++    DO_TEST_CAPS_LATEST_FAILURE("firmware-manual-efi-nvram-template-nonstandard");
+     DO_TEST_CAPS_LATEST_PARSE_ERROR("firmware-manual-efi-nvram-template-stateless");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-network-iscsi");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-network-nbd");
+diff --git a/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml b/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml
+index 1150aceb02..e00283cd6d 100644
+--- a/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml
+@@ -15,8 +15,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/path/to/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml b/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml
+index 68df856a28..70e84662b1 100644
+--- a/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml
+@@ -15,8 +15,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/path/to/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-aarch64.aarch64-latest.xml
+index 8eb6086e40..38c680fabd 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.xml
+index 5779eca7a0..0088f3324b 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/AAVMF/AAVMF_CODE.qcow2</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
++    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.qcow2</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update.x86_64-latest.xml
+index 90c5040ca6..f4ff7a0fc2 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-abi-update.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-enrolled-keys.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-enrolled-keys.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-enrolled-keys.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-enrolled-keys.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.xml
+index 310ee6ec73..f4ff7a0fc2 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-qcow2.x86_64-latest.xml
+@@ -7,15 +7,16 @@
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
++      <feature enabled='yes' name='enrolled-keys'/>
++      <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/OVMF/OVMF_CODE.qcow2</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
++    <loader readonly='yes' secure='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+     <acpi/>
++    <smm state='on'/>
+   </features>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml
+index 8eb6086e40..38c680fabd 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw-abi-update.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw.aarch64-latest.xml
+index 8eb6086e40..38c680fabd 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-loader-raw.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.xml
+index 7ea870bbcd..35865b23c5 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-network-nbd.x86_64-latest.xml
+@@ -9,7 +9,7 @@
+     <firmware>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/OVMF/OVMF_CODE.qcow2</loader>
++    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2</loader>
+     <nvram type='network' format='qcow2'>
+       <source protocol='nbd' name='bar'>
+         <host name='example.org' port='6000'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.xml
+index 6cf33b0c76..49fdfc5c5f 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2-path.x86_64-latest.xml
+@@ -7,15 +7,16 @@
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
++      <feature enabled='yes' name='enrolled-keys'/>
++      <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/OVMF/OVMF_CODE.qcow2</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.qcow2' format='qcow2'>/path/to/guest_VARS.qcow2</nvram>
++    <loader readonly='yes' secure='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2' format='qcow2'>/path/to/guest_VARS.qcow2</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+     <acpi/>
++    <smm state='on'/>
+   </features>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.xml
+index 310ee6ec73..f4ff7a0fc2 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-format-nvram-qcow2.x86_64-latest.xml
+@@ -7,15 +7,16 @@
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
++      <feature enabled='yes' name='enrolled-keys'/>
++      <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash' format='qcow2'>/usr/share/OVMF/OVMF_CODE.qcow2</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
++    <loader readonly='yes' secure='yes' type='pflash' format='qcow2'>/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2' format='qcow2'>/var/lib/libvirt/qemu/nvram/guest_VARS.qcow2</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+     <acpi/>
++    <smm state='on'/>
+   </features>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-insecure.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-insecure.x86_64-latest.xml
+index 7717677c4b..4812c4e600 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-insecure.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-insecure.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='no' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='no' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-path.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-path.x86_64-latest.xml
+index 6f4bf4b5bb..6b8dc886a6 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-path.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-path.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure-abi-update.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-loader-secure.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.xml
+index e5caf31c4e..9cf30551a9 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-no-enrolled-keys.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-no-secboot.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-no-secboot.x86_64-latest.xml
+index 6f4bf4b5bb..6b8dc886a6 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-no-secboot.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-no-secboot.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-file.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-file.x86_64-latest.xml
+index 1418ddbfcd..ada0411fb3 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-file.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-file.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd' type='file'>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd' type='file'>
+       <source file='/path/to/guest_VARS.fd'/>
+     </nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.xml
+index ec672780bb..23ff713347 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-iscsi.x86_64-latest.xml
+@@ -9,7 +9,7 @@
+     <firmware>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='network'>
+       <source protocol='iscsi' name='iqn.2013-07.com.example:iscsi-nopool'>
+         <host name='example.com' port='6000'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.xml
+index 3f59dc4d61..a318069d1d 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-network-nbd.x86_64-latest.xml
+@@ -9,7 +9,7 @@
+     <firmware>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='network'>
+       <source protocol='nbd' name='bar'>
+         <host name='example.org' port='6000'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-path.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-path.x86_64-latest.xml
+index b7dc8fa140..135744cb7d 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-path.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-path.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template-nonstandard.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template-nonstandard.x86_64-latest.xml
+index 26136fff10..6dcf5f23f7 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template-nonstandard.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template-nonstandard.x86_64-latest.xml
+@@ -6,7 +6,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram template='/path/to/OVMF_VARS.fd'/>
+     <boot dev='hd'/>
+   </os>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template.x86_64-latest.xml
+index e5caf31c4e..9cf30551a9 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-nvram-template.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw-abi-update.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-rw.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-secboot.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-secboot.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-secboot.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-secboot.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-smm-off.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-smm-off.x86_64-latest.xml
+index 4ab4d9587c..febaad7eae 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-smm-off.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-smm-off.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi-stateless.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi-stateless.x86_64-latest.xml
+index b1aa817a56..006d338b3e 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi-stateless.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi-stateless.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash' stateless='yes'>/usr/share/OVMF/OVMF.sev.fd</loader>
++    <loader readonly='yes' type='pflash' stateless='yes'>/usr/share/edk2/ovmf/OVMF.amdsev.fd</loader>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-auto-efi.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-auto-efi.x86_64-latest.xml
+index 90c5040ca6..332d931ba1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-auto-efi.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-auto-efi.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-aarch64-legacy-paths.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-aarch64-legacy-paths.aarch64-latest.xml
+index 8eb6086e40..b53f39a72e 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-aarch64-legacy-paths.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-aarch64-legacy-paths.aarch64-latest.xml
+@@ -4,12 +4,8 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
++  <os>
+     <type arch='aarch64' machine='virt-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
+-    </firmware>
+     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+     <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.xml
+index 318ffdf93c..637676d4ed 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/path/to/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-q35.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-q35.x86_64-latest.xml
+index ac58a278f9..a4af4ec25a 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-q35.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-acpi-q35.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-features.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-features.x86_64-latest.xml
+index dc4b8bb97f..4d6f2f20aa 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-features.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-features.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-secure.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-secure.x86_64-latest.xml
+index 69b6d91e99..6c3355a3f6 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-secure.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-secure.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys-legacy-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys-legacy-paths.x86_64-latest.xml
+index b41fe20055..b8c2dfef66 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys-legacy-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys-legacy-paths.x86_64-latest.xml
+@@ -4,12 +4,8 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
++  <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='yes' name='secure-boot'/>
+-    </firmware>
+     <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+     <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.xml
+index 2e287b8cd1..083562ab0b 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-enrolled-keys.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot-legacy-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot-legacy-paths.x86_64-latest.xml
+index c1b0f2f54a..cfd7a6824f 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot-legacy-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot-legacy-paths.x86_64-latest.xml
+@@ -4,12 +4,8 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
++  <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
+-    </firmware>
+     <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+     <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot.x86_64-latest.xml
+index ac58a278f9..a4af4ec25a 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-no-secboot.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.xml
+index 2b4dff8800..52f9fac842 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-noacpi-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/path/to/guest_VARS.raw</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-file.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-file.x86_64-latest.xml
+index 1418ddbfcd..ada0411fb3 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-file.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-file.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd' type='file'>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd' type='file'>
+       <source file='/path/to/guest_VARS.fd'/>
+     </nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.xml
+index ec672780bb..23ff713347 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-iscsi.x86_64-latest.xml
+@@ -9,7 +9,7 @@
+     <firmware>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='network'>
+       <source protocol='iscsi' name='iqn.2013-07.com.example:iscsi-nopool'>
+         <host name='example.com' port='6000'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.xml
+index 3f59dc4d61..a318069d1d 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-network-nbd.x86_64-latest.xml
+@@ -9,7 +9,7 @@
+     <firmware>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <nvram type='network'>
+       <source protocol='nbd' name='bar'>
+         <host name='example.org' port='6000'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml
+index 8b3853dc17..816e285621 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml
+@@ -6,8 +6,8 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/path/to/OVMF_VARS.fd'/>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template.x86_64-latest.xml
+index dc4b8bb97f..4d6f2f20aa 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml
+index c1b0f2f54a..cfd7a6824f 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-legacy-paths.x86_64-latest.xml
+@@ -4,12 +4,8 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
++  <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='no' name='enrolled-keys'/>
+-      <feature enabled='no' name='secure-boot'/>
+-    </firmware>
+     <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+     <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml
+index 0d755a4306..468ca022ef 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-rw-modern-paths.x86_64-latest.xml
+@@ -4,9 +4,14 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os>
++  <os firmware='efi'>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <loader readonly='no' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <firmware>
++      <feature enabled='no' name='enrolled-keys'/>
++      <feature enabled='no' name='secure-boot'/>
++    </firmware>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml
+index c4ff23f12b..b8c2dfef66 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml
+@@ -4,14 +4,10 @@
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
++  <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+-    <firmware>
+-      <feature enabled='yes' name='enrolled-keys'/>
+-      <feature enabled='yes' name='secure-boot'/>
+-    </firmware>
+     <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot.x86_64-latest.xml
+index 69b6d91e99..6c3355a3f6 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-stateless.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-stateless.x86_64-latest.xml
+index cb29b373d2..e4ed6a154b 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-stateless.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-stateless.x86_64-latest.xml
+@@ -6,7 +6,7 @@
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc-i440fx-4.0'>hvm</type>
+-    <loader readonly='yes' type='pflash' stateless='yes'>/usr/share/OVMF/OVMF_CODE.fd</loader>
++    <loader readonly='yes' type='pflash' stateless='yes'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi.x86_64-latest.xml
+index 11d7623e7c..5bdc9bd4c1 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.fd'>/path/to/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml b/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml
+index 69c1d5deb3..5e4ebbdaa5 100644
+--- a/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/test_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/test_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml b/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml
+index 032fd43471..b35ef7df9e 100644
+--- a/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='yes' name='enrolled-keys'/>
+       <feature enabled='yes' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/test_VARS.fd</nvram>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/test_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/pvpanic-pci-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/pvpanic-pci-aarch64.aarch64-latest.xml
+index 92dcd92d19..d318aa63a1 100644
+--- a/tests/qemuxml2xmloutdata/pvpanic-pci-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/pvpanic-pci-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/pvpanic-pci-no-address-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/pvpanic-pci-no-address-aarch64.aarch64-latest.xml
+index f3e7e2c911..92a81991e2 100644
+--- a/tests/qemuxml2xmloutdata/pvpanic-pci-no-address-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/pvpanic-pci-no-address-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/virtio-iommu-aarch64.aarch64-latest.xml b/tests/qemuxml2xmloutdata/virtio-iommu-aarch64.aarch64-latest.xml
+index ee747e7496..bc6d210458 100644
+--- a/tests/qemuxml2xmloutdata/virtio-iommu-aarch64.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/virtio-iommu-aarch64.aarch64-latest.xml
+@@ -10,8 +10,8 @@
+       <feature enabled='no' name='enrolled-keys'/>
+       <feature enabled='no' name='secure-boot'/>
+     </firmware>
+-    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+-    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
++    <nvram template='/usr/share/edk2/aarch64/vars-template-pflash.raw'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+-- 
+2.42.0

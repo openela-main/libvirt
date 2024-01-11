@@ -1,0 +1,44 @@
+From 4a7503773994cb518498b81fd17cd33aec1f50a2 Mon Sep 17 00:00:00 2001
+Message-ID: <4a7503773994cb518498b81fd17cd33aec1f50a2.1694154048.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 18 Aug 2023 16:13:16 -0400
+Subject: [PATCH] qemu: turn two multiline log messages into single line
+
+Normally I wouldn't bother with a change like this, but I was touching
+the function anyway, and wanted to leave it looking nice and tidy.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 10e8a518a05922d5592d1405054aed3195aebf06)
+https://bugzilla.redhat.com/2074209
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_driver.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index d471cb5f09..4f96bf5d4b 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -11409,8 +11409,7 @@ qemuNodeDeviceDetachFlags(virNodeDevicePtr dev,
+      */
+     if (STREQ_NULLABLE(driverName, "kvm")) {
+         virReportError(VIR_ERR_ARGUMENT_UNSUPPORTED, "%s",
+-                       _("'legacy KVM' device assignment is no longer "
+-                         "supported on this system"));
++                       _("'legacy KVM' device assignment is no longer supported on this system"));
+         return -1;
+     }
+ 
+@@ -11421,8 +11420,7 @@ qemuNodeDeviceDetachFlags(virNodeDevicePtr dev,
+ 
+     if (!qemuHostdevHostSupportsPassthroughVFIO()) {
+         virReportError(VIR_ERR_ARGUMENT_UNSUPPORTED, "%s",
+-                       _("VFIO device assignment is currently not "
+-                         "supported on this system"));
++                       _("VFIO device assignment is currently not supported on this system"));
+          return -1;
+     }
+ 
+-- 
+2.42.0

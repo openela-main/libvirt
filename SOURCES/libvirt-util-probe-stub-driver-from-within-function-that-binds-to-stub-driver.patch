@@ -1,0 +1,113 @@
+From 3cf1310b0d096099b77ba1875076bc29bcb261bb Mon Sep 17 00:00:00 2001
+Message-ID: <3cf1310b0d096099b77ba1875076bc29bcb261bb.1694154048.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Sun, 9 Jul 2023 15:00:26 -0400
+Subject: [PATCH] util: probe stub driver from within function that binds to
+ stub driver
+
+virPCIProbeStubDriver() and virPCIDeviceBindToStub() both have
+very similar code that locally sets a driver name (based on
+stubDriverType). These two functions are each also called in just one
+place (virPCIDeviceDetach()), with just a small bit of validation code
+in between.
+
+To eliminate the "duplicated" code (which is going to be expanded
+slightly in upcoming patches to support manually or automatically
+picking a VFIO variant driver), this patch modifies
+virPCIProbeStubDriver() to take the driver name as an argument
+(rather than the virPCIDevice object), and calls it from within
+virPCIDeviceBindToStub() (rather than from that function's caller),
+using the driverName it has just figured out with the
+now-not-duplicated code.
+
+(NB: Since it could be used to probe *any* driver module, the name is
+changed to virPCIProbeDriver()).
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 2d9c9445b9cc093c870f101eb884ddeac3ae40f7)
+https://bugzilla.redhat.com/2074209
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/util/virpci.c | 33 ++++++++++++---------------------
+ 1 file changed, 12 insertions(+), 21 deletions(-)
+
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index 253ddccabd..f1936795da 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -1154,28 +1154,19 @@ virPCIDeviceReset(virPCIDevice *dev,
+ 
+ 
+ static int
+-virPCIProbeStubDriver(virPCIStubDriver driver)
++virPCIProbeDriver(const char *driverName)
+ {
+-    const char *drvname = NULL;
+     g_autofree char *drvpath = NULL;
+     g_autofree char *errbuf = NULL;
+ 
+-    if (driver == VIR_PCI_STUB_DRIVER_NONE ||
+-        !(drvname = virPCIStubDriverTypeToString(driver))) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s",
+-                       _("Attempting to use unknown stub driver"));
+-        return -1;
+-    }
+-
+-    drvpath = virPCIDriverDir(drvname);
++    drvpath = virPCIDriverDir(driverName);
+ 
+     /* driver previously loaded, return */
+     if (virFileExists(drvpath))
+         return 0;
+ 
+-    if ((errbuf = virKModLoad(drvname))) {
+-        VIR_WARN("failed to load driver %s: %s", drvname, errbuf);
++    if ((errbuf = virKModLoad(driverName))) {
++        VIR_WARN("failed to load driver %s: %s", driverName, errbuf);
+         goto cleanup;
+     }
+ 
+@@ -1187,14 +1178,14 @@ virPCIProbeStubDriver(virPCIStubDriver driver)
+     /* If we know failure was because of admin config, let's report that;
+      * otherwise, report a more generic failure message
+      */
+-    if (virKModIsProhibited(drvname)) {
++    if (virKModIsProhibited(driverName)) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       _("Failed to load PCI stub module %1$s: administratively prohibited"),
+-                       drvname);
++                       _("Failed to load PCI driver module %1$s: administratively prohibited"),
++                       driverName);
+     } else {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       _("Failed to load PCI stub module %1$s"),
+-                       drvname);
++                       _("Failed to load PCI driver module %1$s"),
++                       driverName);
+     }
+ 
+     return -1;
+@@ -1316,6 +1307,9 @@ virPCIDeviceBindToStub(virPCIDevice *dev)
+         return -1;
+     }
+ 
++    if (virPCIProbeDriver(stubDriverName) < 0)
++        return -1;
++
+     stubDriverPath = virPCIDriverDir(stubDriverName);
+     driverLink = virPCIFile(dev->name, "driver");
+ 
+@@ -1359,9 +1353,6 @@ virPCIDeviceDetach(virPCIDevice *dev,
+                    virPCIDeviceList *activeDevs,
+                    virPCIDeviceList *inactiveDevs)
+ {
+-    if (virPCIProbeStubDriver(dev->stubDriverType) < 0)
+-        return -1;
+-
+     if (activeDevs && virPCIDeviceListFind(activeDevs, &dev->address)) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("Not detaching active device %1$s"), dev->name);
+-- 
+2.42.0

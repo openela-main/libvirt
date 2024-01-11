@@ -1,0 +1,77 @@
+From a106b0bcb4fd652b9843257f799d9601151449b4 Mon Sep 17 00:00:00 2001
+Message-ID: <a106b0bcb4fd652b9843257f799d9601151449b4.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 26 May 2023 19:59:06 +0200
+Subject: [PATCH] qemu: Don't overwrite NVRAM template for legacy firmware
+
+Just because we have found a matching entry, it doesn't mean
+that we should discard the information explicitly provided in
+the domain XML.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+https://gitlab.com/libvirt/libvirt/-/issues/500
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 4a49114ff47d4a9432d211200f734886f9ce200b)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_firmware.c                      | 26 +++++++++++++++++--
+ ...efi-secboot-legacy-paths.x86_64-latest.xml |  2 +-
+ 2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_firmware.c b/src/qemu/qemu_firmware.c
+index b1d342563b..a9437b5b95 100644
+--- a/src/qemu/qemu_firmware.c
++++ b/src/qemu/qemu_firmware.c
+@@ -1609,8 +1609,30 @@ qemuFirmwareFillDomainLegacy(virQEMUDriver *driver,
+         loader->type = VIR_DOMAIN_LOADER_TYPE_PFLASH;
+         loader->readonly = VIR_TRISTATE_BOOL_YES;
+ 
+-        VIR_FREE(loader->nvramTemplate);
+-        loader->nvramTemplate = g_strdup(cfg->firmwares[i]->nvram);
++        /* Only use the default template path if one hasn't been
++         * provided by the user.
++         *
++         * In addition to fully-custom templates, which are a valid
++         * use case, we could simply be in a situation where
++         * qemu.conf contains
++         *
++         *   nvram = [
++         *     "/path/to/OVMF_CODE.secboot.fd:/path/to/OVMF_VARS.fd",
++         *     "/path/to/OVMF_CODE.secboot.fd:/path/to/OVMF_VARS.secboot.fd"
++         *   ]
++         *
++         * and the domain has been configured as
++         *
++         *   <os>
++         *     <loader readonly='yes' type='pflash'>/path/to/OVMF_CODE.secboot.fd</loader>
++         *     <nvram template='/path/to/OVMF/OVMF_VARS.secboot.fd'>
++         *   </os>
++         *
++         * In this case, the global default is to have Secure Boot
++         * disabled, but the domain configuration explicitly enables
++         * it, and we shouldn't overrule this choice */
++        if (!loader->nvramTemplate)
++            loader->nvramTemplate = g_strdup(cfg->firmwares[i]->nvram);
+ 
+         qemuFirmwareEnsureNVRAM(def, cfg, VIR_STORAGE_FILE_RAW);
+ 
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml
+index b8c2dfef66..9027123558 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-secboot-legacy-paths.x86_64-latest.xml
+@@ -7,7 +7,7 @@
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+-    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
++    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+-- 
+2.42.0

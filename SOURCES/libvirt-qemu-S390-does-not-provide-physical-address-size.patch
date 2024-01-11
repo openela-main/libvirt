@@ -1,0 +1,175 @@
+From 5af7ae809ed21678c265a9559c9f70b90dcd31d9 Mon Sep 17 00:00:00 2001
+Message-ID: <5af7ae809ed21678c265a9559c9f70b90dcd31d9.1689974710.git.jdenemar@redhat.com>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 14 Jul 2023 16:38:14 +0200
+Subject: [PATCH] qemu: S390 does not provide physical address size
+
+Commit be1b7d5b18 introduced parsing /proc/cpuinfo for "address size"
+which is not including on S390 and therefore reports an internal error.
+Lets remove the parsing on S390.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Marc Hartmayer <mhartmay@linux.ibm.com>
+Reviewed-by: Collin Walling <walling@linux.ibm.com>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8417c1394cd4deccee07235d4f7b2c54b774b08d)
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2224016
+
+Signed-off-by: Boris Fiuczynski <bfiuczyn@redhat.com>
+---
+ src/cpu/cpu_x86.c                         |  2 +-
+ src/qemu/qemu_capabilities.c              |  2 +-
+ src/util/virhostcpu.c                     | 12 ++++++++++--
+ src/util/virhostcpu.h                     |  3 ++-
+ tests/domaincapsdata/qemu_4.2.0.s390x.xml |  1 -
+ tests/domaincapsdata/qemu_5.2.0.s390x.xml |  1 -
+ tests/domaincapsdata/qemu_6.0.0.s390x.xml |  1 -
+ tests/domaincapsdata/qemu_8.1.0.s390x.xml |  1 -
+ tests/domaincapsmock.c                    |  8 ++++++--
+ 9 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 8d371d5501..3c0163c4d1 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2795,7 +2795,7 @@ virCPUx86GetHost(virCPUDef *cpu,
+         VIR_DEBUG("Host CPU does not support invariant TSC");
+     }
+ 
+-    if (virHostCPUGetPhysAddrSize(&addrsz) == 0) {
++    if (virHostCPUGetPhysAddrSize(cpuData->arch, &addrsz) == 0) {
+         virCPUMaxPhysAddrDef *addr = g_new0(virCPUMaxPhysAddrDef, 1);
+ 
+         addr->bits = addrsz;
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 338608f0a2..85ea879f0b 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -3911,7 +3911,7 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+     }
+ 
+     if (virQEMUCapsTypeIsAccelerated(type))
+-        virHostCPUGetPhysAddrSize(&physAddrSize);
++        virHostCPUGetPhysAddrSize(hostArch, &physAddrSize);
+ 
+     virQEMUCapsSetHostModel(qemuCaps, type, physAddrSize, cpu, migCPU, fullCPU);
+ 
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index 19195a1470..a15731e9ea 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -1646,10 +1646,17 @@ virHostCPUGetSignature(char **signature)
+ }
+ 
+ int
+-virHostCPUGetPhysAddrSize(unsigned int *size)
++virHostCPUGetPhysAddrSize(const virArch hostArch,
++                          unsigned int *size)
+ {
+     g_autoptr(FILE) cpuinfo = NULL;
+ 
++    if (ARCH_IS_S390(hostArch)) {
++        /* Ensure size is set to 0 as physical address size is unknown */
++        *size = 0;
++        return 0;
++    }
++
+     if (!(cpuinfo = fopen(CPUINFO_PATH, "r"))) {
+         virReportSystemError(errno, _("Failed to open cpuinfo file '%1$s'"),
+                              CPUINFO_PATH);
+@@ -1669,7 +1676,8 @@ virHostCPUGetSignature(char **signature)
+ }
+ 
+ int
+-virHostCPUGetPhysAddrSize(unsigned int *size G_GNUC_UNUSED)
++virHostCPUGetPhysAddrSize(const virArch hostArch G_GNUC_UNUSED,
++                          unsigned int *size G_GNUC_UNUSED)
+ {
+     errno = ENOSYS;
+     return -1;
+diff --git a/src/util/virhostcpu.h b/src/util/virhostcpu.h
+index 5232fee36d..5f0d43e069 100644
+--- a/src/util/virhostcpu.h
++++ b/src/util/virhostcpu.h
+@@ -87,7 +87,8 @@ virHostCPUTscInfo *virHostCPUGetTscInfo(void);
+ 
+ int virHostCPUGetSignature(char **signature);
+ 
+-int virHostCPUGetPhysAddrSize(unsigned int *size);
++int virHostCPUGetPhysAddrSize(const virArch hostArch,
++                              unsigned int *size);
+ 
+ int virHostCPUGetHaltPollTime(pid_t pid,
+                               unsigned long long *haltPollSuccess,
+diff --git a/tests/domaincapsdata/qemu_4.2.0.s390x.xml b/tests/domaincapsdata/qemu_4.2.0.s390x.xml
+index da271825f9..2566f42997 100644
+--- a/tests/domaincapsdata/qemu_4.2.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_4.2.0.s390x.xml
+@@ -38,7 +38,6 @@
+     </mode>
+     <mode name='host-model' supported='yes'>
+       <model fallback='forbid'>gen15a-base</model>
+-      <maxphysaddr mode='passthrough' limit='64'/>
+       <feature policy='require' name='aen'/>
+       <feature policy='require' name='cmmnt'/>
+       <feature policy='require' name='vxpdeh'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.s390x.xml b/tests/domaincapsdata/qemu_5.2.0.s390x.xml
+index 99faaad866..12f38d3638 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.s390x.xml
+@@ -38,7 +38,6 @@
+     </mode>
+     <mode name='host-model' supported='yes'>
+       <model fallback='forbid'>gen15a-base</model>
+-      <maxphysaddr mode='passthrough' limit='64'/>
+       <feature policy='require' name='aen'/>
+       <feature policy='require' name='cmmnt'/>
+       <feature policy='require' name='vxpdeh'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.s390x.xml b/tests/domaincapsdata/qemu_6.0.0.s390x.xml
+index df3708f801..703f729ae2 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.s390x.xml
+@@ -38,7 +38,6 @@
+     </mode>
+     <mode name='host-model' supported='yes'>
+       <model fallback='forbid'>gen15a-base</model>
+-      <maxphysaddr mode='passthrough' limit='64'/>
+       <feature policy='require' name='aen'/>
+       <feature policy='require' name='cmmnt'/>
+       <feature policy='require' name='vxpdeh'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.s390x.xml b/tests/domaincapsdata/qemu_8.1.0.s390x.xml
+index d70b639503..3562e96965 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.s390x.xml
+@@ -38,7 +38,6 @@
+     </mode>
+     <mode name='host-model' supported='yes'>
+       <model fallback='forbid'>gen16a-base</model>
+-      <maxphysaddr mode='passthrough' limit='64'/>
+       <feature policy='require' name='nnpa'/>
+       <feature policy='require' name='aen'/>
+       <feature policy='require' name='cmmnt'/>
+diff --git a/tests/domaincapsmock.c b/tests/domaincapsmock.c
+index cecb333602..6ae0c4ad45 100644
+--- a/tests/domaincapsmock.c
++++ b/tests/domaincapsmock.c
+@@ -37,9 +37,13 @@ virHostCPUGetMicrocodeVersion(virArch hostArch G_GNUC_UNUSED)
+ }
+ 
+ int
+-virHostCPUGetPhysAddrSize(unsigned int *size)
++virHostCPUGetPhysAddrSize(const virArch hostArch,
++                          unsigned int *size)
+ {
+-    *size = 64;
++    if (ARCH_IS_S390(hostArch))
++        *size = 0;
++    else
++        *size = 64;
+     return 0;
+ }
+ 
+-- 
+2.41.0

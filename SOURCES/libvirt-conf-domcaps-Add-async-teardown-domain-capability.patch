@@ -1,0 +1,1011 @@
+From f2c5bbfda0b2fb54cf65917f6c5b72d27c9a9813 Mon Sep 17 00:00:00 2001
+Message-ID: <f2c5bbfda0b2fb54cf65917f6c5b72d27c9a9813.1689974709.git.jdenemar@redhat.com>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 17 Jul 2023 17:12:08 +0200
+Subject: [PATCH] conf: domcaps: Add 'async-teardown' domain capability
+
+Add async-teardown to the features list in domain capabilities allowing
+high level management to introspect the availability of the asynchronous
+teardown feature.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit aece25f66517a327c2a6bde4d06b432d415ed7da)
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2168499
+
+Signed-off-by: Boris Fiuczynski <bfiuczyn@redhat.com>
+---
+ docs/formatdomaincaps.rst                            | 6 ++++++
+ src/conf/domain_capabilities.c                       | 1 +
+ src/conf/domain_capabilities.h                       | 1 +
+ src/conf/schemas/domaincaps.rng                      | 9 +++++++++
+ src/qemu/qemu_capabilities.c                         | 1 +
+ tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_4.2.0-virt.aarch64.xml     | 1 +
+ tests/domaincapsdata/qemu_4.2.0.aarch64.xml          | 1 +
+ tests/domaincapsdata/qemu_4.2.0.ppc64.xml            | 1 +
+ tests/domaincapsdata/qemu_4.2.0.s390x.xml            | 1 +
+ tests/domaincapsdata/qemu_4.2.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_5.0.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_5.0.0-tcg-virt.riscv64.xml | 1 +
+ tests/domaincapsdata/qemu_5.0.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_5.0.0-virt.aarch64.xml     | 1 +
+ tests/domaincapsdata/qemu_5.0.0-virt.riscv64.xml     | 1 +
+ tests/domaincapsdata/qemu_5.0.0.aarch64.xml          | 1 +
+ tests/domaincapsdata/qemu_5.0.0.ppc64.xml            | 1 +
+ tests/domaincapsdata/qemu_5.0.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_5.1.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_5.1.0.sparc.xml            | 1 +
+ tests/domaincapsdata/qemu_5.1.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_5.2.0-tcg-virt.riscv64.xml | 1 +
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_5.2.0-virt.aarch64.xml     | 1 +
+ tests/domaincapsdata/qemu_5.2.0-virt.riscv64.xml     | 1 +
+ tests/domaincapsdata/qemu_5.2.0.aarch64.xml          | 1 +
+ tests/domaincapsdata/qemu_5.2.0.ppc64.xml            | 1 +
+ tests/domaincapsdata/qemu_5.2.0.s390x.xml            | 1 +
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_6.0.0-virt.aarch64.xml     | 1 +
+ tests/domaincapsdata/qemu_6.0.0.aarch64.xml          | 1 +
+ tests/domaincapsdata/qemu_6.0.0.s390x.xml            | 1 +
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_6.2.0-virt.aarch64.xml     | 1 +
+ tests/domaincapsdata/qemu_6.2.0.aarch64.xml          | 1 +
+ tests/domaincapsdata/qemu_6.2.0.ppc64.xml            | 1 +
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_7.0.0-hvf.aarch64+hvf.xml  | 1 +
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_7.0.0-virt.aarch64.xml     | 1 +
+ tests/domaincapsdata/qemu_7.0.0.aarch64.xml          | 1 +
+ tests/domaincapsdata/qemu_7.0.0.ppc64.xml            | 1 +
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_7.1.0.ppc64.xml            | 1 +
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_7.2.0-hvf.x86_64+hvf.xml   | 1 +
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml   | 1 +
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_7.2.0.ppc.xml              | 1 +
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_8.0.0-tcg-virt.riscv64.xml | 1 +
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_8.0.0-virt.riscv64.xml     | 1 +
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml           | 1 +
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml       | 1 +
+ tests/domaincapsdata/qemu_8.1.0.s390x.xml            | 1 +
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml           | 1 +
+ 74 files changed, 87 insertions(+)
+
+diff --git a/docs/formatdomaincaps.rst b/docs/formatdomaincaps.rst
+index 9dae941d18..0f8015d4dd 100644
+--- a/docs/formatdomaincaps.rst
++++ b/docs/formatdomaincaps.rst
+@@ -647,6 +647,7 @@ capabilities. All features occur as children of the main ``features`` element.
+        <genid supported='yes'/>
+        <backingStoreInput supported='yes'/>
+        <backup supported='yes'/>
++       <async-teardown supported='yes'/>
+        <sev>
+          <cbitpos>47</cbitpos>
+          <reduced-phys-bits>1</reduced-phys-bits>
+@@ -711,6 +712,11 @@ presence of the ``backup`` element even if ``supported='no'`` implies that the
+ ``VIR_DOMAIN_UNDEFINE_CHECKPOINTS_METADATA`` flag for ``virDomainUndefine`` is
+ supported.
+ 
++async-teardown
++^^^^^^^^^^^^^^
++
++Reports whether the asynchronous teardown feature can be enabled.
++
+ s390-pv capability
+ ^^^^^^^^^^^^^^^^^^
+ 
+diff --git a/src/conf/domain_capabilities.c b/src/conf/domain_capabilities.c
+index c076af7808..2fa5756184 100644
+--- a/src/conf/domain_capabilities.c
++++ b/src/conf/domain_capabilities.c
+@@ -40,6 +40,7 @@ VIR_ENUM_IMPL(virDomainCapsFeature,
+               "genid",
+               "backingStoreInput",
+               "backup",
++              "async-teardown",
+               "s390-pv",
+ );
+ 
+diff --git a/src/conf/domain_capabilities.h b/src/conf/domain_capabilities.h
+index 2624269eab..01bcfa2e39 100644
+--- a/src/conf/domain_capabilities.h
++++ b/src/conf/domain_capabilities.h
+@@ -248,6 +248,7 @@ typedef enum {
+     VIR_DOMAIN_CAPS_FEATURE_GENID,
+     VIR_DOMAIN_CAPS_FEATURE_BACKING_STORE_INPUT,
+     VIR_DOMAIN_CAPS_FEATURE_BACKUP,
++    VIR_DOMAIN_CAPS_FEATURE_ASYNC_TEARDOWN,
+     VIR_DOMAIN_CAPS_FEATURE_S390_PV,
+ 
+     VIR_DOMAIN_CAPS_FEATURE_LAST
+diff --git a/src/conf/schemas/domaincaps.rng b/src/conf/schemas/domaincaps.rng
+index 19bd6f7128..99ef148d44 100644
+--- a/src/conf/schemas/domaincaps.rng
++++ b/src/conf/schemas/domaincaps.rng
+@@ -300,6 +300,9 @@
+       <optional>
+         <ref name="backup"/>
+       </optional>
++      <optional>
++        <ref name="async-teardown"/>
++      </optional>
+       <optional>
+         <ref name="s390-pv"/>
+       </optional>
+@@ -315,6 +318,12 @@
+     </element>
+   </define>
+ 
++  <define name="async-teardown">
++    <element name="async-teardown">
++      <ref name="supported"/>
++    </element>
++  </define>
++
+   <define name="gic">
+     <element name="gic">
+       <ref name="supported"/>
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index c9f4b17208..338608f0a2 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -6296,6 +6296,7 @@ static const struct virQEMUCapsDomainFeatureCapabilityTuple domCapsTuples[] = {
+     { VIR_DOMAIN_CAPS_FEATURE_GENID, QEMU_CAPS_DEVICE_VMGENID },
+     { VIR_DOMAIN_CAPS_FEATURE_BACKING_STORE_INPUT, QEMU_CAPS_LAST },
+     { VIR_DOMAIN_CAPS_FEATURE_BACKUP, QEMU_CAPS_INCREMENTAL_BACKUP },
++    { VIR_DOMAIN_CAPS_FEATURE_ASYNC_TEARDOWN, QEMU_CAPS_RUN_WITH_ASYNC_TEARDOWN },
+ };
+ 
+ 
+diff --git a/tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml
+index f408c2a969..f6c9622a56 100644
+--- a/tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml
+@@ -248,6 +248,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
+index 4427634d7c..3e9485c7d0 100644
+--- a/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
+@@ -262,6 +262,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_4.2.0-virt.aarch64.xml b/tests/domaincapsdata/qemu_4.2.0-virt.aarch64.xml
+index 981a06856d..9aa1d946ae 100644
+--- a/tests/domaincapsdata/qemu_4.2.0-virt.aarch64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0-virt.aarch64.xml
+@@ -194,6 +194,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_4.2.0.aarch64.xml b/tests/domaincapsdata/qemu_4.2.0.aarch64.xml
+index 981a06856d..9aa1d946ae 100644
+--- a/tests/domaincapsdata/qemu_4.2.0.aarch64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0.aarch64.xml
+@@ -194,6 +194,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_4.2.0.ppc64.xml b/tests/domaincapsdata/qemu_4.2.0.ppc64.xml
+index a3289573bd..770a67bff1 100644
+--- a/tests/domaincapsdata/qemu_4.2.0.ppc64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0.ppc64.xml
+@@ -162,6 +162,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_4.2.0.s390x.xml b/tests/domaincapsdata/qemu_4.2.0.s390x.xml
+index c35bed1326..da271825f9 100644
+--- a/tests/domaincapsdata/qemu_4.2.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_4.2.0.s390x.xml
+@@ -268,6 +268,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <s390-pv supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+diff --git a/tests/domaincapsdata/qemu_4.2.0.x86_64.xml b/tests/domaincapsdata/qemu_4.2.0.x86_64.xml
+index cbe083f1f1..513ca3caf4 100644
+--- a/tests/domaincapsdata/qemu_4.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0.x86_64.xml
+@@ -248,6 +248,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.0.0-q35.x86_64.xml
+index 6b68d4f2a5..64a6b7dea7 100644
+--- a/tests/domaincapsdata/qemu_5.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0-q35.x86_64.xml
+@@ -250,6 +250,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0-tcg-virt.riscv64.xml b/tests/domaincapsdata/qemu_5.0.0-tcg-virt.riscv64.xml
+index 20a8c9a583..7ee0dcf664 100644
+--- a/tests/domaincapsdata/qemu_5.0.0-tcg-virt.riscv64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0-tcg-virt.riscv64.xml
+@@ -147,6 +147,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.0.0-tcg.x86_64.xml
+index 39b1b4c1f2..95366f3edf 100644
+--- a/tests/domaincapsdata/qemu_5.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0-tcg.x86_64.xml
+@@ -264,6 +264,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0-virt.aarch64.xml b/tests/domaincapsdata/qemu_5.0.0-virt.aarch64.xml
+index f84aec44c9..c8cd609bc8 100644
+--- a/tests/domaincapsdata/qemu_5.0.0-virt.aarch64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0-virt.aarch64.xml
+@@ -207,6 +207,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0-virt.riscv64.xml b/tests/domaincapsdata/qemu_5.0.0-virt.riscv64.xml
+index 833cb4bb2e..1f0fc66f53 100644
+--- a/tests/domaincapsdata/qemu_5.0.0-virt.riscv64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0-virt.riscv64.xml
+@@ -150,6 +150,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0.aarch64.xml b/tests/domaincapsdata/qemu_5.0.0.aarch64.xml
+index f84aec44c9..c8cd609bc8 100644
+--- a/tests/domaincapsdata/qemu_5.0.0.aarch64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0.aarch64.xml
+@@ -207,6 +207,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0.ppc64.xml b/tests/domaincapsdata/qemu_5.0.0.ppc64.xml
+index 4b3f490942..c80fbb8ec6 100644
+--- a/tests/domaincapsdata/qemu_5.0.0.ppc64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0.ppc64.xml
+@@ -169,6 +169,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.0.0.x86_64.xml b/tests/domaincapsdata/qemu_5.0.0.x86_64.xml
+index 603d842dfe..c8338b0889 100644
+--- a/tests/domaincapsdata/qemu_5.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.0.0.x86_64.xml
+@@ -250,6 +250,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml
+index cdbbe86ede..3f170d469f 100644
+--- a/tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml
+@@ -251,6 +251,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.1.0-tcg.x86_64.xml
+index 8950900e72..097ffce9f9 100644
+--- a/tests/domaincapsdata/qemu_5.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.1.0-tcg.x86_64.xml
+@@ -264,6 +264,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.1.0.sparc.xml b/tests/domaincapsdata/qemu_5.1.0.sparc.xml
+index 6f92de2b6c..7a04ea6c12 100644
+--- a/tests/domaincapsdata/qemu_5.1.0.sparc.xml
++++ b/tests/domaincapsdata/qemu_5.1.0.sparc.xml
+@@ -133,6 +133,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.1.0.x86_64.xml b/tests/domaincapsdata/qemu_5.1.0.x86_64.xml
+index 1ef28a71e4..ba0785dcf9 100644
+--- a/tests/domaincapsdata/qemu_5.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.1.0.x86_64.xml
+@@ -251,6 +251,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index 46a3a44cdd..1474488d7b 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -251,6 +251,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg-virt.riscv64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg-virt.riscv64.xml
+index 20a8c9a583..7ee0dcf664 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg-virt.riscv64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg-virt.riscv64.xml
+@@ -147,6 +147,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index edb622240e..ec89689a36 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -264,6 +264,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-virt.aarch64.xml b/tests/domaincapsdata/qemu_5.2.0-virt.aarch64.xml
+index af01bdfbe9..a36255f6f8 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-virt.aarch64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-virt.aarch64.xml
+@@ -207,6 +207,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-virt.riscv64.xml b/tests/domaincapsdata/qemu_5.2.0-virt.riscv64.xml
+index 833cb4bb2e..1f0fc66f53 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-virt.riscv64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-virt.riscv64.xml
+@@ -150,6 +150,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.aarch64.xml b/tests/domaincapsdata/qemu_5.2.0.aarch64.xml
+index af01bdfbe9..a36255f6f8 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.aarch64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.aarch64.xml
+@@ -207,6 +207,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.ppc64.xml b/tests/domaincapsdata/qemu_5.2.0.ppc64.xml
+index b465ad1030..538b790ba3 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.ppc64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.ppc64.xml
+@@ -169,6 +169,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.s390x.xml b/tests/domaincapsdata/qemu_5.2.0.s390x.xml
+index 9dbf118713..99faaad866 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.s390x.xml
+@@ -270,6 +270,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <s390-pv supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 09db834535..1b4f379bbb 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -251,6 +251,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index b1a2be10e6..b8e9a26e68 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -253,6 +253,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='yes'>
+       <cbitpos>47</cbitpos>
+       <reducedPhysBits>1</reducedPhysBits>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index 29b95a836f..2b99ae36b6 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -267,6 +267,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='yes'>
+       <cbitpos>47</cbitpos>
+       <reducedPhysBits>1</reducedPhysBits>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-virt.aarch64.xml b/tests/domaincapsdata/qemu_6.0.0-virt.aarch64.xml
+index 67889c4572..010fc6916e 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-virt.aarch64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-virt.aarch64.xml
+@@ -209,6 +209,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.aarch64.xml b/tests/domaincapsdata/qemu_6.0.0.aarch64.xml
+index 67889c4572..010fc6916e 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.aarch64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.aarch64.xml
+@@ -209,6 +209,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.s390x.xml b/tests/domaincapsdata/qemu_6.0.0.s390x.xml
+index f0a8b196f5..df3708f801 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.s390x.xml
+@@ -271,6 +271,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <s390-pv supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 693ae0a7f1..652cc0ef8d 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -253,6 +253,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='no'/>
++    <async-teardown supported='no'/>
+     <sev supported='yes'>
+       <cbitpos>47</cbitpos>
+       <reducedPhysBits>1</reducedPhysBits>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index a161d6aa20..628684c171 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -254,6 +254,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index 7bfe6f802c..ab0aae0439 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -267,6 +267,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index 8c4f8cc860..8f1a0bcb29 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -254,6 +254,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index 0449f562df..50be45c069 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -254,6 +254,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index f15111c590..a670f306dd 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -269,6 +269,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-virt.aarch64.xml b/tests/domaincapsdata/qemu_6.2.0-virt.aarch64.xml
+index 241e893df6..424f7cf606 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-virt.aarch64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-virt.aarch64.xml
+@@ -216,6 +216,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.aarch64.xml b/tests/domaincapsdata/qemu_6.2.0.aarch64.xml
+index 241e893df6..424f7cf606 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.aarch64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.aarch64.xml
+@@ -216,6 +216,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.ppc64.xml b/tests/domaincapsdata/qemu_6.2.0.ppc64.xml
+index a9f7aefbc9..94edf1878e 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.ppc64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.ppc64.xml
+@@ -168,6 +168,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index fa1f7a2316..6cd7ac6616 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -254,6 +254,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-hvf.aarch64+hvf.xml b/tests/domaincapsdata/qemu_7.0.0-hvf.aarch64+hvf.xml
+index bcabf66d2a..d51de8273f 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-hvf.aarch64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-hvf.aarch64+hvf.xml
+@@ -170,6 +170,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index e793278d41..e5f05ab1a7 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -255,6 +255,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='yes'>
+       <flc>no</flc>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index 6ff9df5766..6e067c8c20 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -270,6 +270,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='yes'>
+       <flc>no</flc>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-virt.aarch64.xml b/tests/domaincapsdata/qemu_7.0.0-virt.aarch64.xml
+index 6aa5e78612..51a579218f 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-virt.aarch64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-virt.aarch64.xml
+@@ -215,6 +215,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.aarch64.xml b/tests/domaincapsdata/qemu_7.0.0.aarch64.xml
+index 6aa5e78612..51a579218f 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.aarch64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.aarch64.xml
+@@ -215,6 +215,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.ppc64.xml b/tests/domaincapsdata/qemu_7.0.0.ppc64.xml
+index 78f8d3cac4..f8b72ce7af 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.ppc64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.ppc64.xml
+@@ -173,6 +173,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index 1d1505f757..603ad39077 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -255,6 +255,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='yes'>
+       <flc>no</flc>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index 047763bd43..5cceec1882 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -254,6 +254,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index b8621b5efd..858085883f 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -268,6 +268,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.ppc64.xml b/tests/domaincapsdata/qemu_7.1.0.ppc64.xml
+index f3a436d859..52a578a733 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.ppc64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.ppc64.xml
+@@ -166,6 +166,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 95452bb0a4..de378e74c7 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -254,6 +254,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-hvf.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-hvf.x86_64+hvf.xml
+index d6dc93d957..ff25d4bffb 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-hvf.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-hvf.x86_64+hvf.xml
+@@ -177,6 +177,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index d0029c65da..3fba78a251 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -260,6 +260,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index a5744e41fa..86079797c9 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -258,6 +258,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index a5744e41fa..86079797c9 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -258,6 +258,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.ppc.xml b/tests/domaincapsdata/qemu_7.2.0.ppc.xml
+index 59ace0a0b2..eee1859c1c 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.ppc.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.ppc.xml
+@@ -152,6 +152,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index fecb7e4a0a..52d6cfe929 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -260,6 +260,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index ef2637ab26..efe9d3eb52 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -261,6 +261,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+     <hyperv supported='yes'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg-virt.riscv64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg-virt.riscv64.xml
+index 5254d8807a..6ce952d910 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg-virt.riscv64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg-virt.riscv64.xml
+@@ -153,6 +153,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index cde1d70f09..1e2001ee09 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -263,6 +263,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+     <hyperv supported='yes'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-virt.riscv64.xml b/tests/domaincapsdata/qemu_8.0.0-virt.riscv64.xml
+index 68aa0d6189..43de2072b9 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-virt.riscv64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-virt.riscv64.xml
+@@ -156,6 +156,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+   </features>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index ebae9e34d6..04e63d752c 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -261,6 +261,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='no'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+     <hyperv supported='yes'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index effa6f6630..f8165fe212 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -262,6 +262,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+     <hyperv supported='yes'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index c36bac3fd2..ea9e085af5 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -262,6 +262,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+     <hyperv supported='yes'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.s390x.xml b/tests/domaincapsdata/qemu_8.1.0.s390x.xml
+index 6b78a718b0..d70b639503 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.s390x.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.s390x.xml
+@@ -278,6 +278,7 @@
+     <genid supported='no'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='yes'/>
+     <s390-pv supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 48e9444deb..51a104798f 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -262,6 +262,7 @@
+     <genid supported='yes'/>
+     <backingStoreInput supported='yes'/>
+     <backup supported='yes'/>
++    <async-teardown supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='no'/>
+     <hyperv supported='yes'>
+-- 
+2.41.0

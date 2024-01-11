@@ -1,0 +1,118 @@
+From f3437c2d4bce7b21f199cdc59bb6778e49507f5b Mon Sep 17 00:00:00 2001
+Message-ID: <f3437c2d4bce7b21f199cdc59bb6778e49507f5b.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Mon, 15 May 2023 18:39:18 +0200
+Subject: [PATCH] tests: Use virt-4.0 machine type for aarch64
+
+Using the unversioned machine type means that firmware
+descriptors can't be used to discover additional information
+about the chosen firmware build.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 5c129c8e7a15650fcb0deac53d9d3c0ac1802da5)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ .../aarch64-virt-graphics.aarch64-latest.args             | 2 +-
+ tests/qemuxml2argvdata/aarch64-virt-graphics.xml          | 2 +-
+ .../aarch64-virt-headless.aarch64-latest.args             | 2 +-
+ tests/qemuxml2argvdata/aarch64-virt-headless.xml          | 2 +-
+ .../aarch64-virt-graphics.aarch64-latest.xml              | 8 ++++++--
+ .../aarch64-virt-headless.aarch64-latest.xml              | 8 ++++++--
+ 6 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args b/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args
+index 2c07824346..1b7b0a70ff 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/aarch64-virt-graphics.aarch64-latest.args
+@@ -14,7 +14,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/some/user/nvram/path/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine virt,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
++-machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+ -cpu cortex-a15 \
+ -m size=4194304k \
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-graphics.xml b/tests/qemuxml2argvdata/aarch64-virt-graphics.xml
+index b1b5e87c22..2b1704ad7b 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-graphics.xml
++++ b/tests/qemuxml2argvdata/aarch64-virt-graphics.xml
+@@ -10,7 +10,7 @@
+   <currentMemory>4194304</currentMemory>
+   <vcpu>4</vcpu>
+   <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
++    <type arch='aarch64' machine='virt-4.0'>hvm</type>
+     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+     <nvram>/some/user/nvram/path/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args b/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args
+index 734e62ed53..23b514da9a 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/aarch64-virt-headless.aarch64-latest.args
+@@ -14,7 +14,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+ -blockdev '{"driver":"file","filename":"/some/user/nvram/path/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine virt,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
++-machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel tcg \
+ -cpu cortex-a15 \
+ -m size=4194304k \
+diff --git a/tests/qemuxml2argvdata/aarch64-virt-headless.xml b/tests/qemuxml2argvdata/aarch64-virt-headless.xml
+index 27825e9a55..1d1fc071d7 100644
+--- a/tests/qemuxml2argvdata/aarch64-virt-headless.xml
++++ b/tests/qemuxml2argvdata/aarch64-virt-headless.xml
+@@ -10,7 +10,7 @@
+   <currentMemory>4194304</currentMemory>
+   <vcpu>4</vcpu>
+   <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
++    <type arch='aarch64' machine='virt-4.0'>hvm</type>
+     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+     <nvram>/some/user/nvram/path/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml b/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml
+index 24109a11c3..f0a4003655 100644
+--- a/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/aarch64-virt-graphics.aarch64-latest.xml
+@@ -9,8 +9,12 @@
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+   <vcpu placement='static'>4</vcpu>
+-  <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
++  <os firmware='efi'>
++    <type arch='aarch64' machine='virt-4.0'>hvm</type>
++    <firmware>
++      <feature enabled='no' name='enrolled-keys'/>
++      <feature enabled='no' name='secure-boot'/>
++    </firmware>
+     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+     <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/some/user/nvram/path/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+diff --git a/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml b/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml
+index 6182da4dc6..ab4126318a 100644
+--- a/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/aarch64-virt-headless.aarch64-latest.xml
+@@ -9,8 +9,12 @@
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+   <vcpu placement='static'>4</vcpu>
+-  <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
++  <os firmware='efi'>
++    <type arch='aarch64' machine='virt-4.0'>hvm</type>
++    <firmware>
++      <feature enabled='no' name='enrolled-keys'/>
++      <feature enabled='no' name='secure-boot'/>
++    </firmware>
+     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+     <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/some/user/nvram/path/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+-- 
+2.42.0

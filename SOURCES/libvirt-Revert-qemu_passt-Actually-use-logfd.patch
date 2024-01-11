@@ -1,0 +1,38 @@
+From f3e5bf77bc6f591e5799ae9de36498df5c2a1811 Mon Sep 17 00:00:00 2001
+Message-ID: <f3e5bf77bc6f591e5799ae9de36498df5c2a1811.1691014499.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 1 Aug 2023 16:18:47 +0200
+Subject: [PATCH] Revert "qemu_passt: Actually use @logfd"
+
+This reverts commit 83686f1eea1a001a37a92f2c054ffb2689c43a40.
+
+This is needed only so that the next revert is clean.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit bc9a254dc72b6904e8368c3fea3ab49b7238ff34)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2209191
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_passt.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_passt.c b/src/qemu/qemu_passt.c
+index 3679bf75fc..25b22d8ad9 100644
+--- a/src/qemu/qemu_passt.c
++++ b/src/qemu/qemu_passt.c
+@@ -204,9 +204,9 @@ qemuPasstStart(virDomainObj *vm,
+         /* The logFile location is not restricted to a per-domain directory. It
+          * can be anywhere. Pre-create it as passt may not have enough perms to
+          * do so. */
+-        if ((logfd = qemuDomainOpenFile(cfg, vm->def, net->backend.logFile,
+-                                        O_CREAT | O_TRUNC | O_APPEND | O_RDWR,
+-                                        &needUnlink)) < 0) {
++        if (qemuDomainOpenFile(cfg, vm->def, net->backend.logFile,
++                               O_CREAT | O_TRUNC | O_APPEND | O_RDWR,
++                               &needUnlink) < 0) {
+             return -1;
+         }
+ 
+-- 
+2.41.0

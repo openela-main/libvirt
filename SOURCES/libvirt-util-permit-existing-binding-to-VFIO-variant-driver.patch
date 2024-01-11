@@ -1,0 +1,256 @@
+From 7e7956e3c9aab34521d98828b4abab644d189d3f Mon Sep 17 00:00:00 2001
+Message-ID: <7e7956e3c9aab34521d98828b4abab644d189d3f.1694154048.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 2 Jun 2023 14:34:51 -0400
+Subject: [PATCH] util: permit existing binding to VFIO variant driver
+
+Before a PCI device can be assigned to a guest with VFIO, that device
+must be bound to the vfio-pci driver rather than to the device's
+normal host driver. The vfio-pci driver provides APIs that permit QEMU
+to perform all the necessary operations to make the device accessible
+to the guest.
+
+In the past vfio-pci was the only driver that supplied these APIs, but
+there are now vendor/device-specific "VFIO variant" drivers that
+provide the basic vfio-pci driver functionality/API while adding
+support for device-specific operations (for example these
+device-specific drivers may support live migration of certain
+devices).  All that is needed to make this functionality available is
+to bind the vendor-specific "VFIO variant" driver to the device
+(rather than the generic vfio-pci driver, which will continue to work,
+just without the extra functionality).
+
+But until now libvirt has required that all PCI devices being assigned
+to a guest with VFIO specifically have the "vfio-pci" driver bound to
+the device. So even if the user manually binds a shiny new
+vendor-specific VFIO variant driver to the device (and puts
+"managed='no'" in the config to prevent libvirt from changing the
+binding), libvirt will just fail during startup of the guest (or
+during hotplug) because the driver bound to the device isn't exactly
+"vfio-pci".
+
+Beginning with kernel 6.1, it's possible to determine from the sysfs
+directory for a device whether the currently-bound driver is the
+vfio-pci driver or a VFIO variant - the device directory will have a
+subdirectory called "vfio-dev". We can use that to appropriately widen
+the list of drivers that libvirt will allow for VFIO device
+assignment.
+
+This patch doesn't remove the explicit check for the exact "vfio-pci"
+driver (since that would cause systems with pre-6.1 kernels to behave
+incorrectly), but adds an additional check for the vfio-dev directory,
+so that any VFIO variant driver is acceptable for libvirt to continue
+setting up for VFIO device assignment.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 6ce071f6097d9e96892d5a6c7bd3040f43cc925b)
+https://bugzilla.redhat.com/2074209
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/hypervisor/virhostdev.c | 28 +++++--------
+ src/libvirt_private.syms    |  1 +
+ src/util/virpci.c           | 78 ++++++++++++++++++++++++++++++++++---
+ src/util/virpci.h           |  3 ++
+ 4 files changed, 87 insertions(+), 23 deletions(-)
+
+diff --git a/src/hypervisor/virhostdev.c b/src/hypervisor/virhostdev.c
+index 244f057c6c..b95d6bf3d6 100644
+--- a/src/hypervisor/virhostdev.c
++++ b/src/hypervisor/virhostdev.c
+@@ -743,9 +743,8 @@ virHostdevPreparePCIDevicesImpl(virHostdevManager *mgr,
+                                    mgr->inactivePCIHostdevs) < 0)
+                 goto reattachdevs;
+         } else {
+-            g_autofree char *driverPath = NULL;
+-            g_autofree char *driverName = NULL;
+-            int stub;
++            g_autofree char *drvName = NULL;
++            virPCIStubDriver drvType;
+ 
+             /* Unmanaged devices should already have been marked as
+              * inactive: if that's the case, we can simply move on */
+@@ -765,19 +764,17 @@ virHostdevPreparePCIDevicesImpl(virHostdevManager *mgr,
+              *       information about active / inactive device across
+              *       daemon restarts has been implemented */
+ 
+-            if (virPCIDeviceGetCurrentDriverPathAndName(pci, &driverPath,
+-                                                        &driverName) < 0) {
++            if (virPCIDeviceGetCurrentDriverNameAndType(pci, &drvName,
++                                                        &drvType) < 0) {
+                 goto reattachdevs;
+             }
+ 
+-            stub = virPCIStubDriverTypeFromString(driverName);
+-
+-            if (stub > VIR_PCI_STUB_DRIVER_NONE &&
+-                stub < VIR_PCI_STUB_DRIVER_LAST) {
++            if (drvType > VIR_PCI_STUB_DRIVER_NONE) {
+ 
+                 /* The device is bound to a known stub driver: store this
+                  * information and add a copy to the inactive list */
+-                virPCIDeviceSetStubDriverType(pci, stub);
++                virPCIDeviceSetStubDriverType(pci, drvType);
++                virPCIDeviceSetStubDriverName(pci, drvName);
+ 
+                 VIR_DEBUG("Adding PCI device %s to inactive list",
+                           virPCIDeviceGetName(pci));
+@@ -2291,18 +2288,13 @@ virHostdevPrepareOneNVMeDevice(virHostdevManager *hostdev_mgr,
+     /* Let's check if all PCI devices are NVMe disks. */
+     for (i = 0; i < virPCIDeviceListCount(pciDevices); i++) {
+         virPCIDevice *pci = virPCIDeviceListGet(pciDevices, i);
+-        g_autofree char *drvPath = NULL;
+         g_autofree char *drvName = NULL;
+-        int stub = VIR_PCI_STUB_DRIVER_NONE;
++        virPCIStubDriver drvType;
+ 
+-        if (virPCIDeviceGetCurrentDriverPathAndName(pci, &drvPath, &drvName) < 0)
++        if (virPCIDeviceGetCurrentDriverNameAndType(pci, &drvName, &drvType) < 0)
+             goto cleanup;
+ 
+-        if (drvName)
+-            stub = virPCIStubDriverTypeFromString(drvName);
+-
+-        if (stub == VIR_PCI_STUB_DRIVER_VFIO ||
+-            STREQ_NULLABLE(drvName, "nvme"))
++        if (drvType == VIR_PCI_STUB_DRIVER_VFIO || STREQ_NULLABLE(drvName, "nvme"))
+             continue;
+ 
+         VIR_WARN("Suspicious NVMe disk assignment. PCI device "
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index f8200a647d..5d8c2c4294 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -3063,6 +3063,7 @@ virPCIDeviceFileIterate;
+ virPCIDeviceFree;
+ virPCIDeviceGetAddress;
+ virPCIDeviceGetConfigPath;
++virPCIDeviceGetCurrentDriverNameAndType;
+ virPCIDeviceGetCurrentDriverPathAndName;
+ virPCIDeviceGetIOMMUGroupDev;
+ virPCIDeviceGetIOMMUGroupList;
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index e6f7554b23..253ddccabd 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -280,6 +280,73 @@ virPCIDeviceGetCurrentDriverPathAndName(virPCIDevice *dev,
+ }
+ 
+ 
++/**
++ * virPCIDeviceGetCurrentDriverNameAndType:
++ * @dev: virPCIDevice object to examine
++ * @drvName: returns name of driver bound to this device (if any)
++ * @drvType: returns type of driver if it is a known stub driver type
++ *
++ * Find the name of the driver bound to @dev (if any) and the type of
++ * the driver if it is a known/recognized "stub" driver (based on the
++ * driver name).
++ *
++ * There are vfio "variant" drivers that provide all the basic
++ * functionality of the standard vfio-pci driver as well as additional
++ * stuff. As of kernel 6.1, the vfio-pci driver and all vfio variant
++ * drivers can be identified (once the driver has been bound to a
++ * device) by looking for the subdirectory "vfio-dev" in the device's
++ * sysfs directory; for example, if the directory
++ * /sys/bus/pci/devices/0000:04:11.4/vfio-dev exists, then the driver
++ * that is currently bound to PCI device 0000:04:11.4 is either
++ * vfio-pci, or a vfio-pci variant driver.
++ *
++ * Return 0 on success, -1 on failure. If -1 is returned, then an error
++ * message has been logged.
++ */
++int
++virPCIDeviceGetCurrentDriverNameAndType(virPCIDevice *dev,
++                                        char **drvName,
++                                        virPCIStubDriver *drvType)
++{
++    g_autofree char *drvPath = NULL;
++    g_autofree char *vfioDevDir = NULL;
++    int tmpType;
++
++    if (virPCIDeviceGetCurrentDriverPathAndName(dev, &drvPath, drvName) < 0)
++        return -1;
++
++    if (!*drvName) {
++        *drvType = VIR_PCI_STUB_DRIVER_NONE;
++        return 0;
++    }
++
++    tmpType = virPCIStubDriverTypeFromString(*drvName);
++
++    if (tmpType > VIR_PCI_STUB_DRIVER_NONE) {
++        *drvType = tmpType;
++        return 0; /* exact match of a known driver name (or no name) */
++    }
++
++    /* If the sysfs directory of this device contains a directory
++     * named "vfio-dev" then the currently-bound driver is a vfio
++     * variant driver.
++     */
++
++    vfioDevDir = virPCIFile(dev->name, "vfio-dev");
++
++    if (virFileIsDir(vfioDevDir)) {
++        VIR_DEBUG("Driver %s is a vfio_pci driver", *drvName);
++        *drvType = VIR_PCI_STUB_DRIVER_VFIO;
++    } else {
++        VIR_DEBUG("Driver %s is NOT a vfio_pci driver, or kernel is too old",
++                  *drvName);
++        *drvType = VIR_PCI_STUB_DRIVER_NONE;
++    }
++
++    return 0;
++}
++
++
+ static int
+ virPCIDeviceConfigOpenInternal(virPCIDevice *dev, bool readonly, bool fatal)
+ {
+@@ -1007,8 +1074,8 @@ virPCIDeviceReset(virPCIDevice *dev,
+                   virPCIDeviceList *activeDevs,
+                   virPCIDeviceList *inactiveDevs)
+ {
+-    g_autofree char *drvPath = NULL;
+     g_autofree char *drvName = NULL;
++    virPCIStubDriver drvType;
+     int ret = -1;
+     int fd = -1;
+     int hdrType = -1;
+@@ -1034,15 +1101,16 @@ virPCIDeviceReset(virPCIDevice *dev,
+      * reset it whenever appropriate, so doing it ourselves would just
+      * be redundant.
+      */
+-    if (virPCIDeviceGetCurrentDriverPathAndName(dev, &drvPath, &drvName) < 0)
++    if (virPCIDeviceGetCurrentDriverNameAndType(dev, &drvName, &drvType) < 0)
+         goto cleanup;
+ 
+-    if (virPCIStubDriverTypeFromString(drvName) == VIR_PCI_STUB_DRIVER_VFIO) {
+-        VIR_DEBUG("Device %s is bound to vfio-pci - skip reset",
+-                  dev->name);
++    if (drvType == VIR_PCI_STUB_DRIVER_VFIO) {
++
++        VIR_DEBUG("Device %s is bound to %s - skip reset", dev->name, drvName);
+         ret = 0;
+         goto cleanup;
+     }
++
+     VIR_DEBUG("Resetting device %s", dev->name);
+ 
+     if ((fd = virPCIDeviceConfigOpenWrite(dev)) < 0)
+diff --git a/src/util/virpci.h b/src/util/virpci.h
+index 19c910202a..faca6cf6f9 100644
+--- a/src/util/virpci.h
++++ b/src/util/virpci.h
+@@ -283,6 +283,9 @@ int virPCIDeviceRebind(virPCIDevice *dev);
+ int virPCIDeviceGetCurrentDriverPathAndName(virPCIDevice *dev,
+                                             char **path,
+                                             char **name);
++int virPCIDeviceGetCurrentDriverNameAndType(virPCIDevice *dev,
++                                            char **drvName,
++                                            virPCIStubDriver *drvType);
+ 
+ int virPCIDeviceIsPCIExpress(virPCIDevice *dev);
+ int virPCIDeviceHasPCIExpressLink(virPCIDevice *dev);
+-- 
+2.42.0

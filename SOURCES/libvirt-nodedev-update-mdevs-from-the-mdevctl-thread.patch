@@ -1,0 +1,70 @@
+From 48813113774c7ff0ab1b43c1861b6495bb3ce830 Mon Sep 17 00:00:00 2001
+Message-ID: <48813113774c7ff0ab1b43c1861b6495bb3ce830.1689602377.git.jdenemar@redhat.com>
+From: Jonathon Jongsma <jjongsma@redhat.com>
+Date: Thu, 6 Jul 2023 09:16:35 -0500
+Subject: [PATCH] nodedev: update mdevs from the mdevctl thread
+
+Rather than directly executing mdevctl from the udev event thread when
+we determine that we need to re-query, schedule the mdevctl thread to
+run. This also helps to coalesce multiple back-to-back updates into a
+single one when there are multiple updates in a row or at startup when a
+host has a very large number of mdevs.
+
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+(cherry picked from commit 14026db9b0e25739ea30685bd643ff23aca30588)
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2143158
+
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+---
+ src/node_device/node_device_udev.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index 86ef4af728..6451574c1d 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -1443,6 +1443,9 @@ udevGetDeviceDetails(struct udev_device *device,
+ }
+ 
+ 
++static void scheduleMdevctlUpdate(udevEventData *data, bool force);
++
++
+ static int
+ udevRemoveOneDeviceSysPath(const char *path)
+ {
+@@ -1475,8 +1478,7 @@ udevRemoveOneDeviceSysPath(const char *path)
+     virNodeDeviceObjEndAPI(&obj);
+ 
+     /* cannot check for mdev_types since they have already been removed */
+-    if (nodeDeviceUpdateMediatedDevices() < 0)
+-        VIR_WARN("mdevctl failed to update mediated devices");
++    scheduleMdevctlUpdate(driver->privateData, false);
+ 
+     virObjectEventStateQueue(driver->nodeDeviceEventState, event);
+     return 0;
+@@ -1604,8 +1606,8 @@ udevAddOneDevice(struct udev_device *device)
+     has_mdev_types = virNodeDeviceObjHasCap(obj, VIR_NODE_DEV_CAP_MDEV_TYPES);
+     virNodeDeviceObjEndAPI(&obj);
+ 
+-    if (has_mdev_types && nodeDeviceUpdateMediatedDevices() < 0)
+-        VIR_WARN("mdevctl failed to update mediated devices");
++    if (has_mdev_types)
++        scheduleMdevctlUpdate(driver->privateData, false);
+ 
+     ret = 0;
+ 
+@@ -1767,8 +1769,7 @@ udevHandleOneDevice(struct udev_device *device)
+         if (ret == 0 &&
+             udevGetDeviceType(device, &dev_cap_type) == 0 &&
+             dev_cap_type == VIR_NODE_DEV_CAP_MDEV)
+-            if (nodeDeviceUpdateMediatedDevices() < 0)
+-                VIR_WARN("mdevctl failed to update mediated devices");
++            scheduleMdevctlUpdate(driver->privateData, false);
+         return ret;
+     }
+ 
+-- 
+2.41.0

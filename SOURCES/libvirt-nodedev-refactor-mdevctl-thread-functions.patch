@@ -1,0 +1,105 @@
+From 05230da856d2f016c21f49a406780fbe15f74c32 Mon Sep 17 00:00:00 2001
+Message-ID: <05230da856d2f016c21f49a406780fbe15f74c32.1689602377.git.jdenemar@redhat.com>
+From: Jonathon Jongsma <jjongsma@redhat.com>
+Date: Wed, 5 Jul 2023 15:35:59 -0500
+Subject: [PATCH] nodedev: refactor mdevctl thread functions
+
+Factor out a new scheduleMdevctlUpdate() function so that we can re-use
+it from other places. Now that other events can make it necessary to
+re-query mdevctl for mdev updates, this function will be useful for
+coalescing multiple updates in quick succession into a single mdevctl
+query.
+
+Also rename a couple functions. The names weren't very descriptive of
+their behavior. For example, the old scheduleMdevctlHandler() function
+didn't actually schedule anything, it just started a thread. So rename
+it to free up the 'schedule' name for the above refactored function.
+
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+(cherry picked from commit 9b7fadc5dc33b85b597c95d944dc23c02c29c29f)
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2143158
+
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+---
+ src/node_device/node_device_udev.c | 36 ++++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index fce4212728..86ef4af728 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -2075,7 +2075,7 @@ udevPCITranslateInit(bool privileged G_GNUC_UNUSED)
+ 
+ 
+ static void
+-mdevctlHandlerThread(void *opaque G_GNUC_UNUSED)
++mdevctlUpdateThreadFunc(void *opaque G_GNUC_UNUSED)
+ {
+     udevEventData *priv = driver->privateData;
+     VIR_LOCK_GUARD lock = virLockGuardLock(&priv->mdevctlLock);
+@@ -2086,7 +2086,7 @@ mdevctlHandlerThread(void *opaque G_GNUC_UNUSED)
+ 
+ 
+ static void
+-scheduleMdevctlHandler(int timer G_GNUC_UNUSED, void *opaque)
++launchMdevctlUpdateThread(int timer G_GNUC_UNUSED, void *opaque)
+ {
+     udevEventData *priv = opaque;
+     virThread thread;
+@@ -2096,7 +2096,7 @@ scheduleMdevctlHandler(int timer G_GNUC_UNUSED, void *opaque)
+         priv->mdevctlTimeout = -1;
+     }
+ 
+-    if (virThreadCreateFull(&thread, false, mdevctlHandlerThread,
++    if (virThreadCreateFull(&thread, false, mdevctlUpdateThreadFunc,
+                             "mdevctl-thread", false, NULL) < 0) {
+         virReportSystemError(errno, "%s",
+                              _("failed to create mdevctl thread"));
+@@ -2192,6 +2192,26 @@ mdevctlEnableMonitor(udevEventData *priv)
+ }
+ 
+ 
++/* Schedules an mdevctl update for 100ms in the future, canceling any existing
++ * timeout that may have been set. In this way, multiple update requests in
++ * quick succession can be collapsed into a single update. if @force is true,
++ * an update thread will be spawned immediately. */
++static void
++scheduleMdevctlUpdate(udevEventData *data,
++                      bool force)
++{
++    if (!force) {
++        if (data->mdevctlTimeout > 0)
++            virEventRemoveTimeout(data->mdevctlTimeout);
++        data->mdevctlTimeout = virEventAddTimeout(100, launchMdevctlUpdateThread,
++                                                  data, NULL);
++        return;
++    }
++
++    launchMdevctlUpdateThread(-1, data);
++}
++
++
+ static void
+ mdevctlEventHandleCallback(GFileMonitor *monitor G_GNUC_UNUSED,
+                            GFile *file,
+@@ -2222,15 +2242,7 @@ mdevctlEventHandleCallback(GFileMonitor *monitor G_GNUC_UNUSED,
+      * configuration change, try to coalesce these changes by waiting for the
+      * CHANGES_DONE_HINT event. As a fallback,  add a timeout to trigger the
+      * signal if that event never comes */
+-    if (event_type != G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) {
+-        if (priv->mdevctlTimeout > 0)
+-            virEventRemoveTimeout(priv->mdevctlTimeout);
+-        priv->mdevctlTimeout = virEventAddTimeout(100, scheduleMdevctlHandler,
+-                                                  priv, NULL);
+-        return;
+-    }
+-
+-    scheduleMdevctlHandler(-1, priv);
++    scheduleMdevctlUpdate(priv, (event_type == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT));
+ }
+ 
+ 
+-- 
+2.41.0

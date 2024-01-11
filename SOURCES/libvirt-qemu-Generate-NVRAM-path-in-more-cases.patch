@@ -1,0 +1,321 @@
+From e71463f711cef030989717f401d0399ec6870705 Mon Sep 17 00:00:00 2001
+Message-ID: <e71463f711cef030989717f401d0399ec6870705.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 26 May 2023 14:40:02 +0200
+Subject: [PATCH] qemu: Generate NVRAM path in more cases
+
+Right now, we only generate it after finding a matching entry
+either among firmware descriptors or in the legacy firmware
+list.
+
+Even if the domain is configured to use a custom firmware build
+that we know nothing about, however, we should still automatically
+generate the NVRAM path instead of requiring the user to provide
+it manually.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit ccbb987707e282af8d7f8c0db47e70fdebab959f)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_firmware.c                      | 52 +++++++++++--------
+ ...loader-path-nonstandard.x86_64-latest.args | 37 +++++++++++++
+ ...-loader-path-nonstandard.x86_64-latest.err |  1 -
+ ...am-template-nonstandard.x86_64-latest.args | 37 +++++++++++++
+ ...ram-template-nonstandard.x86_64-latest.err |  1 -
+ tests/qemuxml2argvtest.c                      |  4 +-
+ ...-loader-path-nonstandard.x86_64-latest.xml |  2 +-
+ ...ram-template-nonstandard.x86_64-latest.xml |  2 +-
+ 8 files changed, 109 insertions(+), 27 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.args
+ delete mode 100644 tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.err
+ create mode 100644 tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args
+ delete mode 100644 tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err
+
+diff --git a/src/qemu/qemu_firmware.c b/src/qemu/qemu_firmware.c
+index a9437b5b95..2c9a03e6cf 100644
+--- a/src/qemu/qemu_firmware.c
++++ b/src/qemu/qemu_firmware.c
+@@ -1053,7 +1053,7 @@ qemuFirmwareOSInterfaceTypeFromOsDefLoaderType(virDomainLoader type)
+ /**
+  * qemuFirmwareEnsureNVRAM:
+  * @def: domain definition
+- * @cfg: QEMU driver configuration
++ * @driver: QEMU driver
+  *
+  * Make sure that a source for the NVRAM file exists, possibly by
+  * creating it. This might involve automatically generating the
+@@ -1061,15 +1061,24 @@ qemuFirmwareOSInterfaceTypeFromOsDefLoaderType(virDomainLoader type)
+  */
+ static void
+ qemuFirmwareEnsureNVRAM(virDomainDef *def,
+-                        const virQEMUDriverConfig *cfg,
+-                        virStorageFileFormat format)
++                        virQEMUDriver *driver)
+ {
++    g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+     virDomainLoaderDef *loader = def->os.loader;
+     const char *ext = NULL;
+ 
+     if (!loader)
+         return;
+ 
++    if (loader->type != VIR_DOMAIN_LOADER_TYPE_PFLASH)
++        return;
++
++    if (loader->readonly != VIR_TRISTATE_BOOL_YES)
++        return;
++
++    if (loader->stateless == VIR_TRISTATE_BOOL_YES)
++        return;
++
+     /* If the source already exists and is fully specified, including
+      * the path, leave it alone */
+     if (loader->nvram && loader->nvram->path)
+@@ -1080,11 +1089,11 @@ qemuFirmwareEnsureNVRAM(virDomainDef *def,
+ 
+     loader->nvram = virStorageSourceNew();
+     loader->nvram->type = VIR_STORAGE_TYPE_FILE;
+-    loader->nvram->format = format;
++    loader->nvram->format = loader->format;
+ 
+-    if (format == VIR_STORAGE_FILE_RAW)
++    if (loader->nvram->format == VIR_STORAGE_FILE_RAW)
+         ext = ".fd";
+-    if (format == VIR_STORAGE_FILE_QCOW2)
++    if (loader->nvram->format == VIR_STORAGE_FILE_QCOW2)
+         ext = ".qcow2";
+ 
+     loader->nvram->path = g_strdup_printf("%s/%s_VARS%s",
+@@ -1347,8 +1356,7 @@ qemuFirmwareMatchDomain(const virDomainDef *def,
+ 
+ 
+ static int
+-qemuFirmwareEnableFeaturesModern(virQEMUDriverConfig *cfg,
+-                                 virDomainDef *def,
++qemuFirmwareEnableFeaturesModern(virDomainDef *def,
+                                  const qemuFirmware *fw)
+ {
+     const qemuFirmwareMappingFlash *flash = &fw->mapping.data.flash;
+@@ -1377,16 +1385,15 @@ qemuFirmwareEnableFeaturesModern(virQEMUDriverConfig *cfg,
+         loader->path = g_strdup(flash->executable.filename);
+ 
+         if (flash->mode == QEMU_FIRMWARE_FLASH_MODE_SPLIT) {
+-            if ((format = virStorageFileFormatTypeFromString(flash->nvram_template.format)) < 0)
+-                return -1;
+-
+-            qemuFirmwareEnsureNVRAM(def, cfg, format);
+-
+-            /* If the NVRAM is not a local path then we can't create or
+-             * reset it, so in that case filling in the nvramTemplate
+-             * field would be misleading */
++            /* Only fill in nvramTemplate if the NVRAM location is already
++             * known to be a local path or hasn't been provided, in which
++             * case a local path will be generated by libvirt later.
++             *
++             * We can't create or reset non-local NVRAM files, so filling
++             * in nvramTemplate for those would be misleading */
+             VIR_FREE(loader->nvramTemplate);
+-            if (loader->nvram && virStorageSourceIsLocalStorage(loader->nvram)) {
++            if (!loader->nvram ||
++                (loader->nvram && virStorageSourceIsLocalStorage(loader->nvram))) {
+                 loader->nvramTemplate = g_strdup(flash->nvram_template.filename);
+             }
+         }
+@@ -1608,6 +1615,7 @@ qemuFirmwareFillDomainLegacy(virQEMUDriver *driver,
+ 
+         loader->type = VIR_DOMAIN_LOADER_TYPE_PFLASH;
+         loader->readonly = VIR_TRISTATE_BOOL_YES;
++        loader->format = VIR_STORAGE_FILE_RAW;
+ 
+         /* Only use the default template path if one hasn't been
+          * provided by the user.
+@@ -1634,8 +1642,6 @@ qemuFirmwareFillDomainLegacy(virQEMUDriver *driver,
+         if (!loader->nvramTemplate)
+             loader->nvramTemplate = g_strdup(cfg->firmwares[i]->nvram);
+ 
+-        qemuFirmwareEnsureNVRAM(def, cfg, VIR_STORAGE_FILE_RAW);
+-
+         VIR_DEBUG("decided on firmware '%s' template '%s'",
+                   loader->path, NULLSTR(loader->nvramTemplate));
+ 
+@@ -1664,7 +1670,6 @@ static int
+ qemuFirmwareFillDomainModern(virQEMUDriver *driver,
+                              virDomainDef *def)
+ {
+-    g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+     g_auto(GStrv) paths = NULL;
+     qemuFirmware **firmwares = NULL;
+     ssize_t nfirmwares = 0;
+@@ -1695,7 +1700,7 @@ qemuFirmwareFillDomainModern(virQEMUDriver *driver,
+      * likely that admin/FW manufacturer messed up. */
+     qemuFirmwareSanityCheck(theone, paths[i]);
+ 
+-    if (qemuFirmwareEnableFeaturesModern(cfg, def, theone) < 0)
++    if (qemuFirmwareEnableFeaturesModern(def, theone) < 0)
+         goto cleanup;
+ 
+     ret = 0;
+@@ -1802,6 +1807,11 @@ qemuFirmwareFillDomain(virQEMUDriver *driver,
+         }
+     }
+ 
++    /* Always ensure that the NVRAM path is present, even if we
++     * haven't found a match: the configuration might simply be
++     * referring to a custom firmware build */
++    qemuFirmwareEnsureNVRAM(def, driver);
++
+     return 0;
+ }
+ 
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.args
+new file mode 100644
+index 0000000000..4e989344b3
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.args
+@@ -0,0 +1,37 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-guest \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
++/usr/bin/qemu-system-x86_64 \
++-name guest=guest,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
++-blockdev '{"driver":"file","filename":"/path/to/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
++-machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-accel tcg \
++-cpu qemu64 \
++-m size=1048576k \
++-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
++-overcommit mem-lock=off \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid 63840878-0deb-4095-97e6-fc444d9bc9fa \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-global ICH9-LPC.noreboot=off \
++-watchdog-action reset \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.err b/tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.err
+deleted file mode 100644
+index 6a1618a1aa..0000000000
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.err
++++ /dev/null
+@@ -1 +0,0 @@
+-internal error: argument key 'filename' must not have null value
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args
+new file mode 100644
+index 0000000000..1dc1993285
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.args
+@@ -0,0 +1,37 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-guest \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
++/usr/bin/qemu-system-x86_64 \
++-name guest=guest,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/edk2/ovmf/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
++-machine pc-q35-4.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,acpi=on \
++-accel kvm \
++-cpu qemu64 \
++-m size=1048576k \
++-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":1073741824}' \
++-overcommit mem-lock=off \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid 63840878-0deb-4095-97e6-fc444d9bc9fa \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-global ICH9-LPC.noreboot=off \
++-watchdog-action reset \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err b/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err
+deleted file mode 100644
+index 6a1618a1aa..0000000000
+--- a/tests/qemuxml2argvdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.err
++++ /dev/null
+@@ -1 +0,0 @@
+-internal error: argument key 'filename' must not have null value
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 95842140f3..b2d9e00350 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1053,13 +1053,13 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-rw-implicit");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-loader-secure");
+     DO_TEST_CAPS_LATEST_PARSE_ERROR("firmware-manual-efi-loader-no-path");
+-    DO_TEST_CAPS_LATEST_FAILURE("firmware-manual-efi-loader-path-nonstandard");
++    DO_TEST_CAPS_LATEST("firmware-manual-efi-loader-path-nonstandard");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-secboot");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-no-enrolled-keys");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-no-secboot");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-stateless");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-template");
+-    DO_TEST_CAPS_LATEST_FAILURE("firmware-manual-efi-nvram-template-nonstandard");
++    DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-template-nonstandard");
+     DO_TEST_CAPS_LATEST_PARSE_ERROR("firmware-manual-efi-nvram-template-stateless");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-network-iscsi");
+     DO_TEST_CAPS_LATEST("firmware-manual-efi-nvram-network-nbd");
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.xml
+index 5940bfd0ea..039c485706 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-loader-path-nonstandard.x86_64-latest.xml
+@@ -7,7 +7,7 @@
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <loader readonly='yes' type='pflash'>/path/to/OVMF_CODE.fd</loader>
+-    <nvram template='/path/to/OVMF_VARS.fd'/>
++    <nvram template='/path/to/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml
+index 816e285621..5433650516 100644
+--- a/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/firmware-manual-efi-nvram-template-nonstandard.x86_64-latest.xml
+@@ -7,7 +7,7 @@
+   <os>
+     <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <loader readonly='yes' type='pflash'>/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>
+-    <nvram template='/path/to/OVMF_VARS.fd'/>
++    <nvram template='/path/to/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+-- 
+2.42.0

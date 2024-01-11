@@ -1,0 +1,94 @@
+From b0d6ee0778c6c2f49c88de9025f6a398b2d07c0f Mon Sep 17 00:00:00 2001
+Message-ID: <b0d6ee0778c6c2f49c88de9025f6a398b2d07c0f.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 16 May 2023 16:50:37 +0200
+Subject: [PATCH] tests: Add some more DO_TEST*ABI_UPDATE* macros
+
+These are going to be useful later.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 87d91e9e242520048579009ce2ddf8b238ec2733)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ tests/qemuxml2argvtest.c | 19 +++++++++++++++++++
+ tests/qemuxml2xmltest.c  |  3 +++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 84e0963ec8..a8711ff833 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -836,6 +836,9 @@ mymain(void)
+ # define DO_TEST_CAPS_LATEST(name) \
+     DO_TEST_CAPS_ARCH_LATEST(name, "x86_64")
+ 
++# define DO_TEST_CAPS_LATEST_ABI_UPDATE(name) \
++    DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE(name, "x86_64")
++
+ # define DO_TEST_CAPS_VER(name, ver) \
+     DO_TEST_CAPS_ARCH_VER(name, "x86_64", ver)
+ 
+@@ -855,6 +858,11 @@ mymain(void)
+     DO_TEST_CAPS_ARCH_LATEST_FULL(name, arch, \
+                                   ARG_FLAGS, FLAG_EXPECT_FAILURE)
+ 
++# define DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE_FAILURE(name, arch) \
++    DO_TEST_CAPS_ARCH_LATEST_FULL(name, arch, \
++                                  ARG_PARSEFLAGS, VIR_DOMAIN_DEF_PARSE_ABI_UPDATE, \
++                                  ARG_FLAGS, FLAG_EXPECT_FAILURE)
++
+ # define DO_TEST_CAPS_ARCH_VER_FAILURE(name, arch, ver) \
+     DO_TEST_CAPS_ARCH_VER_FULL(name, arch, ver, \
+                                ARG_FLAGS, FLAG_EXPECT_FAILURE)
+@@ -862,6 +870,9 @@ mymain(void)
+ # define DO_TEST_CAPS_LATEST_FAILURE(name) \
+     DO_TEST_CAPS_ARCH_LATEST_FAILURE(name, "x86_64")
+ 
++# define DO_TEST_CAPS_LATEST_ABI_UPDATE_FAILURE(name) \
++    DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE_FAILURE(name, "x86_64")
++
+ # define DO_TEST_CAPS_VER_FAILURE(name, ver) \
+     DO_TEST_CAPS_ARCH_VER_FAILURE(name, "x86_64", ver)
+ 
+@@ -869,6 +880,11 @@ mymain(void)
+     DO_TEST_CAPS_ARCH_LATEST_FULL(name, arch, \
+                                   ARG_FLAGS, FLAG_EXPECT_PARSE_ERROR)
+ 
++# define DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE_PARSE_ERROR(name, arch) \
++    DO_TEST_CAPS_ARCH_LATEST_FULL(name, arch, \
++                                  ARG_PARSEFLAGS, VIR_DOMAIN_DEF_PARSE_ABI_UPDATE, \
++                                  ARG_FLAGS, FLAG_EXPECT_PARSE_ERROR)
++
+ # define DO_TEST_CAPS_ARCH_VER_PARSE_ERROR(name, arch, ver) \
+     DO_TEST_CAPS_ARCH_VER_FULL(name, arch, ver, \
+                                ARG_FLAGS, FLAG_EXPECT_PARSE_ERROR)
+@@ -876,6 +892,9 @@ mymain(void)
+ # define DO_TEST_CAPS_LATEST_PARSE_ERROR(name) \
+     DO_TEST_CAPS_ARCH_LATEST_PARSE_ERROR(name, "x86_64")
+ 
++# define DO_TEST_CAPS_LATEST_ABI_UPDATE_PARSE_ERROR(name) \
++    DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE_PARSE_ERROR(name, "x86_64")
++
+ # define DO_TEST_CAPS_VER_PARSE_ERROR(name, ver) \
+     DO_TEST_CAPS_ARCH_VER_PARSE_ERROR(name, "x86_64", ver)
+ 
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 6f7f6690bd..5356872ba8 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -184,6 +184,9 @@ mymain(void)
+ #define DO_TEST_CAPS_LATEST(name) \
+     DO_TEST_CAPS_ARCH_LATEST(name, "x86_64")
+ 
++#define DO_TEST_CAPS_LATEST_ABI_UPDATE(name) \
++    DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE(name, "x86_64")
++
+ #define DO_TEST_CAPS_VER(name, ver) \
+     DO_TEST_CAPS_ARCH_VER(name, "x86_64", ver)
+ 
+-- 
+2.42.0

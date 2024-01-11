@@ -1,0 +1,57 @@
+From 57b899e51b68ec5e9a78a90f9c1a06c572d9f5c7 Mon Sep 17 00:00:00 2001
+Message-ID: <57b899e51b68ec5e9a78a90f9c1a06c572d9f5c7.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 16 May 2023 16:55:41 +0200
+Subject: [PATCH] tests: Turn abi-update.xml into a symlink
+
+Since the idea behind introducing the abi-update variant of
+a test is showing that libvirt behaves differently based on
+whether the configuration is for a newly-defined domain or an
+existing one, we don't want the input files to ever go out of
+sync.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8627ec167cb29bc4bea7609992670c0a718e8c79)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ .../firmware-auto-efi-abi-update-aarch64.xml   | 18 +-----------------
+ 1 file changed, 1 insertion(+), 17 deletions(-)
+ mode change 100644 => 120000 tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml
+
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml
+deleted file mode 100644
+index 5c6c5192ba..0000000000
+--- a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml
++++ /dev/null
+@@ -1,17 +0,0 @@
+-<domain type='qemu'>
+-  <name>guest</name>
+-  <uuid>63840878-0deb-4095-97e6-fc444d9bc9fa</uuid>
+-  <memory unit='KiB'>1048576</memory>
+-  <vcpu placement='static'>1</vcpu>
+-  <os firmware='efi'>
+-    <type arch='aarch64' machine='virt-4.0'>hvm</type>
+-  </os>
+-  <features>
+-    <acpi/>
+-  </features>
+-  <devices>
+-    <emulator>/usr/bin/qemu-system-aarch64</emulator>
+-    <controller type='usb' model='none'/>
+-    <memballoon model='none'/>
+-  </devices>
+-</domain>
+diff --git a/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml
+new file mode 120000
+index 0000000000..551082260a
+--- /dev/null
++++ b/tests/qemuxml2argvdata/firmware-auto-efi-abi-update-aarch64.xml
+@@ -0,0 +1 @@
++firmware-auto-efi-aarch64.xml
+\ No newline at end of file
+-- 
+2.42.0

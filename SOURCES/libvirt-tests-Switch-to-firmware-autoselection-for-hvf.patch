@@ -1,0 +1,148 @@
+From 5f3f84811feda3b30d9f5e3d99c629169b8ba39c Mon Sep 17 00:00:00 2001
+Message-ID: <5f3f84811feda3b30d9f5e3d99c629169b8ba39c.1692951632.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Mon, 15 May 2023 18:42:27 +0200
+Subject: [PATCH] tests: Switch to firmware autoselection for hvf
+
+Firmware selection is not relevant to these tests, so adopt
+the most convenient approach.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8c326914d8fc49c838650aef3432e0669cbd8fe1)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2196178
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ .../hvf-aarch64-virt-headless.aarch64-latest.args    |  6 +++---
+ tests/qemuxml2argvdata/hvf-aarch64-virt-headless.xml |  6 ++----
+ .../hvf-x86_64-q35-headless.x86_64-latest.args       |  7 ++++++-
+ tests/qemuxml2argvdata/hvf-x86_64-q35-headless.xml   |  4 ++--
+ .../hvf-aarch64-virt-headless.aarch64-latest.xml     | 12 ++++++++----
+ .../hvf-x86_64-q35-headless.x86_64-latest.xml        | 11 +++++++++--
+ 6 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args b/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args
+index 8fae9ebfa6..7559b9885f 100644
+--- a/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args
++++ b/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.aarch64-latest.args
+@@ -10,11 +10,11 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-test/.config \
+ -name guest=test,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-test/master-key.aes"}' \
+--blockdev '{"driver":"file","filename":"/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/usr/share/AAVMF/AAVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
+--blockdev '{"driver":"file","filename":"/some/user/nvram/path/guest_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/test_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
+--machine virt,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
++-machine virt-4.0,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel hvf \
+ -m size=4194304k \
+ -object '{"qom-type":"memory-backend-ram","id":"mach-virt.ram","size":4294967296}' \
+diff --git a/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.xml b/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.xml
+index 01997b9731..3ae6f93647 100644
+--- a/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.xml
++++ b/tests/qemuxml2argvdata/hvf-aarch64-virt-headless.xml
+@@ -4,10 +4,8 @@
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+   <vcpu placement='static'>2</vcpu>
+-  <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
+-    <nvram>/some/user/nvram/path/guest_VARS.fd</nvram>
++  <os firmware='efi'>
++    <type arch='aarch64' machine='virt-4.0'>hvm</type>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args b/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args
+index 92fbcffd57..abea7bf158 100644
+--- a/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.x86_64-latest.args
+@@ -10,9 +10,14 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-test/.config \
+ -name guest=test,debug-threads=on \
+ -S \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-test/master-key.aes"}' \
+--machine q35,usb=off,dump-guest-core=off,memory-backend=pc.ram \
++-blockdev '{"driver":"file","filename":"/usr/share/OVMF/OVMF_CODE.secboot.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}' \
++-blockdev '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/test_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}' \
++-machine pc-q35-4.0,usb=off,smm=on,dump-guest-core=off,memory-backend=pc.ram,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format \
+ -accel hvf \
+ -cpu qemu64 \
++-global driver=cfi.pflash01,property=secure,value=on \
+ -m size=4194304k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":4294967296}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.xml b/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.xml
+index cad560e9ca..93980d434c 100644
+--- a/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.xml
++++ b/tests/qemuxml2argvdata/hvf-x86_64-q35-headless.xml
+@@ -4,8 +4,8 @@
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+   <vcpu placement='static'>2</vcpu>
+-  <os>
+-    <type arch='x86_64' machine='q35'>hvm</type>
++  <os firmware='efi'>
++    <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml b/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml
+index 16e8c23a79..69c1d5deb3 100644
+--- a/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml
++++ b/tests/qemuxml2xmloutdata/hvf-aarch64-virt-headless.aarch64-latest.xml
+@@ -4,10 +4,14 @@
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+   <vcpu placement='static'>2</vcpu>
+-  <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
+-    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-silent-pflash.raw</loader>
+-    <nvram>/some/user/nvram/path/guest_VARS.fd</nvram>
++  <os firmware='efi'>
++    <type arch='aarch64' machine='virt-4.0'>hvm</type>
++    <firmware>
++      <feature enabled='no' name='enrolled-keys'/>
++      <feature enabled='no' name='secure-boot'/>
++    </firmware>
++    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
++    <nvram template='/usr/share/AAVMF/AAVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/test_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+diff --git a/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml b/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml
+index 384241ac3d..032fd43471 100644
+--- a/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/hvf-x86_64-q35-headless.x86_64-latest.xml
+@@ -4,13 +4,20 @@
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+   <vcpu placement='static'>2</vcpu>
+-  <os>
+-    <type arch='x86_64' machine='q35'>hvm</type>
++  <os firmware='efi'>
++    <type arch='x86_64' machine='pc-q35-4.0'>hvm</type>
++    <firmware>
++      <feature enabled='yes' name='enrolled-keys'/>
++      <feature enabled='yes' name='secure-boot'/>
++    </firmware>
++    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
++    <nvram template='/usr/share/OVMF/OVMF_VARS.secboot.fd'>/var/lib/libvirt/qemu/nvram/test_VARS.fd</nvram>
+     <boot dev='hd'/>
+   </os>
+   <features>
+     <acpi/>
+     <apic/>
++    <smm state='on'/>
+   </features>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-- 
+2.42.0
