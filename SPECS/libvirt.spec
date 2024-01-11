@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 19%{?dist}%{?extra_release}
+Release: 19.2%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -306,6 +306,14 @@ Patch83: libvirt-vircpi-Add-PCIe-5.0-and-6.0-link-speeds.patch
 Patch84: libvirt-conf-Make-VIR_DOMAIN_NET_TYPE_ETHERNET-not-share-host-view.patch
 Patch85: libvirt-qemu-domain-Fix-logic-when-tainting-domain.patch
 Patch86: libvirt-qemu-agent-Make-fetching-of-can-offline-member-from-guest-query-vcpus-optional.patch
+Patch87: libvirt-qemu-monitor-Drop-old-monitor-fields-from-struct-_qemuMonitorMessage.patch
+Patch88: libvirt-qemu-Make-struct-_qemuMonitorMessage-private.patch
+Patch89: libvirt-qemu-monitor-Move-declaration-of-struct-_qemuMonitor-to-qemu_monitor_priv.h.patch
+Patch90: libvirt-qemu-qemuBlockGetNamedNodeData-Remove-pointless-error-path.patch
+Patch91: libvirt-qemu-monitor-Store-whether-query-named-block-nodes-supports-flat-parameter.patch
+Patch92: libvirt-qemuMonitorJSONBlockStatsUpdateCapacityBlockdev-Use-flat-mode-of-query-named-block-nodes.patch
+Patch93: libvirt-virpci-Resolve-leak-in-virPCIVirtualFunctionList-cleanup.patch
+Patch94: libvirt-node_device_conf-Avoid-memleak-in-virNodeDeviceGetPCIVPDDynamicCap.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2185,6 +2193,18 @@ exit 0
 
 
 %changelog
+* Mon May 29 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-19.2.el8
+- virpci: Resolve leak in virPCIVirtualFunctionList cleanup (CVE-2023-2700, rhbz#2208597)
+- node_device_conf: Avoid memleak in virNodeDeviceGetPCIVPDDynamicCap() (CVE-2023-2700, rhbz#2208597)
+
+* Wed May 10 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-19.1.el8
+- qemu: monitor: Drop old monitor fields from 'struct _qemuMonitorMessage' (rhbz#2181575)
+- qemu: Make 'struct _qemuMonitorMessage' private (rhbz#2181575)
+- qemu: monitor: Move declaration of struct _qemuMonitor to qemu_monitor_priv.h (rhbz#2181575)
+- qemu: qemuBlockGetNamedNodeData: Remove pointless error path (rhbz#2181575)
+- qemu: monitor: Store whether 'query-named-block-nodes' supports 'flat' parameter (rhbz#2181575)
+- qemuMonitorJSONBlockStatsUpdateCapacityBlockdev: Use 'flat' mode of query-named-block-nodes (rhbz#2181575)
+
 * Tue Mar 14 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-19
 - qemu: domain: Fix logic when tainting domain (rhbz#2174447)
 - qemu: agent: Make fetching of 'can-offline' member from 'guest-query-vcpus' optional (rhbz#2174447)
