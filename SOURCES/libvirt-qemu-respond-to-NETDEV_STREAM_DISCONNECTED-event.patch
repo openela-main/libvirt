@@ -1,0 +1,308 @@
+From 8a8d77f47e838413c829ee6202eb1f64613d12e1 Mon Sep 17 00:00:00 2001
+Message-Id: <8a8d77f47e838413c829ee6202eb1f64613d12e1@dist-git>
+From: Laine Stump <laine@redhat.com>
+Date: Tue, 21 Feb 2023 01:16:04 -0500
+Subject: [PATCH] qemu: respond to NETDEV_STREAM_DISCONNECTED event
+
+When a QEMU netdev is of type "stream", if the socket it uses for
+connectivity to the host network gets closed, then QEMU will send a
+NETDEV_STREAM_DISCONNECTED event. We know that any stream netdev we've
+created is backed by a passt process, and if the socket was closed,
+that means the passt process has disappeared.
+
+When we receive this event, we can respond by starting a new passt
+process with the same options (including socket path) we originally
+used. If we have previously created the stream netdev device with a
+"reconnect" option, then QEMU will automatically reconnect to this new
+passt process. (If we hadn't used "reconnect", then QEMU will never
+try to reconnect to the new passt process, so there's no point in
+starting it.)
+
+Note that NETDEV_STREAM_DISCONNECTED is an event sent for the netdev
+(ie "host side") of the network device, and so it sends the
+"netdev-id" to specify which device was disconnected. But libvirt's
+virDomainNetDef (the object used to keep track of network devices) is
+the internal representation of both the host-side "netdev", and the
+guest side device, and virDomainNetDef doesn't directly keep track of
+the netdev-id, only of the device's "alias" (which is the "id"
+parameter of the *guest* side of the device). Fortunately, by convention
+libvirt always names the host-side of devices as "host" + alias, so in
+order to search for the affected NetDef, all we need to do is trim the
+1st 4 characters from the netdev-id and look for the NetDef having
+that resulting trimmed string as its alias. (Contrast this to
+NIC_RX_FILTER_CHANGED, which is an event received for the guest side
+of the device, and so directly contains the device alias.)
+
+Resolves: https://bugzilla.redhat.com/2172098
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit f62ce81b8a57d8033be4c661e071cbd12b83bf7b)
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_domain.c       |  1 +
+ src/qemu/qemu_domain.h       |  1 +
+ src/qemu/qemu_driver.c       | 76 ++++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_monitor.c      | 11 ++++++
+ src/qemu/qemu_monitor.h      |  6 +++
+ src/qemu/qemu_monitor_json.c | 16 ++++++++
+ src/qemu/qemu_process.c      | 18 +++++++++
+ 7 files changed, 129 insertions(+)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 247134672b..26408b90a2 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -11165,6 +11165,7 @@ qemuProcessEventFree(struct qemuProcessEvent *event)
+         break;
+     case QEMU_PROCESS_EVENT_WATCHDOG:
+     case QEMU_PROCESS_EVENT_DEVICE_DELETED:
++    case QEMU_PROCESS_EVENT_NETDEV_STREAM_DISCONNECTED:
+     case QEMU_PROCESS_EVENT_NIC_RX_FILTER_CHANGED:
+     case QEMU_PROCESS_EVENT_SERIAL_CHANGED:
+     case QEMU_PROCESS_EVENT_MONITOR_EOF:
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index eca5404cdc..fb9ab4c5ed 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -442,6 +442,7 @@ typedef enum {
+     QEMU_PROCESS_EVENT_WATCHDOG = 0,
+     QEMU_PROCESS_EVENT_GUESTPANIC,
+     QEMU_PROCESS_EVENT_DEVICE_DELETED,
++    QEMU_PROCESS_EVENT_NETDEV_STREAM_DISCONNECTED,
+     QEMU_PROCESS_EVENT_NIC_RX_FILTER_CHANGED,
+     QEMU_PROCESS_EVENT_SERIAL_CHANGED,
+     QEMU_PROCESS_EVENT_JOB_STATUS_CHANGE,
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 0603af6a35..d00b91fe0b 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -40,6 +40,7 @@
+ #include "qemu_hostdev.h"
+ #include "qemu_hotplug.h"
+ #include "qemu_monitor.h"
++#include "qemu_passt.h"
+ #include "qemu_process.h"
+ #include "qemu_migration.h"
+ #include "qemu_migration_params.h"
+@@ -3622,6 +3623,78 @@ processDeviceDeletedEvent(virQEMUDriver *driver,
+ }
+ 
+ 
++static void
++processNetdevStreamDisconnectedEvent(virDomainObj *vm,
++                                     const char *netdevId)
++{
++    virDomainDeviceDef dev;
++    virDomainNetDef *def;
++    virQEMUCaps *qemuCaps = QEMU_DOMAIN_PRIVATE(vm)->qemuCaps;
++    const char *devAlias = STRSKIP(netdevId, "host");
++
++    /* The event sends us the "netdev-id", but we don't store the
++     * netdev-id in the NetDef and thus can't use it to find the
++     * correct NetDef. We *do* keep the device alias in the NetDef,
++     * and by convention the netdev-id is always "host" + devAlias, so
++     * we just need to remove "host" from the front of netdev-id to
++     * get the alias, which we can then use to find the proper NetDef.
++     */
++
++    if (!devAlias) {
++        VIR_WARN("Received NETDEV_STREAM_DISCONNECTED event for unrecognized netdev %s from domain %p %s",
++                  netdevId, vm, vm->def->name);
++        return;
++    }
++
++    VIR_DEBUG("Received NETDEV_STREAM_DISCONNECTED event for device %s from domain %p %s",
++              devAlias, vm, vm->def->name);
++
++    if (virDomainObjBeginJob(vm, VIR_JOB_QUERY) < 0)
++        return;
++
++    if (!virDomainObjIsActive(vm)) {
++        VIR_DEBUG("Domain is not running");
++        goto endjob;
++    }
++
++    if (virDomainDefFindDevice(vm->def, devAlias, &dev, true) < 0) {
++        VIR_WARN("NETDEV_STREAM_DISCONNECTED event received for non-existent device %s in domain %s",
++                 devAlias, vm->def->name);
++        goto endjob;
++    }
++    if (dev.type != VIR_DOMAIN_DEVICE_NET) {
++        VIR_WARN("NETDEV_STREAM_DISCONNECTED event received for non-network device %s in domain %s",
++                 devAlias, vm->def->name);
++        goto endjob;
++    }
++    def = dev.data.net;
++
++    if (def->backend.type != VIR_DOMAIN_NET_BACKEND_PASST) {
++        VIR_DEBUG("ignore NETDEV_STREAM_DISCONNECTED event for non-passt network device %s in domain %s",
++                  def->info.alias, vm->def->name);
++        goto endjob;
++    }
++
++    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_NETDEV_STREAM_RECONNECT)) {
++        VIR_WARN("ignore NETDEV_STREAM_DISCONNECTED event for passt network device %s in domain %s - QEMU binary does not support reconnect",
++                  def->info.alias, vm->def->name);
++        goto endjob;
++    }
++
++    /* handle the event - restart the passt process with its original
++     * parameters
++     */
++    VIR_DEBUG("process NETDEV_STREAM_DISCONNECTED event for network device %s in domain %s",
++              def->info.alias, vm->def->name);
++
++    if (qemuPasstStart(vm, def) < 0)
++        goto endjob;
++
++ endjob:
++    virDomainObjEndJob(vm);
++}
++
++
+ static void
+ processNicRxFilterChangedEvent(virDomainObj *vm,
+                                const char *devAlias)
+@@ -3971,6 +4044,9 @@ static void qemuProcessEventHandler(void *data, void *opaque)
+     case QEMU_PROCESS_EVENT_DEVICE_DELETED:
+         processDeviceDeletedEvent(driver, vm, processEvent->data);
+         break;
++    case QEMU_PROCESS_EVENT_NETDEV_STREAM_DISCONNECTED:
++        processNetdevStreamDisconnectedEvent(vm, processEvent->data);
++        break;
+     case QEMU_PROCESS_EVENT_NIC_RX_FILTER_CHANGED:
+         processNicRxFilterChangedEvent(vm, processEvent->data);
+         break;
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 38f89167e0..1fa35f03cc 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1265,6 +1265,17 @@ qemuMonitorEmitNicRxFilterChanged(qemuMonitor *mon,
+ }
+ 
+ 
++void
++qemuMonitorEmitNetdevStreamDisconnected(qemuMonitor *mon,
++                                        const char *devAlias)
++{
++    VIR_DEBUG("mon=%p", mon);
++
++    QEMU_MONITOR_CALLBACK(mon, domainNetdevStreamDisconnected,
++                          mon->vm, devAlias);
++}
++
++
+ void
+ qemuMonitorEmitSerialChange(qemuMonitor *mon,
+                             const char *devAlias,
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 2d16214ba2..2fa06b99a3 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -250,6 +250,9 @@ typedef void (*qemuMonitorDomainDeviceUnplugErrCallback)(qemuMonitor *mon,
+                                                          virDomainObj *vm,
+                                                          const char *devPath,
+                                                          const char *devAlias);
++typedef void (*qemuMonitorDomainNetdevStreamDisconnectedCallback)(qemuMonitor *mon,
++                                                                  virDomainObj *vm,
++                                                                  const char *devAlias);
+ typedef void (*qemuMonitorDomainNicRxFilterChangedCallback)(qemuMonitor *mon,
+                                                             virDomainObj *vm,
+                                                             const char *devAlias);
+@@ -397,6 +400,7 @@ struct _qemuMonitorCallbacks {
+     qemuMonitorDomainMemoryFailureCallback domainMemoryFailure;
+     qemuMonitorDomainMemoryDeviceSizeChange domainMemoryDeviceSizeChange;
+     qemuMonitorDomainDeviceUnplugErrCallback domainDeviceUnplugError;
++    qemuMonitorDomainNetdevStreamDisconnectedCallback domainNetdevStreamDisconnected;
+ };
+ 
+ qemuMonitor *qemuMonitorOpen(virDomainObj *vm,
+@@ -480,6 +484,8 @@ void qemuMonitorEmitDeviceDeleted(qemuMonitor *mon,
+ void qemuMonitorEmitDeviceUnplugErr(qemuMonitor *mon,
+                                     const char *devPath,
+                                     const char *devAlias);
++void qemuMonitorEmitNetdevStreamDisconnected(qemuMonitor *mon,
++                                             const char *devAlias);
+ void qemuMonitorEmitNicRxFilterChanged(qemuMonitor *mon,
+                                        const char *devAlias);
+ void qemuMonitorEmitSerialChange(qemuMonitor *mon,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index db99017555..4510d0d3c9 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -84,6 +84,7 @@ static void qemuMonitorJSONHandleRdmaGidStatusChanged(qemuMonitor *mon, virJSONV
+ static void qemuMonitorJSONHandleMemoryFailure(qemuMonitor *mon, virJSONValue *data);
+ static void qemuMonitorJSONHandleMemoryDeviceSizeChange(qemuMonitor *mon, virJSONValue *data);
+ static void qemuMonitorJSONHandleDeviceUnplugErr(qemuMonitor *mon, virJSONValue *data);
++static void qemuMonitorJSONHandleNetdevStreamDisconnected(qemuMonitor *mon, virJSONValue *data);
+ 
+ typedef struct {
+     const char *type;
+@@ -106,6 +107,7 @@ static qemuEventHandler eventHandlers[] = {
+     { "MEMORY_FAILURE", qemuMonitorJSONHandleMemoryFailure, },
+     { "MIGRATION", qemuMonitorJSONHandleMigrationStatus, },
+     { "MIGRATION_PASS", qemuMonitorJSONHandleMigrationPass, },
++    { "NETDEV_STREAM_DISCONNECTED", qemuMonitorJSONHandleNetdevStreamDisconnected, },
+     { "NIC_RX_FILTER_CHANGED", qemuMonitorJSONHandleNicRxFilterChanged, },
+     { "PR_MANAGER_STATUS_CHANGED", qemuMonitorJSONHandlePRManagerStatusChanged, },
+     { "RDMA_GID_STATUS_CHANGED", qemuMonitorJSONHandleRdmaGidStatusChanged, },
+@@ -1021,6 +1023,20 @@ qemuMonitorJSONHandleDeviceUnplugErr(qemuMonitor *mon, virJSONValue *data)
+ }
+ 
+ 
++static void
++qemuMonitorJSONHandleNetdevStreamDisconnected(qemuMonitor *mon, virJSONValue *data)
++{
++    const char *name;
++
++    if (!(name = virJSONValueObjectGetString(data, "netdev-id"))) {
++        VIR_WARN("missing device in NETDEV_STREAM_DISCONNECTED event");
++        return;
++    }
++
++    qemuMonitorEmitNetdevStreamDisconnected(mon, name);
++}
++
++
+ static void
+ qemuMonitorJSONHandleNicRxFilterChanged(qemuMonitor *mon, virJSONValue *data)
+ {
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 7ae859d68f..298904fe2e 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -1360,6 +1360,23 @@ qemuProcessHandleBlockThreshold(qemuMonitor *mon G_GNUC_UNUSED,
+ }
+ 
+ 
++static void
++qemuProcessHandleNetdevStreamDisconnected(qemuMonitor *mon G_GNUC_UNUSED,
++                                          virDomainObj *vm,
++                                          const char *devAlias)
++{
++    virObjectLock(vm);
++
++    VIR_DEBUG("Device %s Netdev Stream Disconnected in domain %p %s",
++              devAlias, vm, vm->def->name);
++
++    qemuProcessEventSubmit(vm, QEMU_PROCESS_EVENT_NETDEV_STREAM_DISCONNECTED,
++                           0, 0, g_strdup(devAlias));
++
++    virObjectUnlock(vm);
++}
++
++
+ static void
+ qemuProcessHandleNicRxFilterChanged(qemuMonitor *mon G_GNUC_UNUSED,
+                                     virDomainObj *vm,
+@@ -1801,6 +1818,7 @@ static qemuMonitorCallbacks monitorCallbacks = {
+     .domainMemoryFailure = qemuProcessHandleMemoryFailure,
+     .domainMemoryDeviceSizeChange = qemuProcessHandleMemoryDeviceSizeChange,
+     .domainDeviceUnplugError = qemuProcessHandleDeviceUnplugErr,
++    .domainNetdevStreamDisconnected = qemuProcessHandleNetdevStreamDisconnected,
+ };
+ 
+ static void
+-- 
+2.39.2
+

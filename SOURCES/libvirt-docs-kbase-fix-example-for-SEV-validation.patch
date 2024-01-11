@@ -1,0 +1,47 @@
+From 33d57465bc7d0c23c281c4db27fc7eb2ed62b24a Mon Sep 17 00:00:00 2001
+Message-Id: <33d57465bc7d0c23c281c4db27fc7eb2ed62b24a@dist-git>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Thu, 16 Feb 2023 15:51:03 +0000
+Subject: [PATCH] docs/kbase: fix example for SEV validation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The offline validation example needs to include the firmware path,
+and is also missing line continuation markers.
+
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 9541ce080a0896411bebb299f47e39112810a648)
+https://bugzilla.redhat.com/show_bug.cgi?id=2172347
+---
+ docs/kbase/launch_security_sev.rst | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/docs/kbase/launch_security_sev.rst b/docs/kbase/launch_security_sev.rst
+index 7f692af748..f3c8695f73 100644
+--- a/docs/kbase/launch_security_sev.rst
++++ b/docs/kbase/launch_security_sev.rst
+@@ -465,12 +465,13 @@ scope of this document. Fortunately, libvirt provides a tool that can be used
+ to perform this validation::
+ 
+   $ virt-qemu-sev-validate \
+-      --measurement LMnv8i8N2QejezMPkscShF0cyPYCslgUoCxGWRqQuyt0Q0aUjVkH/T6NcmkwZkWp
+-      --api-major 0
+-      --api-minor 24
+-      --build-id 15
+-      --policy 3
+-      --tik ${myvmname}_tik.bin
++      --measurement LMnv8i8N2QejezMPkscShF0cyPYCslgUoCxGWRqQuyt0Q0aUjVkH/T6NcmkwZkWp \
++      --api-major 0 \
++      --api-minor 24 \
++      --build-id 15 \
++      --policy 3 \
++      --firmware /path/to/OVMF.sev.fd \
++      --tik ${myvmname}_tik.bin \
+       --tek ${myvmname}_tek.bin
+   OK: Looks good to me
+ 
+-- 
+2.39.2
+

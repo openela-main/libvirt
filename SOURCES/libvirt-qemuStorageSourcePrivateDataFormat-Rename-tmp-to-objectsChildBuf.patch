@@ -1,0 +1,59 @@
+From deb6aad4f6bcfd95235d3149e9d69b95fe011294 Mon Sep 17 00:00:00 2001
+Message-Id: <deb6aad4f6bcfd95235d3149e9d69b95fe011294@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 31 Jan 2023 15:19:58 +0100
+Subject: [PATCH] qemuStorageSourcePrivateDataFormat: Rename 'tmp' to
+ 'objectsChildBuf'
+
+Be consistent with other children buffer variable naming scheme.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 531adf32743b6045f44964ec5e1f8bdb9c913797)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2040272
+---
+ src/qemu/qemu_domain.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 2eb5653254..226d4d6dc1 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2005,9 +2005,9 @@ static int
+ qemuStorageSourcePrivateDataFormat(virStorageSource *src,
+                                    virBuffer *buf)
+ {
+-    g_auto(virBuffer) tmp = VIR_BUFFER_INIT_CHILD(buf);
+     qemuDomainStorageSourcePrivate *srcPriv = QEMU_DOMAIN_STORAGE_SOURCE_PRIVATE(src);
+     g_auto(virBuffer) nodenamesChildBuf = VIR_BUFFER_INIT_CHILD(buf);
++    g_auto(virBuffer) objectsChildBuf = VIR_BUFFER_INIT_CHILD(buf);
+ 
+     virBufferEscapeString(&nodenamesChildBuf, "<nodename type='storage' name='%s'/>\n", src->nodestorage);
+     virBufferEscapeString(&nodenamesChildBuf, "<nodename type='format' name='%s'/>\n", src->nodeformat);
+@@ -2025,16 +2025,16 @@ qemuStorageSourcePrivateDataFormat(virStorageSource *src,
+         return -1;
+ 
+     if (srcPriv) {
+-        qemuStorageSourcePrivateDataFormatSecinfo(&tmp, srcPriv->secinfo, "auth");
+-        qemuStorageSourcePrivateDataFormatSecinfo(&tmp, srcPriv->encinfo, "encryption");
+-        qemuStorageSourcePrivateDataFormatSecinfo(&tmp, srcPriv->httpcookie, "httpcookie");
+-        qemuStorageSourcePrivateDataFormatSecinfo(&tmp, srcPriv->tlsKeySecret, "tlskey");
++        qemuStorageSourcePrivateDataFormatSecinfo(&objectsChildBuf, srcPriv->secinfo, "auth");
++        qemuStorageSourcePrivateDataFormatSecinfo(&objectsChildBuf, srcPriv->encinfo, "encryption");
++        qemuStorageSourcePrivateDataFormatSecinfo(&objectsChildBuf, srcPriv->httpcookie, "httpcookie");
++        qemuStorageSourcePrivateDataFormatSecinfo(&objectsChildBuf, srcPriv->tlsKeySecret, "tlskey");
+     }
+ 
+     if (src->tlsAlias)
+-        virBufferAsprintf(&tmp, "<TLSx509 alias='%s'/>\n", src->tlsAlias);
++        virBufferAsprintf(&objectsChildBuf, "<TLSx509 alias='%s'/>\n", src->tlsAlias);
+ 
+-    virXMLFormatElement(buf, "objects", NULL, &tmp);
++    virXMLFormatElement(buf, "objects", NULL, &objectsChildBuf);
+ 
+     if (src->thresholdEventWithIndex)
+         virBufferAddLit(buf, "<thresholdEvent indexUsed='yes'/>\n");
+-- 
+2.39.1
+

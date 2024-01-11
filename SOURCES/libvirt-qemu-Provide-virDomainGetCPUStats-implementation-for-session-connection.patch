@@ -1,0 +1,105 @@
+From ec03aa23ac417797f9b53d51b6f999f5e966f9d7 Mon Sep 17 00:00:00 2001
+Message-Id: <ec03aa23ac417797f9b53d51b6f999f5e966f9d7@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 16 Jan 2023 12:46:09 +0100
+Subject: [PATCH] qemu: Provide virDomainGetCPUStats() implementation for
+ session connection
+
+We have virDomainGetCPUStats() API which offers querying
+statistics on host CPU usage by given guest. And it works in two
+modes: getting overall stats (@start_cpu == -1, @ncpus == 1) or
+getting per host CPU usage.
+
+For the QEMU driver it is implemented by looking into values
+stored in corresponding cpuacct CGroup controller. Well, this
+works for system instances, where libvirt has permissions to
+create CGroups and place QEMU process into them. But it does not
+fly for session connection, where no CGroups are set up.
+
+Fortunately, we can do something similar to v8.8.0-rc1~95 and use
+virProcessGetStatInfo() to fill the overall stats. Unfortunately,
+I haven't found any source of per host CPU usage, so we just
+continue throwing an error in that case.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 8865c42771600a40eddf40663f73b458423059a4)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2148266
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_driver.c | 52 ++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index c576c601ad..0603af6a35 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -16009,6 +16009,50 @@ qemuDomainGetMetadata(virDomainPtr dom,
+     return ret;
+ }
+ 
++#define QEMU_CPU_STATS_PROC_TOTAL 3
++
++static int
++qemuDomainGetCPUStatsProc(virDomainObj *vm,
++                          virTypedParameterPtr params,
++                          unsigned int nparams)
++{
++    unsigned long long cpuTime = 0;
++    unsigned long long userTime = 0;
++    unsigned long long sysTime = 0;
++
++    if (nparams == 0) {
++        /* return supported number of params */
++        return QEMU_CPU_STATS_PROC_TOTAL;
++    }
++
++    if (virProcessGetStatInfo(&cpuTime, &userTime, &sysTime,
++                              NULL, NULL, vm->pid, 0) < 0) {
++        virReportError(VIR_ERR_OPERATION_FAILED, "%s",
++                       _("cannot read cputime for domain"));
++        return -1;
++    }
++
++    if (virTypedParameterAssign(&params[0], VIR_DOMAIN_CPU_STATS_CPUTIME,
++                                VIR_TYPED_PARAM_ULLONG, cpuTime) < 0)
++        return -1;
++
++    if (nparams > 1 &&
++        virTypedParameterAssign(&params[1], VIR_DOMAIN_CPU_STATS_USERTIME,
++                                VIR_TYPED_PARAM_ULLONG, userTime) < 0)
++        return -1;
++
++    if (nparams > 2 &&
++        virTypedParameterAssign(&params[2], VIR_DOMAIN_CPU_STATS_SYSTEMTIME,
++                                VIR_TYPED_PARAM_ULLONG, sysTime) < 0)
++        return -1;
++
++    if (nparams > 3)
++        nparams = 3;
++
++    return nparams;
++}
++
++#undef QEMU_CPU_STATS_PROC_TOTAL
+ 
+ static int
+ qemuDomainGetCPUStats(virDomainPtr domain,
+@@ -16037,8 +16081,12 @@ qemuDomainGetCPUStats(virDomainPtr domain,
+         goto cleanup;
+ 
+     if (!virCgroupHasController(priv->cgroup, VIR_CGROUP_CONTROLLER_CPUACCT)) {
+-        virReportError(VIR_ERR_OPERATION_INVALID,
+-                       "%s", _("cgroup CPUACCT controller is not mounted"));
++        if (start_cpu == -1) {
++            ret = qemuDomainGetCPUStatsProc(vm, params, nparams);
++        } else {
++            virReportError(VIR_ERR_OPERATION_INVALID, "%s",
++                           _("cgroup CPUACCT controller is not mounted"));
++        }
+         goto cleanup;
+     }
+ 
+-- 
+2.39.1
+

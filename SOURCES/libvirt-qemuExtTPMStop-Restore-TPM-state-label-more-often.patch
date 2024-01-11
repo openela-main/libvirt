@@ -1,0 +1,51 @@
+From 01d7e15c8c4a33a379e8297182dc474bb2046d2a Mon Sep 17 00:00:00 2001
+Message-Id: <01d7e15c8c4a33a379e8297182dc474bb2046d2a@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 27 Jan 2023 10:46:55 +0100
+Subject: [PATCH] qemuExtTPMStop: Restore TPM state label more often
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When stopping swtpm we can restore the label either on just the
+swtpm's domain specific logfile (/var/log/swtpm/libvirt/qemu/...),
+or on the logfile and the state too (/var/lib/libvirt/swtpm/...).
+
+The deciding factor is whether the guest is stopped because of
+outgoing migration OR the state is on a shared filesystem.
+
+But this is not correct condition, because for instance saving the
+guest into a file (virsh save) is also an outgoing migration.
+Alternatively, when the swtpm state is stored on a shared
+filesystem, but the guest is destroyed (virsh destroy), i.e.
+stopped because of different reason than migration, we want to
+restore the seclabels.
+
+The correct condition is: skip restoring the state on outgoing
+migration AND shared filesystem.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2161557
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 794fddf866676ef4119b3acf43b5547a9e868bb9)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_tpm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_tpm.c b/src/qemu/qemu_tpm.c
+index b2748eb6a4..5831ffc32e 100644
+--- a/src/qemu/qemu_tpm.c
++++ b/src/qemu/qemu_tpm.c
+@@ -1142,7 +1142,7 @@ qemuExtTPMStop(virQEMUDriver *driver,
+         return;
+ 
+     qemuTPMEmulatorStop(cfg->swtpmStateDir, shortName);
+-    if (outgoingMigration || qemuTPMHasSharedStorage(vm->def))
++    if (outgoingMigration && qemuTPMHasSharedStorage(vm->def))
+         restoreTPMStateLabel = false;
+ 
+     if (qemuSecurityRestoreTPMLabels(driver, vm, restoreTPMStateLabel) < 0)
+-- 
+2.39.1
+

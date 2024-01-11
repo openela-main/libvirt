@@ -1,0 +1,127 @@
+From b0e9d41346a272bbe33ce1da7f7dd015a58747e1 Mon Sep 17 00:00:00 2001
+Message-Id: <b0e9d41346a272bbe33ce1da7f7dd015a58747e1@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Mar 2023 12:02:11 +0100
+Subject: [PATCH] qemu: Add @nodemaskRet argument to
+ qemuBuildMemoryBackendProps()
+
+While it's true that anybody who's interested in getting
+.host-nodes attribute value can just use
+virJSONValueObjectGetArray() (and that's exactly what
+qemuBuildThreadContextProps() is doing, btw), if somebody is
+interested in getting the actual virBitmap, they would have to
+parse the JSON array.
+
+Instead, introduce an argument to qemuBuildMemoryBackendProps()
+which is set to corresponding value used when formatting the
+attribute.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 9f26f6cc4bd6161a1978b8703005b9916270d382)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c | 14 ++++++++++----
+ src/qemu/qemu_command.h |  4 +++-
+ src/qemu/qemu_hotplug.c |  2 +-
+ 3 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 436df47eaa..938332496f 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3234,6 +3234,7 @@ qemuBuildMemoryGetPagesize(virQEMUDriverConfig *cfg,
+  * @def: domain definition object
+  * @mem: memory definition object
+  * @force: forcibly use one of the backends
++ * @nodemaskRet: [out] bitmap used to format .host-nodes attribute
+  *
+  * Creates a configuration object that represents memory backend of given guest
+  * NUMA node (domain @def and @mem). Use @priv->autoNodeset to fine tune the
+@@ -3258,7 +3259,8 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
+                             const virDomainDef *def,
+                             const virDomainMemoryDef *mem,
+                             bool force,
+-                            bool systemMemory)
++                            bool systemMemory,
++                            virBitmap **nodemaskRet)
+ {
+     const char *backendType = "memory-backend-file";
+     virDomainNumatuneMemMode mode;
+@@ -3445,6 +3447,9 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
+                                       "S:policy", qemuNumaPolicyTypeToString(mode),
+                                       NULL) < 0)
+                 return -1;
++
++            if (nodemaskRet)
++                *nodemaskRet = nodemask;
+         }
+     }
+ 
+@@ -3498,7 +3503,8 @@ qemuBuildMemoryCellBackendProps(virDomainDef *def,
+     mem.targetNode = cell;
+     mem.info.alias = alias;
+ 
+-    return qemuBuildMemoryBackendProps(props, alias, cfg, priv, def, &mem, false, false);
++    return qemuBuildMemoryBackendProps(props, alias, cfg, priv,
++                                       def, &mem, false, false, NULL);
+ }
+ 
+ 
+@@ -3522,7 +3528,7 @@ qemuBuildMemoryDimmBackendStr(virCommand *cmd,
+     alias = g_strdup_printf("mem%s", mem->info.alias);
+ 
+     if (qemuBuildMemoryBackendProps(&props, alias, cfg,
+-                                    priv, def, mem, true, false) < 0)
++                                    priv, def, mem, true, false, NULL) < 0)
+         return -1;
+ 
+     if (qemuBuildThreadContextProps(&tcProps, &props, priv) < 0)
+@@ -7055,7 +7061,7 @@ qemuBuildMemCommandLineMemoryDefaultBackend(virCommand *cmd,
+     mem.info.alias = (char *) defaultRAMid;
+ 
+     if (qemuBuildMemoryBackendProps(&props, defaultRAMid, cfg,
+-                                    priv, def, &mem, false, true) < 0)
++                                    priv, def, &mem, false, true, NULL) < 0)
+         return -1;
+ 
+     if (qemuBuildThreadContextProps(&tcProps, &props, priv) < 0)
+diff --git a/src/qemu/qemu_command.h b/src/qemu/qemu_command.h
+index c49096a057..9074822bc5 100644
+--- a/src/qemu/qemu_command.h
++++ b/src/qemu/qemu_command.h
+@@ -22,6 +22,7 @@
+ #pragma once
+ 
+ #include "domain_conf.h"
++#include "virbitmap.h"
+ #include "vircommand.h"
+ #include "virenum.h"
+ #include "qemu_block.h"
+@@ -140,7 +141,8 @@ int qemuBuildMemoryBackendProps(virJSONValue **backendProps,
+                                 const virDomainDef *def,
+                                 const virDomainMemoryDef *mem,
+                                 bool force,
+-                                bool systemMemory);
++                                bool systemMemory,
++                                virBitmap **nodemaskRet);
+ 
+ virJSONValue *
+ qemuBuildMemoryDeviceProps(virQEMUDriverConfig *cfg,
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 2df59873db..8e72a2c431 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -2284,7 +2284,7 @@ qemuDomainAttachMemory(virQEMUDriver *driver,
+         goto cleanup;
+ 
+     if (qemuBuildMemoryBackendProps(&props, objalias, cfg,
+-                                    priv, vm->def, mem, true, false) < 0)
++                                    priv, vm->def, mem, true, false, NULL) < 0)
+         goto cleanup;
+ 
+     if (qemuProcessBuildDestroyMemoryPaths(driver, vm, mem, true) < 0)
+-- 
+2.40.0

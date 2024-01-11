@@ -1,0 +1,53 @@
+From 31f2edcd7f42cda4173eabad879bfc318c202c9e Mon Sep 17 00:00:00 2001
+Message-Id: <31f2edcd7f42cda4173eabad879bfc318c202c9e@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Tue, 17 Jan 2023 10:33:22 +0100
+Subject: [PATCH] docs: document correct cpu shares limits with both cgroups v1
+ and v2
+
+The limits are different with cgroups v1 and v2 but our XML
+documentation and virsh manpage mentioned only cgroups v1 limits without
+explicitly saying it only applies to cgroups v1.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit ead6e1b00285cbd98e0f0727efb8adcb29ebc1ba)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2037998
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ docs/formatdomain.rst   | 2 +-
+ docs/manpages/virsh.rst | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 490a954745..8fc8aeb928 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -849,7 +849,7 @@ CPU Tuning
+    There is no unit for the value, it's a relative measure based on the setting
+    of other VM, e.g. A VM configured with value 2048 will get twice as much CPU
+    time as a VM configured with value 1024. The value should be in range
+-   [2, 262144]. :since:`Since 0.9.0`
++   [2, 262144] using cgroups v1, [1, 10000] using cgroups v2. :since:`Since 0.9.0`
+ ``period``
+    The optional ``period`` element specifies the enforcement interval (unit:
+    microseconds). Within ``period``, each vCPU of the domain will not be allowed
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 88b7fa1da8..d5b614dc03 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -4054,7 +4054,8 @@ If *--config* is specified, affect the next start of a persistent guest.
+ If *--current* is specified, it is equivalent to either *--live* or
+ *--config*, depending on the current state of the guest.
+ 
+-``Note``: The cpu_shares parameter has a valid value range of 2-262144.
++``Note``: The cpu_shares parameter has a valid value range of 2-262144
++with cgroups v1, 1-10000 with cgroups v2.
+ 
+ ``Note``: The weight and cap parameters are defined only for the
+ XEN_CREDIT scheduler.
+-- 
+2.39.1
+

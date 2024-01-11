@@ -1,0 +1,43 @@
+From f26e30ecb3d0e25d5cf648755e2b4e1db0476b52 Mon Sep 17 00:00:00 2001
+Message-Id: <f26e30ecb3d0e25d5cf648755e2b4e1db0476b52@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 24 Jan 2023 13:45:09 +0100
+Subject: [PATCH] rpc: Fix error message in virNetServerSetClientLimits
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Commit f007940cb25a tried to change the error message so that it is unified
+later in 35afa1d2d6c1, but various rewrites missed this particular error message
+which does not make sense.  Fix it so that it is the same as the other two
+messages checking the same thing in this file.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2033879
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 1e2605c934b80c3e9c30e929834d38fee86f184e)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/rpc/virnetserver.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/rpc/virnetserver.c b/src/rpc/virnetserver.c
+index bf0fda04ee..e97dfe8136 100644
+--- a/src/rpc/virnetserver.c
++++ b/src/rpc/virnetserver.c
+@@ -1127,9 +1127,8 @@ virNetServerSetClientLimits(virNetServer *srv,
+ 
+     if (max < max_unauth) {
+         virReportError(VIR_ERR_INVALID_ARG, "%s",
+-                       _("The overall maximum number of clients waiting "
+-                         "for authentication must not be less than the overall "
+-                         "maximum number of clients"));
++                       _("The overall maximum number of clients must not be less "
++                         "than the number of clients waiting for authentication"));
+         return -1;
+     }
+ 
+-- 
+2.39.1
+

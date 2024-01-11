@@ -1,0 +1,69 @@
+From dd64ec40a29739464cfe886818588bb9946b8d8d Mon Sep 17 00:00:00 2001
+Message-Id: <dd64ec40a29739464cfe886818588bb9946b8d8d@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 27 Jan 2023 13:59:08 +0100
+Subject: [PATCH] qemuProcessLaunch: Tighten rules for external devices wrt
+ incoming migration
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When starting a guest, helper processes are started first. But
+they need a bit of special handling. Just consider a regular cold
+boot and an incoming migration. For instance, in case of swtpm
+with its state on a shared volume, we want to set label on the
+state for the cold boot case, but don't want to touch the label
+in case of incoming migration (because the source very
+specifically did not restore it either).
+
+Until now, these two cases were differentiated by testing
+@incoming against NULL. And while that makes sense for other
+aspects of domain startup, for external devices we need a bit
+more, because a restore from a save file is also 'incoming
+migration'.
+
+Now, there is a difference between regular migration and restore
+from a save file. In the former case we do not want to set
+seclabels in the save state. BUT, in the latter case we do need
+to set them, because the code that saves the machine restored
+seclabels.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2161557
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 5c4007ddc6c29632b5cc96ab4ef81ebb7797d1bb)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_process.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 2de87211fb..1217fb1856 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -7620,6 +7620,7 @@ qemuProcessLaunch(virConnectPtr conn,
+     size_t nnicindexes = 0;
+     g_autofree int *nicindexes = NULL;
+     unsigned long long maxMemLock = 0;
++    bool incomingMigrationExtDevices = false;
+ 
+     VIR_DEBUG("conn=%p driver=%p vm=%p name=%s id=%d asyncJob=%d "
+               "incoming.uri=%s "
+@@ -7674,7 +7675,13 @@ qemuProcessLaunch(virConnectPtr conn,
+     if (qemuDomainSchedCoreStart(cfg, vm) < 0)
+         goto cleanup;
+ 
+-    if (qemuExtDevicesStart(driver, vm, incoming != NULL) < 0)
++    /* For external devices the rules of incoming migration are a bit stricter,
++     * than plain @incoming != NULL. They need to differentiate between
++     * incoming migration and restore from a save file.  */
++    incomingMigrationExtDevices = incoming &&
++        vmop == VIR_NETDEV_VPORT_PROFILE_OP_MIGRATE_IN_START;
++
++    if (qemuExtDevicesStart(driver, vm, incomingMigrationExtDevices) < 0)
+         goto cleanup;
+ 
+     if (!(cmd = qemuBuildCommandLine(vm,
+-- 
+2.39.1
+

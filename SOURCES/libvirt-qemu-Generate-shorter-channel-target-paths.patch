@@ -1,0 +1,236 @@
+From 60a64717127b2a1aa827bc4d55438a60c291efc5 Mon Sep 17 00:00:00 2001
+Message-ID: <60a64717127b2a1aa827bc4d55438a60c291efc5.1692870627.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 18 Apr 2023 17:34:12 +0200
+Subject: [PATCH] qemu: Generate shorter channel target paths
+
+A <channel/> device is basically an UNIX socket into guest.
+Whatever is sent from the host, appears in the guest and vice
+versa. But because of that, the length of the path to the socket
+is important (underscored by fact that we derive the path from
+domain short name). But there are still cases where we might not
+fit into UNIX_PATH_MAX limit (usually 108 characters), because
+the path is derived also from other variables, e.g.
+XDG_CONFIG_HOME for session domains.
+
+There are two components though, that are needless: "/target/"
+and "domain-" prefix. Drop them. This is safe to do, because
+running domains have their path saved in status XML and even
+though paths are dropped on migration, they are not part of guest
+ABI and thus we are free to change them.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit d3759d3674ab9453e5fb5a27ab6c28b8ff8d5569)
+Conflicts:
+tests/qemuhotplugtestdevices/qemuhotplug-qemu-agent-detach.xml
+tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent.xml
+tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent.xml
+tests/testutilsqemu.c: These conflicts are result of
+v9.2.0-rc1~185 not being backported.
+
+Also, I had to change hotplug XMLs a bit, because in the tests,
+we are overriding libDir and channelTargetDir to /tmp and its
+variants, which is not the case in upstream anymore.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2233744
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ libvirt.spec.in                                   |  1 -
+ src/qemu/qemu_conf.c                              |  6 +++---
+ src/qemu/qemu_domain.c                            | 15 +++++++++------
+ .../qemuhotplug-qemu-agent-detach.xml             |  2 +-
+ .../qemuhotplug-base+qemu-agent-detach.xml        |  2 +-
+ .../qemuhotplug-base+qemu-agent.xml               |  2 +-
+ .../qemuhotplug-base-live+qemu-agent-detach.xml   |  2 +-
+ .../qemuhotplug-base-live+qemu-agent.xml          |  2 +-
+ .../qemuxml2argvdata/channel-unix-source-path.xml |  4 ++++
+ .../channel-unix-source-path-active.xml           |  5 +++++
+ .../channel-unix-source-path-inactive.xml         |  4 ++++
+ 11 files changed, 30 insertions(+), 15 deletions(-)
+
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index 16d52cbbd4..e94c773749 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -146,7 +146,7 @@ virQEMUDriverConfig *virQEMUDriverConfigNew(bool privileged,
+         cfg->snapshotDir = g_strdup_printf("%s/snapshot", cfg->libDir);
+         cfg->checkpointDir = g_strdup_printf("%s/checkpoint", cfg->libDir);
+         cfg->autoDumpPath = g_strdup_printf("%s/dump", cfg->libDir);
+-        cfg->channelTargetDir = g_strdup_printf("%s/channel/target", cfg->libDir);
++        cfg->channelTargetDir = g_strdup_printf("%s/channel", cfg->libDir);
+         cfg->nvramDir = g_strdup_printf("%s/nvram", cfg->libDir);
+         cfg->memoryBackingDir = g_strdup_printf("%s/ram", cfg->libDir);
+     } else if (privileged) {
+@@ -168,7 +168,7 @@ virQEMUDriverConfig *virQEMUDriverConfigNew(bool privileged,
+         cfg->snapshotDir = g_strdup_printf("%s/snapshot", cfg->libDir);
+         cfg->checkpointDir = g_strdup_printf("%s/checkpoint", cfg->libDir);
+         cfg->autoDumpPath = g_strdup_printf("%s/dump", cfg->libDir);
+-        cfg->channelTargetDir = g_strdup_printf("%s/channel/target", cfg->libDir);
++        cfg->channelTargetDir = g_strdup_printf("%s/channel", cfg->libDir);
+         cfg->nvramDir = g_strdup_printf("%s/nvram", cfg->libDir);
+         cfg->memoryBackingDir = g_strdup_printf("%s/ram", cfg->libDir);
+         cfg->swtpmStorageDir = g_strdup_printf("%s/lib/libvirt/swtpm",
+@@ -202,7 +202,7 @@ virQEMUDriverConfig *virQEMUDriverConfigNew(bool privileged,
+         cfg->checkpointDir = g_strdup_printf("%s/qemu/checkpoint",
+                                              cfg->configBaseDir);
+         cfg->autoDumpPath = g_strdup_printf("%s/qemu/dump", cfg->configBaseDir);
+-        cfg->channelTargetDir = g_strdup_printf("%s/qemu/channel/target",
++        cfg->channelTargetDir = g_strdup_printf("%s/qemu/channel",
+                                                 cfg->configBaseDir);
+         cfg->nvramDir = g_strdup_printf("%s/qemu/nvram", cfg->configBaseDir);
+         cfg->memoryBackingDir = g_strdup_printf("%s/qemu/ram", cfg->configBaseDir);
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 443b6442ca..dac60d9ea4 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -1733,7 +1733,7 @@ qemuDomainSetPrivatePaths(virQEMUDriver *driver,
+         priv->libDir = g_strdup_printf("%s/domain-%s", cfg->libDir, domname);
+ 
+     if (!priv->channelTargetDir)
+-        priv->channelTargetDir = g_strdup_printf("%s/domain-%s",
++        priv->channelTargetDir = g_strdup_printf("%s/%s",
+                                                  cfg->channelTargetDir, domname);
+ 
+     return 0;
+@@ -5157,13 +5157,16 @@ qemuDomainDefaultNetModel(const virDomainDef *def,
+  * Clear auto generated unix socket paths:
+  *
+  * libvirt 1.2.18 and older:
+- *     {cfg->channelTargetDir}/{dom-name}.{target-name}
++ *     {cfg->channelTargetDir}/target/{dom-name}.{target-name}
+  *
+  * libvirt 1.2.19 - 1.3.2:
+- *     {cfg->channelTargetDir}/domain-{dom-name}/{target-name}
++ *     {cfg->channelTargetDir}/target/domain-{dom-name}/{target-name}
++ *
++ * libvirt 1.3.3 - 9.7.0:
++ *     {cfg->channelTargetDir}/target/domain-{dom-id}-{short-dom-name}/{target-name}
+  *
+- * libvirt 1.3.3 and newer:
+- *     {cfg->channelTargetDir}/domain-{dom-id}-{short-dom-name}/{target-name}
++ * libvirt 9.7.0 and newer:
++ *     {cfg->channelTargetDir}/{dom-id}-{short-dom-name}/{target-name}
+  *
+  * The unix socket path was stored in config XML until libvirt 1.3.0.
+  * If someone specifies the same path as we generate, they shouldn't do it.
+@@ -5189,7 +5192,7 @@ qemuDomainChrDefDropDefaultPath(virDomainChrDef *chr,
+     cfg = virQEMUDriverGetConfig(driver);
+ 
+     virBufferEscapeRegex(&buf, "^%s", cfg->channelTargetDir);
+-    virBufferAddLit(&buf, "/([^/]+\\.)|(domain-[^/]+/)");
++    virBufferAddLit(&buf, "/(target/)?([^/]+\\.)|(domain-[^/]+/)|([0-9]+-[^/]+/)");
+     virBufferEscapeRegex(&buf, "%s$", chr->target.name);
+ 
+     regexp = virBufferContentAndReset(&buf);
+diff --git a/tests/qemuhotplugtestdevices/qemuhotplug-qemu-agent-detach.xml b/tests/qemuhotplugtestdevices/qemuhotplug-qemu-agent-detach.xml
+index 1ae1468cf6..c291933999 100644
+--- a/tests/qemuhotplugtestdevices/qemuhotplug-qemu-agent-detach.xml
++++ b/tests/qemuhotplugtestdevices/qemuhotplug-qemu-agent-detach.xml
+@@ -1,5 +1,5 @@
+     <channel type='unix'>
+-      <source mode='bind' path='/tmp/channel/domain-7-hotplug/org.qemu.guest_agent.0'/>
++      <source mode='bind' path='/tmp/channel/7-hotplug/org.qemu.guest_agent.0'/>
+       <target type='virtio' name='org.qemu.guest_agent.0'/>
+       <address type='virtio-serial' controller='0' bus='0' port='1'/>
+     </channel>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent-detach.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent-detach.xml
+index 728af3391e..79e58ddab5 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent-detach.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent-detach.xml
+@@ -39,7 +39,7 @@
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </controller>
+     <channel type='unix'>
+-      <source mode='bind' path='/var/lib/libvirt/qemu/channel/target/domain-7-hotplug/org.qemu.guest_agent.0'/>
++      <source mode='bind' path='/tmp/channel/7-hotplug/org.qemu.guest_agent.0'/>
+       <target type='virtio' name='org.qemu.guest_agent.0'/>
+       <alias name='channel0'/>
+       <address type='virtio-serial' controller='0' bus='0' port='1'/>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent.xml
+index 051273ccf6..31917cee92 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base+qemu-agent.xml
+@@ -39,7 +39,7 @@
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </controller>
+     <channel type='unix'>
+-      <source mode='bind' path='/tmp/channel/domain-7-hotplug/org.qemu.guest_agent.0'/>
++      <source mode='bind' path='/var/lib/libvirt/qemu/channel/domain-7-hotplug/org.qemu.guest_agent.0'/>
+       <target type='virtio' name='org.qemu.guest_agent.0'/>
+       <alias name='channel0'/>
+       <address type='virtio-serial' controller='0' bus='0' port='1'/>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent-detach.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent-detach.xml
+index 728af3391e..79e58ddab5 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent-detach.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent-detach.xml
+@@ -39,7 +39,7 @@
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </controller>
+     <channel type='unix'>
+-      <source mode='bind' path='/var/lib/libvirt/qemu/channel/target/domain-7-hotplug/org.qemu.guest_agent.0'/>
++      <source mode='bind' path='/tmp/channel/7-hotplug/org.qemu.guest_agent.0'/>
+       <target type='virtio' name='org.qemu.guest_agent.0'/>
+       <alias name='channel0'/>
+       <address type='virtio-serial' controller='0' bus='0' port='1'/>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent.xml b/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent.xml
+index a0d7e3c704..8cdccddfaf 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-base-live+qemu-agent.xml
+@@ -39,7 +39,7 @@
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </controller>
+     <channel type='unix'>
+-      <source mode='bind' path='/tmp/channel/domain-7-hotplug/org.qemu.guest_agent.0'/>
++      <source mode='bind' path='/tmp/channel/7-hotplug/org.qemu.guest_agent.0'/>
+       <target type='virtio' name='org.qemu.guest_agent.0'/>
+       <alias name='channel0'/>
+       <address type='virtio-serial' controller='0' bus='0' port='1'/>
+diff --git a/tests/qemuxml2argvdata/channel-unix-source-path.xml b/tests/qemuxml2argvdata/channel-unix-source-path.xml
+index 42cb3c387c..0c7cfbfbc1 100644
+--- a/tests/qemuxml2argvdata/channel-unix-source-path.xml
++++ b/tests/qemuxml2argvdata/channel-unix-source-path.xml
+@@ -24,6 +24,10 @@
+       <source mode='bind' path='/tmp/channel/QEMUGuest1/org.qemu.guest_agent.3'/>
+       <target type='virtio' name='org.qemu.guest_agent.3'/>
+     </channel>
++    <channel type='unix'>
++      <source mode='bind' path='/var/lib/libvirt/qemu/channel/1-QEMUGuest1/org.qemu.guest_agent.4'/>
++      <target type='virtio' name='org.qemu.guest_agent.4'/>
++    </channel>
+     <memballoon model='none'/>
+   </devices>
+ </domain>
+diff --git a/tests/qemuxml2xmloutdata/channel-unix-source-path-active.xml b/tests/qemuxml2xmloutdata/channel-unix-source-path-active.xml
+index 6ee9de6512..6484d1baad 100644
+--- a/tests/qemuxml2xmloutdata/channel-unix-source-path-active.xml
++++ b/tests/qemuxml2xmloutdata/channel-unix-source-path-active.xml
+@@ -41,6 +41,11 @@
+       <target type='virtio' name='org.qemu.guest_agent.3'/>
+       <address type='virtio-serial' controller='0' bus='0' port='4'/>
+     </channel>
++    <channel type='unix'>
++      <source mode='bind' path='/var/lib/libvirt/qemu/channel/1-QEMUGuest1/org.qemu.guest_agent.4'/>
++      <target type='virtio' name='org.qemu.guest_agent.4'/>
++      <address type='virtio-serial' controller='0' bus='0' port='5'/>
++    </channel>
+     <input type='mouse' bus='ps2'/>
+     <input type='keyboard' bus='ps2'/>
+     <audio id='1' type='none'/>
+diff --git a/tests/qemuxml2xmloutdata/channel-unix-source-path-inactive.xml b/tests/qemuxml2xmloutdata/channel-unix-source-path-inactive.xml
+index a36a94f9f0..b6f70bb060 100644
+--- a/tests/qemuxml2xmloutdata/channel-unix-source-path-inactive.xml
++++ b/tests/qemuxml2xmloutdata/channel-unix-source-path-inactive.xml
+@@ -38,6 +38,10 @@
+       <target type='virtio' name='org.qemu.guest_agent.3'/>
+       <address type='virtio-serial' controller='0' bus='0' port='4'/>
+     </channel>
++    <channel type='unix'>
++      <target type='virtio' name='org.qemu.guest_agent.4'/>
++      <address type='virtio-serial' controller='0' bus='0' port='5'/>
++    </channel>
+     <input type='mouse' bus='ps2'/>
+     <input type='keyboard' bus='ps2'/>
+     <audio id='1' type='none'/>
+-- 
+2.42.0

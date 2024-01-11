@@ -1,0 +1,463 @@
+From 3dedbaa936d82e51442e4363fdafe6ec5d651dbf Mon Sep 17 00:00:00 2001
+Message-Id: <3dedbaa936d82e51442e4363fdafe6ec5d651dbf@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Mar 2023 15:44:41 +0100
+Subject: [PATCH] virnumamock: Introduce virNumaGetNodeOfCPU() mock
+
+Introduce a mock of virNumaGetNodeOfCPU() because soon we will
+need virNumaCPUSetToNodeset() to return predictable results.
+Also, fill in missing symlinks in vircaps2xmldata/.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Kristina Hanicova <khanicov@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 213b6822a8ae508e0dd5e262b28c2c7000140293)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2185039
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/util/virnuma.h                            |  2 +-
+ .../linux-basic/system/cpu/cpu0/node0         |  1 +
+ .../linux-basic/system/cpu/cpu1/node0         |  1 +
+ .../linux-basic/system/cpu/cpu10/node2        |  1 +
+ .../linux-basic/system/cpu/cpu11/node2        |  1 +
+ .../linux-basic/system/cpu/cpu12/node3        |  1 +
+ .../linux-basic/system/cpu/cpu13/node3        |  1 +
+ .../linux-basic/system/cpu/cpu14/node3        |  1 +
+ .../linux-basic/system/cpu/cpu15/node3        |  1 +
+ .../linux-basic/system/cpu/cpu2/node0         |  1 +
+ .../linux-basic/system/cpu/cpu3/node0         |  1 +
+ .../linux-basic/system/cpu/cpu4/node1         |  1 +
+ .../linux-basic/system/cpu/cpu5/node1         |  1 +
+ .../linux-basic/system/cpu/cpu6/node1         |  1 +
+ .../linux-basic/system/cpu/cpu7/node1         |  1 +
+ .../linux-basic/system/cpu/cpu8/node2         |  1 +
+ .../linux-basic/system/cpu/cpu9/node2         |  1 +
+ .../linux-caches/system/cpu/cpu0/node0        |  1 +
+ .../linux-caches/system/cpu/cpu1/node0        |  1 +
+ .../linux-caches/system/cpu/cpu2/node0        |  1 +
+ .../linux-caches/system/cpu/cpu3/node0        |  1 +
+ .../linux-caches/system/cpu/cpu4/node0        |  1 +
+ .../linux-caches/system/cpu/cpu5/node0        |  1 +
+ .../linux-caches/system/cpu/cpu6/node0        |  1 +
+ .../linux-caches/system/cpu/cpu7/node0        |  1 +
+ .../system/cpu/cpu0/node0                     |  1 +
+ .../linux-resctrl/system/cpu/cpu0/node0       |  1 +
+ .../linux-resctrl/system/cpu/cpu1/node0       |  1 +
+ .../linux-resctrl/system/cpu/cpu10/node1      |  1 +
+ .../linux-resctrl/system/cpu/cpu11/node1      |  1 +
+ .../linux-resctrl/system/cpu/cpu2/node0       |  1 +
+ .../linux-resctrl/system/cpu/cpu3/node0       |  1 +
+ .../linux-resctrl/system/cpu/cpu4/node0       |  1 +
+ .../linux-resctrl/system/cpu/cpu5/node0       |  1 +
+ .../linux-resctrl/system/cpu/cpu6/node1       |  1 +
+ .../linux-resctrl/system/cpu/cpu7/node1       |  1 +
+ .../linux-resctrl/system/cpu/cpu8/node1       |  1 +
+ .../linux-resctrl/system/cpu/cpu9/node1       |  1 +
+ tests/virnumamock.c                           | 42 +++++++++++++++++++
+ 39 files changed, 80 insertions(+), 1 deletion(-)
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu0/node0
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu1/node0
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu10/node2
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu11/node2
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu12/node3
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu13/node3
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu14/node3
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu15/node3
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu2/node0
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu3/node0
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu4/node1
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu5/node1
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu6/node1
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu7/node1
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu8/node2
+ create mode 120000 tests/vircaps2xmldata/linux-basic/system/cpu/cpu9/node2
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu0/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu1/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu2/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu3/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu4/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu5/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu6/node0
+ create mode 120000 tests/vircaps2xmldata/linux-caches/system/cpu/cpu7/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl-skx-twocaches/system/cpu/cpu0/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu0/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu1/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu10/node1
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu11/node1
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu2/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu3/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu4/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu5/node0
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu6/node1
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu7/node1
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu8/node1
+ create mode 120000 tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu9/node1
+
+diff --git a/src/util/virnuma.h b/src/util/virnuma.h
+index 2c30ef4e31..edd701d5c8 100644
+--- a/src/util/virnuma.h
++++ b/src/util/virnuma.h
+@@ -45,7 +45,7 @@ int virNumaGetNodeMemory(int node,
+ 
+ unsigned int virNumaGetMaxCPUs(void) G_NO_INLINE;
+ 
+-int virNumaGetNodeOfCPU(int cpu);
++int virNumaGetNodeOfCPU(int cpu) G_NO_INLINE;
+ int virNumaGetNodeCPUs(int node, virBitmap **cpus) G_NO_INLINE;
+ int virNumaCPUSetToNodeset(virBitmap *cpuset,
+                            virBitmap **nodeset);
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu0/node0 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu0/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu0/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu1/node0 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu1/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu1/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu10/node2 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu10/node2
+new file mode 120000
+index 0000000000..e04af16eeb
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu10/node2
+@@ -0,0 +1 @@
++../../node/node2
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu11/node2 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu11/node2
+new file mode 120000
+index 0000000000..e04af16eeb
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu11/node2
+@@ -0,0 +1 @@
++../../node/node2
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu12/node3 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu12/node3
+new file mode 120000
+index 0000000000..f213d662fe
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu12/node3
+@@ -0,0 +1 @@
++../../node/node3
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu13/node3 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu13/node3
+new file mode 120000
+index 0000000000..f213d662fe
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu13/node3
+@@ -0,0 +1 @@
++../../node/node3
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu14/node3 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu14/node3
+new file mode 120000
+index 0000000000..f213d662fe
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu14/node3
+@@ -0,0 +1 @@
++../../node/node3
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu15/node3 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu15/node3
+new file mode 120000
+index 0000000000..f213d662fe
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu15/node3
+@@ -0,0 +1 @@
++../../node/node3
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu2/node0 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu2/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu2/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu3/node0 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu3/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu3/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu4/node1 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu4/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu4/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu5/node1 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu5/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu5/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu6/node1 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu6/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu6/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu7/node1 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu7/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu7/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu8/node2 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu8/node2
+new file mode 120000
+index 0000000000..e04af16eeb
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu8/node2
+@@ -0,0 +1 @@
++../../node/node2
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic/system/cpu/cpu9/node2 b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu9/node2
+new file mode 120000
+index 0000000000..e04af16eeb
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic/system/cpu/cpu9/node2
+@@ -0,0 +1 @@
++../../node/node2
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu0/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu0/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu0/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu1/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu1/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu1/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu2/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu2/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu2/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu3/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu3/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu3/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu4/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu4/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu4/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu5/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu5/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu5/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu6/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu6/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu6/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-caches/system/cpu/cpu7/node0 b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu7/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-caches/system/cpu/cpu7/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl-skx-twocaches/system/cpu/cpu0/node0 b/tests/vircaps2xmldata/linux-resctrl-skx-twocaches/system/cpu/cpu0/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl-skx-twocaches/system/cpu/cpu0/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu0/node0 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu0/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu0/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu1/node0 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu1/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu1/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu10/node1 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu10/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu10/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu11/node1 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu11/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu11/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu2/node0 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu2/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu2/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu3/node0 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu3/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu3/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu4/node0 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu4/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu4/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu5/node0 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu5/node0
+new file mode 120000
+index 0000000000..222b6af326
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu5/node0
+@@ -0,0 +1 @@
++../../node/node0
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu6/node1 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu6/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu6/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu7/node1 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu7/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu7/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu8/node1 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu8/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu8/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu9/node1 b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu9/node1
+new file mode 120000
+index 0000000000..1f9c101cd1
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-resctrl/system/cpu/cpu9/node1
+@@ -0,0 +1 @@
++../../node/node1
+\ No newline at end of file
+diff --git a/tests/virnumamock.c b/tests/virnumamock.c
+index 87c9a58c6f..8d5c862fa2 100644
+--- a/tests/virnumamock.c
++++ b/tests/virnumamock.c
+@@ -21,6 +21,7 @@
+ #include "internal.h"
+ #include "virnuma.h"
+ #include "virfile.h"
++#include "virstring.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_NONE
+ 
+@@ -171,3 +172,44 @@ virNumaGetNodeCPUs(int node, virBitmap **cpus)
+ 
+     return virBitmapCountBits(*cpus);
+ }
++
++int
++virNumaGetNodeOfCPU(int cpu)
++{
++    g_autoptr(DIR) cpuDir = NULL;
++    g_autofree char *sysfs_cpu_path = NULL;
++    struct dirent *ent = NULL;
++    int dirErr = 0;
++
++    sysfs_cpu_path =  g_strdup_printf("%s/cpu/cpu%d", SYSFS_SYSTEM_PATH, cpu);
++
++    if (virDirOpen(&cpuDir, sysfs_cpu_path) < 0)
++        return -1;
++
++    while ((dirErr = virDirRead(cpuDir, &ent, sysfs_cpu_path)) > 0) {
++        g_autofree char *entPath = NULL;
++        const char *number = NULL;
++        int node;
++
++        if (!(number = STRSKIP(ent->d_name, "node")))
++            continue;
++
++        entPath = g_strdup_printf("%s/%s", sysfs_cpu_path, ent->d_name);
++
++        if (!virFileIsLink(entPath))
++            continue;
++
++        if (virStrToLong_i(number, NULL, 10, &node) < 0) {
++            errno = EINVAL;
++            return -1;
++        }
++
++        return node;
++    }
++
++    if (dirErr < 0)
++        return -1;
++
++    errno = EINVAL;
++    return -1;
++}
+-- 
+2.40.0
