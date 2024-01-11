@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 19.2%{?dist}%{?extra_release}
+Release: 22%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -312,8 +312,11 @@ Patch89: libvirt-qemu-monitor-Move-declaration-of-struct-_qemuMonitor-to-qemu_mo
 Patch90: libvirt-qemu-qemuBlockGetNamedNodeData-Remove-pointless-error-path.patch
 Patch91: libvirt-qemu-monitor-Store-whether-query-named-block-nodes-supports-flat-parameter.patch
 Patch92: libvirt-qemuMonitorJSONBlockStatsUpdateCapacityBlockdev-Use-flat-mode-of-query-named-block-nodes.patch
-Patch93: libvirt-virpci-Resolve-leak-in-virPCIVirtualFunctionList-cleanup.patch
-Patch94: libvirt-node_device_conf-Avoid-memleak-in-virNodeDeviceGetPCIVPDDynamicCap.patch
+Patch93: libvirt-qemu-relax-shared-memory-check-for-vhostuser-daemons.patch
+Patch94: libvirt-virpci-Resolve-leak-in-virPCIVirtualFunctionList-cleanup.patch
+Patch95: libvirt-node_device_conf-Avoid-memleak-in-virNodeDeviceGetPCIVPDDynamicCap.patch
+Patch96: libvirt-nodedev-update-transient-mdevs.patch
+Patch97: libvirt-lib-Set-up-cpuset-controller-for-restrictive-numatune.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2193,17 +2196,22 @@ exit 0
 
 
 %changelog
-* Mon May 29 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-19.2.el8
-- virpci: Resolve leak in virPCIVirtualFunctionList cleanup (CVE-2023-2700, rhbz#2208597)
-- node_device_conf: Avoid memleak in virNodeDeviceGetPCIVPDDynamicCap() (CVE-2023-2700, rhbz#2208597)
+* Mon Jul 31 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-22
+- lib: Set up cpuset controller for restrictive numatune (rhbz#2223464)
 
-* Wed May 10 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-19.1.el8
-- qemu: monitor: Drop old monitor fields from 'struct _qemuMonitorMessage' (rhbz#2181575)
-- qemu: Make 'struct _qemuMonitorMessage' private (rhbz#2181575)
-- qemu: monitor: Move declaration of struct _qemuMonitor to qemu_monitor_priv.h (rhbz#2181575)
-- qemu: qemuBlockGetNamedNodeData: Remove pointless error path (rhbz#2181575)
-- qemu: monitor: Store whether 'query-named-block-nodes' supports 'flat' parameter (rhbz#2181575)
-- qemuMonitorJSONBlockStatsUpdateCapacityBlockdev: Use 'flat' mode of query-named-block-nodes (rhbz#2181575)
+* Thu Jun 22 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-21
+- nodedev: update transient mdevs (rhbz#2143160)
+
+* Fri May 19 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-20
+- qemu: monitor: Drop old monitor fields from 'struct _qemuMonitorMessage' (rhbz#2170472)
+- qemu: Make 'struct _qemuMonitorMessage' private (rhbz#2170472)
+- qemu: monitor: Move declaration of struct _qemuMonitor to qemu_monitor_priv.h (rhbz#2170472)
+- qemu: qemuBlockGetNamedNodeData: Remove pointless error path (rhbz#2170472)
+- qemu: monitor: Store whether 'query-named-block-nodes' supports 'flat' parameter (rhbz#2170472)
+- qemuMonitorJSONBlockStatsUpdateCapacityBlockdev: Use 'flat' mode of query-named-block-nodes (rhbz#2170472)
+- qemu: relax shared memory check for vhostuser daemons (rhbz#2177701)
+- virpci: Resolve leak in virPCIVirtualFunctionList cleanup (CVE-2023-2700)
+- node_device_conf: Avoid memleak in virNodeDeviceGetPCIVPDDynamicCap() (CVE-2023-2700)
 
 * Tue Mar 14 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-19
 - qemu: domain: Fix logic when tainting domain (rhbz#2174447)

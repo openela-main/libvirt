@@ -1,0 +1,65 @@
+From e9418cec1ba24b6cf78f85bbbef8586ed612692a Mon Sep 17 00:00:00 2001
+Message-Id: <e9418cec1ba24b6cf78f85bbbef8586ed612692a@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 13 Mar 2023 13:56:47 +0100
+Subject: [PATCH] qemu: relax shared memory check for vhostuser daemons
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+For some vhostuser daemons, we validate that the guest memory is shared
+with the host.
+
+With earlier versions of QEMU, it was only possible to mark memory
+as shared by defining an explicit NUMA topology.  Later, QEMU exposed
+the name of the default memory backend (defaultRAMid) so we can mark
+that memory as shared.
+
+Since libvirt commit:
+  commit bff2ad5d6b1f25da02802273934d2a519159fec7
+    qemu: Relax validation for mem->access if guest has no NUMA
+we already check for the case when user requests shared memory,
+but QEMU did not expose defaultRAMid.
+
+Drop the duplicit check from vhostuser device validation, to make
+it pass on hotplug even after libvirtd restart.
+
+This avoids the need to store the defaultRAMid, since we don't really
+need it for anything after the VM has been already started.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2078693
+https://bugzilla.redhat.com/show_bug.cgi?id=2177701
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit d5c7b7870e45575f81fffcb611c2546d0e02e778)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_validate.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index 7bc14293d6..4069f47c12 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -1588,16 +1588,12 @@ qemuValidateDomainVirtioOptions(const virDomainVirtioOptions *virtio,
+ static int
+ qemuValidateDomainDefVhostUserRequireSharedMemory(const virDomainDef *def,
+                                                   const char *name,
+-                                                  virQEMUCaps *qemuCaps)
++                                                  virQEMUCaps *qemuCaps G_GNUC_UNUSED)
+ {
+-    const char *defaultRAMId = virQEMUCapsGetMachineDefaultRAMid(qemuCaps,
+-                                                                 def->virtType,
+-                                                                 def->os.machine);
+     size_t numa_nodes = virDomainNumaGetNodeCount(def->numa);
+     size_t i;
+ 
+-    if (numa_nodes == 0 &&
+-        !(defaultRAMId && def->mem.access == VIR_DOMAIN_MEMORY_ACCESS_SHARED)) {
++    if (numa_nodes == 0 && def->mem.access != VIR_DOMAIN_MEMORY_ACCESS_SHARED) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                        _("'%s' requires shared memory"), name);
+         return -1;
+-- 
+2.40.1

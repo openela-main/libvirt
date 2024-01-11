@@ -1,5 +1,5 @@
-From 932e837b6251071818b6dcd87e5e7ebde9e15308 Mon Sep 17 00:00:00 2001
-Message-Id: <932e837b6251071818b6dcd87e5e7ebde9e15308@dist-git>
+From f20062e1fe1e7bca8b97d2383f9e8a06f0f4111a Mon Sep 17 00:00:00 2001
+Message-Id: <f20062e1fe1e7bca8b97d2383f9e8a06f0f4111a@dist-git>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 9 Nov 2022 11:06:25 +0100
 Subject: [PATCH] qemuMonitorJSONBlockStatsUpdateCapacityBlockdev: Use 'flat'
@@ -19,10 +19,7 @@ force flat mode if available.
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit bbd4d4899391b3bd1906cce61a3634f42f4b1bdf)
-
-[8.9.0] https://bugzilla.redhat.com/show_bug.cgi?id=2170472
-[8.8.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181575
-[8.6.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181577
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
 ---
  src/qemu/qemu_monitor_json.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

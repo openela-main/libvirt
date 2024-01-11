@@ -1,5 +1,5 @@
-From b729b5ea7c74b9884f4b0367432f409111cbd54f Mon Sep 17 00:00:00 2001
-Message-Id: <b729b5ea7c74b9884f4b0367432f409111cbd54f@dist-git>
+From 85b7d8295d72214b08f0fff93c473baaa88a569b Mon Sep 17 00:00:00 2001
+Message-Id: <85b7d8295d72214b08f0fff93c473baaa88a569b@dist-git>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 14 Feb 2022 15:57:21 +0100
 Subject: [PATCH] qemu: Make 'struct _qemuMonitorMessage' private
@@ -13,10 +13,7 @@ code has no business in peeking into the monitor messages.
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit f9ae469a6ebb17e0990096e826f049c1c46cd760)
-
-[8.9.0] https://bugzilla.redhat.com/show_bug.cgi?id=2170472
-[8.8.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181575
-[8.6.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181577
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
 ---
  src/qemu/qemu_monitor.h      | 14 --------------
  src/qemu/qemu_monitor_json.c |  3 +++

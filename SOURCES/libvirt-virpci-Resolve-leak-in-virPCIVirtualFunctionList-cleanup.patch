@@ -1,5 +1,5 @@
-From e6c5bca23e4793ccc3a9113b678ab75e70937d58 Mon Sep 17 00:00:00 2001
-Message-Id: <e6c5bca23e4793ccc3a9113b678ab75e70937d58@dist-git>
+From 0e91f4dc214d01e9d9537b1111ce67010530fd20 Mon Sep 17 00:00:00 2001
+Message-Id: <0e91f4dc214d01e9d9537b1111ce67010530fd20@dist-git>
 From: Tim Shearer <TShearer@adva.com>
 Date: Mon, 1 May 2023 13:15:48 +0000
 Subject: [PATCH] virpci: Resolve leak in virPCIVirtualFunctionList cleanup
@@ -32,7 +32,7 @@ Signed-off-by: Tim Shearer <tshearer@adva.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 6425a311b8ad19d6f9c0b315bf1d722551ea3585)
 
-https://bugzilla.redhat.com/show_bug.cgi?id=2208597
+https://bugzilla.redhat.com/show_bug.cgi?id=2196351
 https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2023-2700
 
 Signed-off-by: Ján Tomko <jtomko@redhat.com>

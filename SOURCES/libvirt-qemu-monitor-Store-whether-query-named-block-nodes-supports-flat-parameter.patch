@@ -1,5 +1,5 @@
-From 610b66896a4fcdbcf9a6781bbc08ed930cbfdcba Mon Sep 17 00:00:00 2001
-Message-Id: <610b66896a4fcdbcf9a6781bbc08ed930cbfdcba@dist-git>
+From b3ffc8876adf777c7baefb6e467d7552c0a03251 Mon Sep 17 00:00:00 2001
+Message-Id: <b3ffc8876adf777c7baefb6e467d7552c0a03251@dist-git>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 9 Nov 2022 10:53:49 +0100
 Subject: [PATCH] qemu: monitor: Store whether 'query-named-block-nodes'
@@ -18,10 +18,7 @@ versions will support the new mode.
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit b0e4ad5263c73a926b8246028c76c552b07fca74)
-
-[8.9.0] https://bugzilla.redhat.com/show_bug.cgi?id=2170472
-[8.8.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181575
-[8.6.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181577
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
 ---
  src/qemu/qemu_monitor.c      | 4 +++-
  src/qemu/qemu_monitor_priv.h | 2 ++

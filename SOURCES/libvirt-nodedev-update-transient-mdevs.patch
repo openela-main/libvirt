@@ -1,0 +1,79 @@
+From aebcc09c7060f6eace93821c6a782031cf107d85 Mon Sep 17 00:00:00 2001
+Message-ID: <aebcc09c7060f6eace93821c6a782031cf107d85.1687452713.git.jdenemar@redhat.com>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 8 May 2023 19:10:46 +0200
+Subject: [PATCH] nodedev: update transient mdevs
+
+Instead of updating defined mdevs only add another update for active
+devices as well to cover transient mdev devices as well.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2143158
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Jonathon Jongsma <jjongsma@redhat.com>
+
+Fixes: https://bugzilla.redhat.com/show_bug.cgi?id=2143160
+
+(cherry picked from commit 44a0f2f0c8ff5e78c238013ed297b8fce223ac5a)
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+---
+ src/node_device/node_device_driver.c | 31 ++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/src/node_device/node_device_driver.c b/src/node_device/node_device_driver.c
+index e6ab4bb94c..943f6121a0 100644
+--- a/src/node_device/node_device_driver.c
++++ b/src/node_device/node_device_driver.c
+@@ -1651,6 +1651,24 @@ virMdevctlListDefined(virNodeDeviceDef ***devs, char **errmsg)
+ }
+ 
+ 
++static int
++virMdevctlListActive(virNodeDeviceDef ***devs, char **errmsg)
++{
++    int status;
++    g_autofree char *output = NULL;
++    g_autoptr(virCommand) cmd = nodeDeviceGetMdevctlListCommand(false, &output, errmsg);
++
++    if (virCommandRun(cmd, &status) < 0 || status != 0) {
++        return -1;
++    }
++
++    if (!output)
++        return -1;
++
++    return nodeDeviceParseMdevctlJSON(output, devs);
++}
++
++
+ typedef struct _virMdevctlForEachData virMdevctlForEachData;
+ struct _virMdevctlForEachData {
+     int ndefs;
+@@ -1712,6 +1730,8 @@ int
+ nodeDeviceUpdateMediatedDevices(void)
+ {
+     g_autofree virNodeDeviceDef **defs = NULL;
++    g_autofree virNodeDeviceDef **act_defs = NULL;
++    int act_ndefs = 0;
+     g_autofree char *errmsg = NULL;
+     g_autofree char *mdevctl = NULL;
+     virMdevctlForEachData data = { 0, };
+@@ -1738,6 +1758,17 @@ nodeDeviceUpdateMediatedDevices(void)
+         if (nodeDeviceUpdateMediatedDevice(defs[i]) < 0)
+             return -1;
+ 
++    /* Update active/transient mdev devices */
++    if ((act_ndefs = virMdevctlListActive(&act_defs, &errmsg)) < 0) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("failed to query mdevs from mdevctl: %1$s"), errmsg);
++        return -1;
++    }
++
++    for (i = 0; i < act_ndefs; i++)
++        if (nodeDeviceUpdateMediatedDevice(act_defs[i]) < 0)
++            return -1;
++
+     return 0;
+ }
+ 
+-- 
+2.41.0

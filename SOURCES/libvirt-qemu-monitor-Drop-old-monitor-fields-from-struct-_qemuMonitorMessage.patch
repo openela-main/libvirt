@@ -1,5 +1,5 @@
-From cce3e3674d7b9c3dea4e6fe293115fe97319a3b4 Mon Sep 17 00:00:00 2001
-Message-Id: <cce3e3674d7b9c3dea4e6fe293115fe97319a3b4@dist-git>
+From a4d8210ae9fd84740e01b96d28bfb6183f3f3270 Mon Sep 17 00:00:00 2001
+Message-Id: <a4d8210ae9fd84740e01b96d28bfb6183f3f3270@dist-git>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 14 Feb 2022 16:02:29 +0100
 Subject: [PATCH] qemu: monitor: Drop old monitor fields from 'struct
@@ -14,10 +14,7 @@ qemus. The HMP command pass-through works via a QMP command.
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit c5eb99a9d9af8683789e99cc904671e343580058)
-
-[8.9.0] https://bugzilla.redhat.com/show_bug.cgi?id=2170472
-[8.8.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181575
-[8.6.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181577
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
 ---
  src/qemu/qemu_monitor.h | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)

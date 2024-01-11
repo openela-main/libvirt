@@ -1,5 +1,5 @@
-From 1152022819d666cc23c417f848b0e500a17855cb Mon Sep 17 00:00:00 2001
-Message-Id: <1152022819d666cc23c417f848b0e500a17855cb@dist-git>
+From 31986239312c0e460800f5b9921f6593f1556015 Mon Sep 17 00:00:00 2001
+Message-Id: <31986239312c0e460800f5b9921f6593f1556015@dist-git>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 9 Nov 2022 10:45:27 +0100
 Subject: [PATCH] qemu: qemuBlockGetNamedNodeData: Remove pointless error path
@@ -19,9 +19,7 @@ Reviewed-by: Ján Tomko <jtomko@redhat.com>
 
     - qemuDomainObjEnter/ExitMonitor still needs 'driver'
 
-[8.9.0] https://bugzilla.redhat.com/show_bug.cgi?id=2170472
-[8.8.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181575
-[8.6.z] https://bugzilla.redhat.com/show_bug.cgi?id=2181577
+https://bugzilla.redhat.com/show_bug.cgi?id=2170472
 ---
  src/qemu/qemu_block.c | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
