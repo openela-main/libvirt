@@ -1,0 +1,194 @@
+From 531244b8147f8972e56b6ba2c7ecf04c072f296a Mon Sep 17 00:00:00 2001
+Message-Id: <531244b8147f8972e56b6ba2c7ecf04c072f296a@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:02 +0200
+Subject: [PATCH] util: refactor virDomainCCWAddressAsString into virccw
+
+Move virDomainCCWAddressAsString into virccw and rename method as
+virCCWDeviceAddressAsString.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 1df0a1986978dcb7d1fc139f14adbc4f85b1851f)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/domain_addr.c               | 12 +++---------
+ src/conf/domain_addr.h               |  3 ---
+ src/conf/domain_conf.c               |  2 +-
+ src/libvirt_private.syms             |  5 ++++-
+ src/node_device/node_device_driver.c |  2 +-
+ src/util/meson.build                 |  1 +
+ src/util/virccw.c                    | 29 ++++++++++++++++++++++++++++
+ src/util/virccw.h                    |  3 +++
+ 8 files changed, 42 insertions(+), 15 deletions(-)
+ create mode 100644 src/util/virccw.c
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index d584d3b8a8..bf51ef5e5a 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1286,12 +1286,6 @@ virDomainPCIAddressSetAllMulti(virDomainDef *def)
+ }
+ 
+ 
+-char*
+-virDomainCCWAddressAsString(virCCWDeviceAddress *addr)
+-{
+-    return g_strdup_printf("%x.%x.%04x", addr->cssid, addr->ssid, addr->devno);
+-}
+-
+ static int
+ virDomainCCWAddressIncrement(virCCWDeviceAddress *addr)
+ {
+@@ -1317,7 +1311,7 @@ virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+         return 0;
+ 
+     if (!autoassign && dev->addr.ccw.assigned) {
+-        if (!(addr = virDomainCCWAddressAsString(&dev->addr.ccw)))
++        if (!(addr = virCCWDeviceAddressAsString(&dev->addr.ccw)))
+             return -1;
+ 
+         if (virHashLookup(addrs->defined, addr)) {
+@@ -1327,7 +1321,7 @@ virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+             return -1;
+         }
+     } else if (autoassign && !dev->addr.ccw.assigned) {
+-        if (!(addr = virDomainCCWAddressAsString(&addrs->next)))
++        if (!(addr = virCCWDeviceAddressAsString(&addrs->next)))
+             return -1;
+ 
+         while (virHashLookup(addrs->defined, addr)) {
+@@ -1337,7 +1331,7 @@ virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+                 return -1;
+             }
+             VIR_FREE(addr);
+-            if (!(addr = virDomainCCWAddressAsString(&addrs->next)))
++            if (!(addr = virCCWDeviceAddressAsString(&addrs->next)))
+                 return -1;
+         }
+         dev->addr.ccw = addrs->next;
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index c8d069e07e..a67851c327 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -205,9 +205,6 @@ int virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ void virDomainCCWAddressSetFree(virDomainCCWAddressSet *addrs);
+ 
+-char* virDomainCCWAddressAsString(virCCWDeviceAddress *addr)
+-    ATTRIBUTE_NONNULL(1);
+-
+ virDomainCCWAddressSet *
+ virDomainCCWAddressSetCreateFromDomain(virDomainDef *def)
+     ATTRIBUTE_NONNULL(1);
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index ad3bd56da0..17383fc878 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -15793,7 +15793,7 @@ virDomainNetFindIdx(virDomainDef *def, virDomainNetDef *net)
+         alias = net->info.alias;
+ 
+     if (CCWAddrSpecified)
+-        addr = virDomainCCWAddressAsString(&net->info.addr.ccw);
++        addr = virCCWDeviceAddressAsString(&net->info.addr.ccw);
+     else if (PCIAddrSpecified)
+         addr = virPCIDeviceAddressAsString(&net->info.addr.pci);
+     else
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 568b0f34a1..e8d3edb0fe 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -147,7 +147,6 @@ virPCIDeviceAddressParseXML;
+ 
+ # conf/domain_addr.h
+ virDomainCCWAddressAssign;
+-virDomainCCWAddressAsString;
+ virDomainCCWAddressSetCreateFromDomain;
+ virDomainCCWAddressSetFree;
+ virDomainPCIAddressBusIsFullyReserved;
+@@ -1902,6 +1901,10 @@ virBufferUse;
+ virBufferVasprintf;
+ 
+ 
++# util/virccw.h
++virCCWDeviceAddressAsString;
++
++
+ # util/vircgroup.h
+ virCgroupAddMachineProcess;
+ virCgroupAddProcess;
+diff --git a/src/node_device/node_device_driver.c b/src/node_device/node_device_driver.c
+index b0abf59618..e6ab4bb94c 100644
+--- a/src/node_device/node_device_driver.c
++++ b/src/node_device/node_device_driver.c
+@@ -682,7 +682,7 @@ nodeDeviceObjFormatAddress(virNodeDeviceObj *obj)
+                 .devno = caps->data.ccw_dev.devno
+             };
+ 
+-            addr = virDomainCCWAddressAsString(&ccw_addr);
++            addr = virCCWDeviceAddressAsString(&ccw_addr);
+             break;
+             }
+ 
+diff --git a/src/util/meson.build b/src/util/meson.build
+index 24350a3e67..13ed105798 100644
+--- a/src/util/meson.build
++++ b/src/util/meson.build
+@@ -9,6 +9,7 @@ util_sources = [
+   'virbitmap.c',
+   'virbpf.c',
+   'virbuffer.c',
++  'virccw.c',
+   'vircgroup.c',
+   'vircgroupbackend.c',
+   'vircgroupv1.c',
+diff --git a/src/util/virccw.c b/src/util/virccw.c
+new file mode 100644
+index 0000000000..409287b380
+--- /dev/null
++++ b/src/util/virccw.c
+@@ -0,0 +1,29 @@
++/*
++ * virccw.c: helper APIs for managing host CCW devices
++ *
++ * Copyright (C) 2022 IBM Corporation
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library.  If not, see
++ * <http://www.gnu.org/licenses/>.
++ */
++
++#include <config.h>
++#include "virccw.h"
++
++
++char*
++virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
++{
++    return g_strdup_printf("%x.%x.%04x", addr->cssid, addr->ssid, addr->devno);
++}
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index 701e13284b..21a03406fa 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -29,3 +29,6 @@ struct _virCCWDeviceAddress {
+     unsigned int devno;
+     bool         assigned;
+ };
++
++char* virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
++    ATTRIBUTE_NONNULL(1);
+-- 
+2.39.1
+

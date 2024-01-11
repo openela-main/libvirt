@@ -1,0 +1,257 @@
+From b2529d5ff3a18a2b0022da75431cea5bf037819e Mon Sep 17 00:00:00 2001
+Message-Id: <b2529d5ff3a18a2b0022da75431cea5bf037819e@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 28 Jul 2021 17:37:21 +0200
+Subject: [PATCH] RHEL: Enable usage of x-blockdev-reopen
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RHEL-only
+
+Introduce a new capability QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API
+based on the presence of '__com.redhat_rhel-av-8_2_0-api' feature for
+'x-blockdev-reopen' which states that reopen works for what libvirt
+is going to use it and wire up code to call the x- prefixed command.
+
+This implementation will become dormant once qemu starts supporting
+upstream-stable blockdev-reopen.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1799013
+
+Starting with libvirt-7.6, upstream has adapted to the new format of
+arguments so this patch was modified to support blockdev-reopen which
+takes an array of nodes to reopen.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1929765
+Message-Id: <3fcde2fc6add36d5276ae224caf18adc8bca7d48.1627486352.git.pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_block.c        | 24 +++++++++++++++---------
+ src/qemu/qemu_block.h        |  3 ++-
+ src/qemu/qemu_capabilities.c | 13 +++++++++++++
+ src/qemu/qemu_capabilities.h |  3 +++
+ src/qemu/qemu_monitor.c      |  5 +++--
+ src/qemu/qemu_monitor.h      |  3 ++-
+ src/qemu/qemu_monitor_json.c | 12 +++++++++---
+ src/qemu/qemu_monitor_json.h |  3 ++-
+ tests/qemumonitorjsontest.c  |  2 +-
+ 9 files changed, 50 insertions(+), 18 deletions(-)
+
+diff --git a/src/qemu/qemu_block.c b/src/qemu/qemu_block.c
+index e5ff653a60..aa566d0097 100644
+--- a/src/qemu/qemu_block.c
++++ b/src/qemu/qemu_block.c
+@@ -3331,7 +3331,8 @@ qemuBlockBitmapsHandleCommitFinish(virStorageSource *topsrc,
+ 
+ int
+ qemuBlockReopenFormatMon(qemuMonitor *mon,
+-                         virStorageSource *src)
++                         virStorageSource *src,
++                         bool downstream)
+ {
+     g_autoptr(virJSONValue) reopenprops = NULL;
+     g_autoptr(virJSONValue) srcprops = NULL;
+@@ -3340,15 +3341,19 @@ qemuBlockReopenFormatMon(qemuMonitor *mon,
+     if (!(srcprops = qemuBlockStorageSourceGetBlockdevProps(src, src->backingStore)))
+         return -1;
+ 
+-    if (virJSONValueArrayAppend(reopenoptions, &srcprops) < 0)
+-        return -1;
++    if (downstream) {
++        reopenprops = g_steal_pointer(&srcprops);
++    } else {
++        if (virJSONValueArrayAppend(reopenoptions, &srcprops) < 0)
++            return -1;
+ 
+-    if (virJSONValueObjectAdd(&reopenprops,
+-                              "a:options", &reopenoptions,
+-                              NULL) < 0)
+-        return -1;
++        if (virJSONValueObjectAdd(&reopenprops,
++                                  "a:options", &reopenoptions,
++                                  NULL) < 0)
++            return -1;
++    }
+ 
+-    if (qemuMonitorBlockdevReopen(mon, &reopenprops) < 0)
++    if (qemuMonitorBlockdevReopen(mon, &reopenprops, downstream) < 0)
+         return -1;
+ 
+     return 0;
+@@ -3372,6 +3377,7 @@ qemuBlockReopenFormat(virDomainObj *vm,
+ {
+     qemuDomainObjPrivate *priv = vm->privateData;
+     virQEMUDriver *driver = priv->driver;
++    bool downstream = virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API);
+     int rc;
+ 
+     /* If we are lacking the object here, qemu might have opened an image with
+@@ -3385,7 +3391,7 @@ qemuBlockReopenFormat(virDomainObj *vm,
+     if (qemuDomainObjEnterMonitorAsync(driver, vm, asyncJob) < 0)
+         return -1;
+ 
+-    rc = qemuBlockReopenFormatMon(priv->mon, src);
++    rc = qemuBlockReopenFormatMon(priv->mon, src, downstream);
+ 
+     qemuDomainObjExitMonitor(driver, vm);
+     if (rc < 0)
+diff --git a/src/qemu/qemu_block.h b/src/qemu/qemu_block.h
+index 184a549d5c..130cfcdefd 100644
+--- a/src/qemu/qemu_block.h
++++ b/src/qemu/qemu_block.h
+@@ -267,7 +267,8 @@ qemuBlockBitmapsHandleCommitFinish(virStorageSource *topsrc,
+ /* only for use in qemumonitorjsontest */
+ int
+ qemuBlockReopenFormatMon(qemuMonitor *mon,
+-                         virStorageSource *src);
++                         virStorageSource *src,
++                         bool downstream);
+ 
+ int
+ qemuBlockReopenReadWrite(virDomainObj *vm,
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 5f1eb5014c..8ae80ef8d7 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -654,6 +654,9 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "rbd-encryption", /* QEMU_CAPS_RBD_ENCRYPTION */
+               "sev-guest-kernel-hashes", /* QEMU_CAPS_SEV_GUEST_KERNEL_HASHES */
+               "sev-inject-launch-secret", /* QEMU_CAPS_SEV_INJECT_LAUNCH_SECRET */
++
++              /* 420 */
++              "blockdev-reopen.__com.redhat_rhel-av-8_2_0-api", /* QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API */
+     );
+ 
+ 
+@@ -1540,6 +1543,7 @@ static struct virQEMUCapsDevicePropsFlags virQEMUCapsDevicePropsVhostUserFS[] =
+ /* see documentation for virQEMUQAPISchemaPathGet for the query format */
+ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+     { "block-commit/arg-type/*top",  QEMU_CAPS_ACTIVE_COMMIT },
++    { "x-blockdev-reopen/$__com.redhat_rhel-av-8_2_0-api", QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API },
+     { "blockdev-add/arg-type/options/+gluster/debug-level", QEMU_CAPS_GLUSTER_DEBUG_LEVEL},
+     { "blockdev-add/arg-type/+gluster/debug", QEMU_CAPS_GLUSTER_DEBUG_LEVEL},
+     { "blockdev-add/arg-type/+vxhs", QEMU_CAPS_VXHS},
+@@ -5235,6 +5239,15 @@ virQEMUCapsInitProcessCaps(virQEMUCaps *qemuCaps)
+         qemuCaps->arch == VIR_ARCH_MIPS)
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_SCSI_NCR53C90);
+ 
++    /* RHEL-only:
++     * - if upstream blockdev-reopen is enabled, clear the downstream flag
++     * - if the downstream flag is present but not the upstream, assert the upstream flag too
++     */
++    if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_BLOCKDEV_REOPEN))
++        virQEMUCapsClear(qemuCaps, QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API);
++    if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API))
++        virQEMUCapsSet(qemuCaps, QEMU_CAPS_BLOCKDEV_REOPEN);
++
+     virQEMUCapsInitProcessCapsInterlock(qemuCaps);
+ }
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index e3a3ab4445..cde6c18b4c 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -634,6 +634,9 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_SEV_GUEST_KERNEL_HASHES, /* sev-guest.kernel-hashes= */
+     QEMU_CAPS_SEV_INJECT_LAUNCH_SECRET, /* 'sev-inject-launch-secret' qmp command present */
+ 
++    /* 420 */
++    QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API, /* downstream support for blockdev reopen in rhel-av-8.2.0 */
++
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+ 
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index babf9e62fb..23638d3fe8 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -4247,14 +4247,15 @@ qemuMonitorBlockdevAdd(qemuMonitor *mon,
+ 
+ int
+ qemuMonitorBlockdevReopen(qemuMonitor *mon,
+-                          virJSONValue **props)
++                          virJSONValue **props,
++                          bool downstream)
+ {
+     VIR_DEBUG("props=%p (node-name=%s)", *props,
+               NULLSTR(virJSONValueObjectGetString(*props, "node-name")));
+ 
+     QEMU_CHECK_MONITOR(mon);
+ 
+-    return qemuMonitorJSONBlockdevReopen(mon, props);
++    return qemuMonitorJSONBlockdevReopen(mon, props, downstream);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 9b2e4e1421..d2037914be 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -1426,7 +1426,8 @@ int qemuMonitorBlockdevAdd(qemuMonitor *mon,
+                            virJSONValue **props);
+ 
+ int qemuMonitorBlockdevReopen(qemuMonitor *mon,
+-                              virJSONValue **props);
++                              virJSONValue **props,
++                              bool downstream);
+ 
+ int qemuMonitorBlockdevDel(qemuMonitor *mon,
+                            const char *nodename);
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index b0b513683b..34a46b9b41 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -8051,13 +8051,19 @@ qemuMonitorJSONBlockdevAdd(qemuMonitor *mon,
+ 
+ int
+ qemuMonitorJSONBlockdevReopen(qemuMonitor *mon,
+-                              virJSONValue **props)
++                              virJSONValue **props,
++                              bool downstream)
+ {
+     g_autoptr(virJSONValue) cmd = NULL;
+     g_autoptr(virJSONValue) reply = NULL;
+ 
+-    if (!(cmd = qemuMonitorJSONMakeCommandInternal("blockdev-reopen", props)))
+-        return -1;
++    if (downstream) {
++        if (!(cmd = qemuMonitorJSONMakeCommandInternal("x-blockdev-reopen", props)))
++            return -1;
++    } else {
++        if (!(cmd = qemuMonitorJSONMakeCommandInternal("blockdev-reopen", props)))
++            return -1;
++    }
+ 
+     if (qemuMonitorJSONCommand(mon, cmd, &reply) < 0)
+         return -1;
+diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
+index 64d9ebdaa3..15ce03d7af 100644
+--- a/src/qemu/qemu_monitor_json.h
++++ b/src/qemu/qemu_monitor_json.h
+@@ -748,7 +748,8 @@ qemuMonitorJSONBlockdevAdd(qemuMonitor *mon,
+ 
+ int
+ qemuMonitorJSONBlockdevReopen(qemuMonitor *mon,
+-                              virJSONValue **props)
++                              virJSONValue **props,
++                              bool downstream)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ 
+ int
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index 48e2a457ab..8624a547b5 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -2780,7 +2780,7 @@ testQemuMonitorJSONBlockdevReopen(const void *opaque)
+     if (qemuMonitorTestAddItem(test, "blockdev-reopen", "{\"return\":{}}") < 0)
+         return -1;
+ 
+-    if (qemuBlockReopenFormatMon(qemuMonitorTestGetMonitor(test), src) < 0)
++    if (qemuBlockReopenFormatMon(qemuMonitorTestGetMonitor(test), src, false) < 0)
+         return -1;
+ 
+     return 0;
+-- 
+2.34.1
+

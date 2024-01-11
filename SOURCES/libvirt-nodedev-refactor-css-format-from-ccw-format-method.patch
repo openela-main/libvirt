@@ -1,0 +1,62 @@
+From d370e2e984b4501060ea0d7a10629db0bfe51ef2 Mon Sep 17 00:00:00 2001
+Message-Id: <d370e2e984b4501060ea0d7a10629db0bfe51ef2@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:11 +0200
+Subject: [PATCH] nodedev: refactor css format from ccw format method
+
+In preparation for easier extension later.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit c5864885060b136214b4bcef25d604cc3d147014)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/node_device_conf.c | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index a6ebf4b66f..1e00f65717 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -632,10 +632,21 @@ virNodeDeviceCapCCWDefFormat(virBuffer *buf,
+                       data->ccw_dev.ssid);
+     virBufferAsprintf(buf, "<devno>0x%04x</devno>\n",
+                       data->ccw_dev.devno);
+-    if (data->ccw_dev.flags & VIR_NODE_DEV_CAP_FLAG_CSS_MDEV)
++}
++
++
++static void
++virNodeDeviceCapCSSDefFormat(virBuffer *buf,
++                             const virNodeDevCapData *data)
++{
++    virNodeDevCapCCW ccw_dev = data->ccw_dev;
++
++    virNodeDeviceCapCCWDefFormat(buf, data);
++
++    if (ccw_dev.flags & VIR_NODE_DEV_CAP_FLAG_CSS_MDEV)
+         virNodeDeviceCapMdevTypesFormat(buf,
+-                                        data->ccw_dev.mdev_types,
+-                                        data->ccw_dev.nmdev_types);
++                                        ccw_dev.mdev_types,
++                                        ccw_dev.nmdev_types);
+ }
+ 
+ 
+@@ -724,9 +735,11 @@ virNodeDeviceDefFormat(const virNodeDeviceDef *def)
+             virNodeDeviceCapMdevDefFormat(&buf, data);
+             break;
+         case VIR_NODE_DEV_CAP_CCW_DEV:
+-        case VIR_NODE_DEV_CAP_CSS_DEV:
+             virNodeDeviceCapCCWDefFormat(&buf, data);
+             break;
++        case VIR_NODE_DEV_CAP_CSS_DEV:
++            virNodeDeviceCapCSSDefFormat(&buf, data);
++            break;
+         case VIR_NODE_DEV_CAP_VDPA:
+             virNodeDeviceCapVDPADefFormat(&buf, data);
+             break;
+-- 
+2.39.1
+

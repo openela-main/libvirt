@@ -1,0 +1,272 @@
+From 1ce4faffcd4616bbcea4d198c3f60cbcfddd784e Mon Sep 17 00:00:00 2001
+Message-Id: <1ce4faffcd4616bbcea4d198c3f60cbcfddd784e@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 6 Mar 2020 15:52:23 +0100
+Subject: [PATCH] RHEL: virscsi: Introduce and use
+ virSCSIDeviceGetUnprivSGIOSysfsPath()
+
+When constructing a path to the 'unpriv_sgio' file of given SCSI
+device we don't need to go through /dev/* and major() + minor()
+path. The generated path points to
+/sys/dev/block/MAJ:MIN/queue/unpriv_sgio which is wrong if the
+SCSI device in question is not a block device. We can generate a
+different path: /sys/bus/scsi/devices/X:X:X:X/unpriv_sgio where
+the file is directly accessible regardless of the SCSI device
+type.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1808390
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Message-Id: <20200306145226.1610708-4-abologna@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/libvirt_private.syms |  1 +
+ src/qemu/qemu_conf.c     | 31 +++++++++++++++++++------------
+ src/util/virscsi.c       | 19 +++++++++++++++++++
+ src/util/virscsi.h       |  5 +++++
+ src/util/virutil.c       | 24 ++++++------------------
+ src/util/virutil.h       |  2 --
+ 6 files changed, 50 insertions(+), 32 deletions(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 5b76e66e61..2c42e2a5e8 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -3191,6 +3191,7 @@ virSCSIDeviceGetSgName;
+ virSCSIDeviceGetShareable;
+ virSCSIDeviceGetTarget;
+ virSCSIDeviceGetUnit;
++virSCSIDeviceGetUnprivSGIOSysfsPath;
+ virSCSIDeviceIsAvailable;
+ virSCSIDeviceListAdd;
+ virSCSIDeviceListCount;
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index 28c334761b..a0b8076d6b 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -1506,7 +1506,7 @@ qemuCheckUnprivSGIO(GHashTable *sharedDevices,
+     if (!(virHashLookup(sharedDevices, key)))
+         return 0;
+ 
+-    if (virGetDeviceUnprivSGIO(device_path, NULL, &val) < 0)
++    if (virGetDeviceUnprivSGIO(sysfs_path, &val) < 0)
+         return -1;
+ 
+     /* Error message on failure needs to be handled in caller
+@@ -1857,39 +1857,46 @@ qemuSetUnprivSGIO(virDomainDeviceDef *dev)
+     virDomainDiskDef *disk = NULL;
+     virDomainHostdevDef *hostdev = NULL;
+     g_autofree char *sysfs_path = NULL;
+-    g_autofree char *hostdev_path = NULL;
+-    const char *path = NULL;
+     int val = 0;
+ 
+     /* "sgio" is only valid for block disk; cdrom
+      * and floopy disk can have empty source.
+      */
+     if (dev->type == VIR_DOMAIN_DEVICE_DISK) {
++        const char *path;
++
+         disk = dev->data.disk;
++        path = virDomainDiskGetSource(disk);
+ 
+         if (disk->device != VIR_DOMAIN_DISK_DEVICE_LUN ||
+             !virStorageSourceIsBlockLocal(disk->src))
+             return 0;
+ 
+-        path = virDomainDiskGetSource(disk);
++        if (!(sysfs_path = virGetUnprivSGIOSysfsPath(path, NULL)))
++            return -1;
++
+     } else if (dev->type == VIR_DOMAIN_DEVICE_HOSTDEV) {
++        virDomainHostdevSubsysSCSI *scsisrc;
++        virDomainHostdevSubsysSCSIHost *scsihostsrc;
++
+         hostdev = dev->data.hostdev;
++        scsisrc = &hostdev->source.subsys.u.scsi;
++        scsihostsrc = &scsisrc->u.host;
+ 
+         if (hostdev->source.subsys.u.scsi.protocol ==
+             VIR_DOMAIN_HOSTDEV_SCSI_PROTOCOL_TYPE_ISCSI)
+             return 0;
+ 
+-        if (!(hostdev_path = qemuGetHostdevPath(hostdev)))
++        if (!(sysfs_path = virSCSIDeviceGetUnprivSGIOSysfsPath(NULL,
++                                                               scsihostsrc->adapter,
++                                                               scsihostsrc->bus,
++                                                               scsihostsrc->target,
++                                                               scsihostsrc->unit)))
+             return -1;
+-
+-        path = hostdev_path;
+     } else {
+         return 0;
+     }
+ 
+-    if (!(sysfs_path = virGetUnprivSGIOSysfsPath(path, NULL)))
+-        return -1;
+-
+     /* By default, filter the SG_IO commands, i.e. set unpriv_sgio to 0.  */
+     if (dev->type == VIR_DOMAIN_DEVICE_DISK) {
+         if (disk->sgio == VIR_DOMAIN_DEVICE_SGIO_UNFILTERED)
+@@ -1909,11 +1916,11 @@ qemuSetUnprivSGIO(virDomainDeviceDef *dev)
+     if (virFileExists(sysfs_path) || val == 1) {
+         int curr_val;
+ 
+-        if (virGetDeviceUnprivSGIO(path, NULL, &curr_val) < 0)
++        if (virGetDeviceUnprivSGIO(sysfs_path, &curr_val) < 0)
+             return -1;
+ 
+         if (curr_val != val &&
+-            virSetDeviceUnprivSGIO(path, NULL, val) < 0) {
++            virSetDeviceUnprivSGIO(sysfs_path, val) < 0) {
+             return -1;
+         }
+     }
+diff --git a/src/util/virscsi.c b/src/util/virscsi.c
+index 6165196423..b437fdcac0 100644
+--- a/src/util/virscsi.c
++++ b/src/util/virscsi.c
+@@ -302,6 +302,25 @@ virSCSIDeviceGetDevName(const char *sysfs_prefix,
+     }
+ }
+ 
++
++char *
++virSCSIDeviceGetUnprivSGIOSysfsPath(const char *sysfs_prefix,
++                                    const char *adapter,
++                                    unsigned int bus,
++                                    unsigned int target,
++                                    unsigned long long unit)
++{
++    unsigned int adapter_id;
++    const char *prefix = sysfs_prefix ? sysfs_prefix : SYSFS_SCSI_DEVICES;
++
++    if (virSCSIDeviceGetAdapterId(adapter, &adapter_id) < 0)
++        return NULL;
++
++    return g_strdup_printf("%s/%d:%u:%u:%llu/unpriv_sgio",
++                           prefix, adapter_id, bus, target, unit);
++}
++
++
+ virSCSIDevice *
+ virSCSIDeviceNew(const char *sysfs_prefix,
+                  const char *adapter,
+diff --git a/src/util/virscsi.h b/src/util/virscsi.h
+index 65ad15ed76..5721985939 100644
+--- a/src/util/virscsi.h
++++ b/src/util/virscsi.h
+@@ -40,6 +40,11 @@ char *virSCSIDeviceGetDevName(const char *sysfs_prefix,
+                               unsigned int bus,
+                               unsigned int target,
+                               unsigned long long unit);
++char *virSCSIDeviceGetUnprivSGIOSysfsPath(const char *sysfs_prefix,
++                                          const char *adapter,
++                                          unsigned int bus,
++                                          unsigned int target,
++                                          unsigned long long unit);
+ 
+ virSCSIDevice *virSCSIDeviceNew(const char *sysfs_prefix,
+                                   const char *adapter,
+diff --git a/src/util/virutil.c b/src/util/virutil.c
+index e04f1343d8..b1e37b45c5 100644
+--- a/src/util/virutil.c
++++ b/src/util/virutil.c
+@@ -1377,18 +1377,13 @@ virGetUnprivSGIOSysfsPath(const char *path,
+ 
+ int
+ virSetDeviceUnprivSGIO(const char *path,
+-                       const char *sysfs_dir,
+                        int unpriv_sgio)
+ {
+-    char *sysfs_path = NULL;
+     char *val = NULL;
+     int ret = -1;
+     int rc;
+ 
+-    if (!(sysfs_path = virGetUnprivSGIOSysfsPath(path, sysfs_dir)))
+-        return -1;
+-
+-    if (!virFileExists(sysfs_path)) {
++    if (!virFileExists(path)) {
+         virReportError(VIR_ERR_OPERATION_INVALID, "%s",
+                        _("unpriv_sgio is not supported by this kernel"));
+         goto cleanup;
+@@ -1396,38 +1391,32 @@ virSetDeviceUnprivSGIO(const char *path,
+ 
+     val = g_strdup_printf("%d", unpriv_sgio);
+ 
+-    if ((rc = virFileWriteStr(sysfs_path, val, 0)) < 0) {
+-        virReportSystemError(-rc, _("failed to set %s"), sysfs_path);
++    if ((rc = virFileWriteStr(path, val, 0)) < 0) {
++        virReportSystemError(-rc, _("failed to set %s"), path);
+         goto cleanup;
+     }
+ 
+     ret = 0;
+  cleanup:
+-    VIR_FREE(sysfs_path);
+     VIR_FREE(val);
+     return ret;
+ }
+ 
+ int
+ virGetDeviceUnprivSGIO(const char *path,
+-                       const char *sysfs_dir,
+                        int *unpriv_sgio)
+ {
+-    char *sysfs_path = NULL;
+     char *buf = NULL;
+     char *tmp = NULL;
+     int ret = -1;
+ 
+-    if (!(sysfs_path = virGetUnprivSGIOSysfsPath(path, sysfs_dir)))
+-        return -1;
+-
+-    if (!virFileExists(sysfs_path)) {
++    if (!virFileExists(path)) {
+         virReportError(VIR_ERR_OPERATION_INVALID, "%s",
+                        _("unpriv_sgio is not supported by this kernel"));
+         goto cleanup;
+     }
+ 
+-    if (virFileReadAll(sysfs_path, 1024, &buf) < 0)
++    if (virFileReadAll(path, 1024, &buf) < 0)
+         goto cleanup;
+ 
+     if ((tmp = strchr(buf, '\n')))
+@@ -1435,13 +1424,12 @@ virGetDeviceUnprivSGIO(const char *path,
+ 
+     if (virStrToLong_i(buf, NULL, 10, unpriv_sgio) < 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       _("failed to parse value of %s"), sysfs_path);
++                       _("failed to parse value of %s"), path);
+         goto cleanup;
+     }
+ 
+     ret = 0;
+  cleanup:
+-    VIR_FREE(sysfs_path);
+     VIR_FREE(buf);
+     return ret;
+ }
+diff --git a/src/util/virutil.h b/src/util/virutil.h
+index 854b494890..da267c6446 100644
+--- a/src/util/virutil.h
++++ b/src/util/virutil.h
+@@ -120,10 +120,8 @@ int virGetDeviceID(const char *path,
+                    int *maj,
+                    int *min) G_GNUC_NO_INLINE;
+ int virSetDeviceUnprivSGIO(const char *path,
+-                           const char *sysfs_dir,
+                            int unpriv_sgio);
+ int virGetDeviceUnprivSGIO(const char *path,
+-                           const char *sysfs_dir,
+                            int *unpriv_sgio);
+ char *virGetUnprivSGIOSysfsPath(const char *path,
+                                 const char *sysfs_dir);
+-- 
+2.34.1
+

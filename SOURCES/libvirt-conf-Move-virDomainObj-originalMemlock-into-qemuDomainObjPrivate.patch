@@ -1,0 +1,91 @@
+From 00c5cab2b92b653edbf491d9ef60359578c3d59a Mon Sep 17 00:00:00 2001
+Message-Id: <00c5cab2b92b653edbf491d9ef60359578c3d59a@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 11 May 2022 16:27:18 +0200
+Subject: [PATCH] conf: Move virDomainObj::originalMemlock into
+ qemuDomainObjPrivate
+
+Since v1.3.0-90-gafbe1d4c56 the original value of memlock limit
+is stored inside virDomainObj struct directly (under
+originalMemlock member). This is needless because the value is
+used only inside QEMU driver and thus can reside in
+qemuDomainObjPrivate struct.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 75df6d2c291c48d65c1e54dd93e3d2d3cb0712e7)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2089433
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.h | 3 ---
+ src/qemu/qemu_domain.c | 9 +++++----
+ src/qemu/qemu_domain.h | 3 +++
+ 3 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index d0d0fdc815..45976beb2b 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -3031,9 +3031,6 @@ struct _virDomainObj {
+     int taint;
+     size_t ndeprecations;
+     char **deprecations;
+-
+-    unsigned long long originalMemlock; /* Original RLIMIT_MEMLOCK, zero if no
+-                                         * restore will be required later */
+ };
+ 
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(virDomainObj, virObjectUnref);
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 40fe9985e6..86d673dafa 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -9269,6 +9269,7 @@ int
+ qemuDomainAdjustMaxMemLock(virDomainObj *vm,
+                            bool forceVFIO)
+ {
++    qemuDomainObjPrivate *priv = vm->privateData;
+     unsigned long long currentMemLock = 0;
+     unsigned long long desiredMemLock = 0;
+ 
+@@ -9281,8 +9282,8 @@ qemuDomainAdjustMaxMemLock(virDomainObj *vm,
+             /* If this is the first time adjusting the limit, save the current
+              * value so that we can restore it once memory locking is no longer
+              * required */
+-            if (vm->originalMemlock == 0) {
+-                vm->originalMemlock = currentMemLock;
++            if (priv->originalMemlock == 0) {
++                priv->originalMemlock = currentMemLock;
+             }
+         } else {
+             /* If the limit is already high enough, we can assume
+@@ -9295,8 +9296,8 @@ qemuDomainAdjustMaxMemLock(virDomainObj *vm,
+     } else {
+         /* Once memory locking is no longer required, we can restore the
+          * original, usually very low, limit */
+-        desiredMemLock = vm->originalMemlock;
+-        vm->originalMemlock = 0;
++        desiredMemLock = priv->originalMemlock;
++        priv->originalMemlock = 0;
+     }
+ 
+     if (desiredMemLock > 0 &&
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index e5046367e3..e9497d20de 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -241,6 +241,9 @@ struct _qemuDomainObjPrivate {
+     GSList *dbusVMStateIds;
+     /* true if -object dbus-vmstate was added */
+     bool dbusVMState;
++
++    unsigned long long originalMemlock; /* Original RLIMIT_MEMLOCK, zero if no
++                                         * restore will be required later */
+ };
+ 
+ #define QEMU_DOMAIN_PRIVATE(vm) \
+-- 
+2.35.1
+

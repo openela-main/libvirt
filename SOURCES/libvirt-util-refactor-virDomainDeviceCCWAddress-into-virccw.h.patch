@@ -1,0 +1,299 @@
+From a259f2fc77dac6fa2fd7910d4c96d231b0ea3182 Mon Sep 17 00:00:00 2001
+Message-Id: <a259f2fc77dac6fa2fd7910d4c96d231b0ea3182@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:01 +0200
+Subject: [PATCH] util: refactor virDomainDeviceCCWAddress into virccw.h
+
+Refactor ccw data structure virDomainDeviceCCWAddress into util virccw.h
+and rename it as virCCWDeviceAddress.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 45a8e3988f7b087b3b721e74ce5e6b5658b2b424)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/device_conf.c               |  8 +++----
+ src/conf/device_conf.h               | 19 ++++++-----------
+ src/conf/domain_addr.c               |  6 +++---
+ src/conf/domain_addr.h               |  4 ++--
+ src/conf/domain_conf.c               |  6 +++---
+ src/conf/domain_conf.h               |  6 +++---
+ src/node_device/node_device_driver.c |  2 +-
+ src/qemu/qemu_agent.c                |  4 ++--
+ src/qemu/qemu_agent.h                |  2 +-
+ src/util/virccw.h                    | 31 ++++++++++++++++++++++++++++
+ 10 files changed, 56 insertions(+), 32 deletions(-)
+ create mode 100644 src/util/virccw.h
+
+diff --git a/src/conf/device_conf.c b/src/conf/device_conf.c
+index cb523d3a0d..92b908b2e6 100644
+--- a/src/conf/device_conf.c
++++ b/src/conf/device_conf.c
+@@ -259,7 +259,7 @@ virPCIDeviceAddressFormat(virBuffer *buf,
+ }
+ 
+ bool
+-virDomainDeviceCCWAddressIsValid(virDomainDeviceCCWAddress *addr)
++virDomainDeviceCCWAddressIsValid(virCCWDeviceAddress *addr)
+ {
+     return addr->cssid <= VIR_DOMAIN_DEVICE_CCW_MAX_CSSID &&
+            addr->ssid <= VIR_DOMAIN_DEVICE_CCW_MAX_SSID &&
+@@ -268,7 +268,7 @@ virDomainDeviceCCWAddressIsValid(virDomainDeviceCCWAddress *addr)
+ 
+ int
+ virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+-                                  virDomainDeviceCCWAddress *addr)
++                                  virCCWDeviceAddress *addr)
+ {
+     int cssid;
+     int ssid;
+@@ -307,8 +307,8 @@ virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+ }
+ 
+ bool
+-virDomainDeviceCCWAddressEqual(virDomainDeviceCCWAddress *addr1,
+-                               virDomainDeviceCCWAddress *addr2)
++virDomainDeviceCCWAddressEqual(virCCWDeviceAddress *addr1,
++                               virCCWDeviceAddress *addr2)
+ {
+     if (addr1->cssid == addr2->cssid &&
+         addr1->ssid == addr2->ssid &&
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index b6b710d313..60d90bbf19 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -27,6 +27,7 @@
+ #include "internal.h"
+ #include "virthread.h"
+ #include "virbuffer.h"
++#include "virccw.h"
+ #include "virpci.h"
+ #include "virnetdev.h"
+ #include "virenum.h"
+@@ -73,14 +74,6 @@ struct _virDomainDeviceVirtioSerialAddress {
+ #define VIR_DOMAIN_DEVICE_CCW_MAX_SSID       3
+ #define VIR_DOMAIN_DEVICE_CCW_MAX_DEVNO  65535
+ 
+-typedef struct _virDomainDeviceCCWAddress virDomainDeviceCCWAddress;
+-struct _virDomainDeviceCCWAddress {
+-    unsigned int cssid;
+-    unsigned int ssid;
+-    unsigned int devno;
+-    bool         assigned;
+-};
+-
+ typedef struct _virDomainDeviceCcidAddress virDomainDeviceCcidAddress;
+ struct _virDomainDeviceCcidAddress {
+     unsigned int controller;
+@@ -136,7 +129,7 @@ struct _virDomainDeviceInfo {
+         virDomainDeviceCcidAddress ccid;
+         virDomainDeviceUSBAddress usb;
+         virDomainDeviceSpaprVioAddress spaprvio;
+-        virDomainDeviceCCWAddress ccw;
++        virCCWDeviceAddress ccw;
+         virDomainDeviceISAAddress isa;
+         virDomainDeviceDimmAddress dimm;
+     } addr;
+@@ -204,11 +197,11 @@ void virPCIDeviceAddressFormat(virBuffer *buf,
+                                virPCIDeviceAddress addr,
+                                bool includeTypeInAddr);
+ 
+-bool virDomainDeviceCCWAddressIsValid(virDomainDeviceCCWAddress *addr);
++bool virDomainDeviceCCWAddressIsValid(virCCWDeviceAddress *addr);
+ int virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+-                                      virDomainDeviceCCWAddress *addr);
+-bool virDomainDeviceCCWAddressEqual(virDomainDeviceCCWAddress *addr1,
+-                                    virDomainDeviceCCWAddress *addr2);
++                                      virCCWDeviceAddress *addr);
++bool virDomainDeviceCCWAddressEqual(virCCWDeviceAddress *addr1,
++                                    virCCWDeviceAddress *addr2);
+ #define VIR_CCW_DEVICE_ADDRESS_FMT "%x.%x.%04x"
+ 
+ int virDomainDeviceDriveAddressParseXML(xmlNodePtr node,
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 49745ba881..d584d3b8a8 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1287,15 +1287,15 @@ virDomainPCIAddressSetAllMulti(virDomainDef *def)
+ 
+ 
+ char*
+-virDomainCCWAddressAsString(virDomainDeviceCCWAddress *addr)
++virDomainCCWAddressAsString(virCCWDeviceAddress *addr)
+ {
+     return g_strdup_printf("%x.%x.%04x", addr->cssid, addr->ssid, addr->devno);
+ }
+ 
+ static int
+-virDomainCCWAddressIncrement(virDomainDeviceCCWAddress *addr)
++virDomainCCWAddressIncrement(virCCWDeviceAddress *addr)
+ {
+-    virDomainDeviceCCWAddress ccwaddr = *addr;
++    virCCWDeviceAddress ccwaddr = *addr;
+ 
+     /* We are not touching subchannel sets and channel subsystems */
+     if (++ccwaddr.devno > VIR_DOMAIN_DEVICE_CCW_MAX_DEVNO)
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index 814b556024..c8d069e07e 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -195,7 +195,7 @@ void virDomainPCIAddressSetAllMulti(virDomainDef *def)
+ 
+ struct _virDomainCCWAddressSet {
+     GHashTable *defined;
+-    virDomainDeviceCCWAddress next;
++    virCCWDeviceAddress next;
+ };
+ typedef struct _virDomainCCWAddressSet virDomainCCWAddressSet;
+ 
+@@ -205,7 +205,7 @@ int virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ void virDomainCCWAddressSetFree(virDomainCCWAddressSet *addrs);
+ 
+-char* virDomainCCWAddressAsString(virDomainDeviceCCWAddress *addr)
++char* virDomainCCWAddressAsString(virCCWDeviceAddress *addr)
+     ATTRIBUTE_NONNULL(1);
+ 
+ virDomainCCWAddressSet *
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 95afd9226e..ad3bd56da0 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -15541,7 +15541,7 @@ virDomainDiskControllerMatch(int controller_type, int disk_bus)
+ int
+ virDomainDiskIndexByAddress(virDomainDef *def,
+                             virPCIDeviceAddress *pci_address,
+-                            virDomainDeviceCCWAddress *ccw_addr,
++                            virCCWDeviceAddress *ccw_addr,
+                             unsigned int bus, unsigned int target,
+                             unsigned int unit)
+ {
+@@ -15585,7 +15585,7 @@ virDomainDiskIndexByAddress(virDomainDef *def,
+ virDomainDiskDef *
+ virDomainDiskByAddress(virDomainDef *def,
+                        virPCIDeviceAddress *pci_address,
+-                       virDomainDeviceCCWAddress *ccw_addr,
++                       virCCWDeviceAddress *ccw_addr,
+                        unsigned int bus,
+                        unsigned int target,
+                        unsigned int unit)
+@@ -16184,7 +16184,7 @@ virDomainControllerFindByType(virDomainDef *def,
+ 
+ int
+ virDomainControllerFindByCCWAddress(virDomainDef *def,
+-                                    virDomainDeviceCCWAddress *addr)
++                                    virCCWDeviceAddress *addr)
+ {
+     size_t i;
+ 
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 45976beb2b..930af36868 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -3622,12 +3622,12 @@ void virDomainRNGDefFree(virDomainRNGDef *def);
+ 
+ int virDomainDiskIndexByAddress(virDomainDef *def,
+                                 virPCIDeviceAddress *pci_controller,
+-                                virDomainDeviceCCWAddress *ccw_addr,
++                                virCCWDeviceAddress *ccw_addr,
+                                 unsigned int bus, unsigned int target,
+                                 unsigned int unit);
+ virDomainDiskDef *virDomainDiskByAddress(virDomainDef *def,
+                                          virPCIDeviceAddress *pci_controller,
+-                                         virDomainDeviceCCWAddress *ccw_addr,
++                                         virCCWDeviceAddress *ccw_addr,
+                                          unsigned int bus,
+                                          unsigned int target,
+                                          unsigned int unit);
+@@ -3712,7 +3712,7 @@ void virDomainControllerInsertPreAlloced(virDomainDef *def,
+ int virDomainControllerFind(const virDomainDef *def, int type, int idx);
+ int virDomainControllerFindByType(virDomainDef *def, int type);
+ int virDomainControllerFindByCCWAddress(virDomainDef *def,
+-                                        virDomainDeviceCCWAddress *addr);
++                                        virCCWDeviceAddress *addr);
+ int virDomainControllerFindByPCIAddress(virDomainDef *def,
+                                         virPCIDeviceAddress *addr);
+ int virDomainControllerFindUnusedIndex(virDomainDef const *def, int type);
+diff --git a/src/node_device/node_device_driver.c b/src/node_device/node_device_driver.c
+index d19ed7d948..b0abf59618 100644
+--- a/src/node_device/node_device_driver.c
++++ b/src/node_device/node_device_driver.c
+@@ -676,7 +676,7 @@ nodeDeviceObjFormatAddress(virNodeDeviceObj *obj)
+             }
+ 
+         case VIR_NODE_DEV_CAP_CSS_DEV: {
+-            virDomainDeviceCCWAddress ccw_addr = {
++            virCCWDeviceAddress ccw_addr = {
+                 .cssid = caps->data.ccw_dev.cssid,
+                 .ssid = caps->data.ccw_dev.ssid,
+                 .devno = caps->data.ccw_dev.devno
+diff --git a/src/qemu/qemu_agent.c b/src/qemu/qemu_agent.c
+index 8a55044c9e..db844148a6 100644
+--- a/src/qemu/qemu_agent.c
++++ b/src/qemu/qemu_agent.c
+@@ -1769,9 +1769,9 @@ qemuAgentGetDiskAddress(virJSONValue *json)
+     GET_DISK_ADDR(pci, &addr->pci_controller.function, "function");
+ 
+     if ((ccw = virJSONValueObjectGet(json, "ccw-address"))) {
+-        g_autofree virDomainDeviceCCWAddress *ccw_addr = NULL;
++        g_autofree virCCWDeviceAddress *ccw_addr = NULL;
+ 
+-        ccw_addr = g_new0(virDomainDeviceCCWAddress, 1);
++        ccw_addr = g_new0(virCCWDeviceAddress, 1);
+ 
+         GET_DISK_ADDR(ccw, &ccw_addr->cssid, "cssid");
+         if (ccw_addr->cssid == 0)  /* Guest CSSID 0 is 0xfe on host */
+diff --git a/src/qemu/qemu_agent.h b/src/qemu/qemu_agent.h
+index 862f6b0a95..c07d8507ba 100644
+--- a/src/qemu/qemu_agent.h
++++ b/src/qemu/qemu_agent.h
+@@ -72,7 +72,7 @@ struct _qemuAgentDiskAddress {
+     unsigned int target;
+     unsigned int unit;
+     char *devnode;
+-    virDomainDeviceCCWAddress *ccw_addr;
++    virCCWDeviceAddress *ccw_addr;
+ };
+ void qemuAgentDiskAddressFree(qemuAgentDiskAddress *addr);
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(qemuAgentDiskAddress, qemuAgentDiskAddressFree);
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+new file mode 100644
+index 0000000000..701e13284b
+--- /dev/null
++++ b/src/util/virccw.h
+@@ -0,0 +1,31 @@
++/*
++ * virccw.h: helper APIs for managing host CCW devices
++ *
++ * Copyright (C) 2022 IBM Corporation
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library.  If not, see
++ * <http://www.gnu.org/licenses/>.
++ */
++
++#pragma once
++
++#include "internal.h"
++
++typedef struct _virCCWDeviceAddress virCCWDeviceAddress;
++struct _virCCWDeviceAddress {
++    unsigned int cssid;
++    unsigned int ssid;
++    unsigned int devno;
++    bool         assigned;
++};
+-- 
+2.39.1
+

@@ -1,0 +1,88 @@
+From 3c65b917f70d556fa1059b0400771c8159b8ca3b Mon Sep 17 00:00:00 2001
+Message-Id: <3c65b917f70d556fa1059b0400771c8159b8ca3b@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:08 +0200
+Subject: [PATCH] conf: adjust method name virDomainDeviceCCWAddressParseXML
+
+Adjust method name virDomainDeviceCCWAddressParseXML to
+virCCWDeviceAddressParseXML.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 2d9fd19bf5d7a3d33b94e464c335252682edd623)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/device_conf.c   | 4 ++--
+ src/conf/device_conf.h   | 4 ++--
+ src/conf/domain_conf.c   | 3 +--
+ src/libvirt_private.syms | 2 +-
+ 4 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/conf/device_conf.c b/src/conf/device_conf.c
+index 958e2f43cc..e93fd57341 100644
+--- a/src/conf/device_conf.c
++++ b/src/conf/device_conf.c
+@@ -259,8 +259,8 @@ virPCIDeviceAddressFormat(virBuffer *buf,
+ }
+ 
+ int
+-virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+-                                  virCCWDeviceAddress *addr)
++virCCWDeviceAddressParseXML(xmlNodePtr node,
++                            virCCWDeviceAddress *addr)
+ {
+     int cssid;
+     int ssid;
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index 01e2edccc9..910e6b7792 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -193,8 +193,8 @@ void virPCIDeviceAddressFormat(virBuffer *buf,
+                                virPCIDeviceAddress addr,
+                                bool includeTypeInAddr);
+ 
+-int virDomainDeviceCCWAddressParseXML(xmlNodePtr node,
+-                                      virCCWDeviceAddress *addr);
++int virCCWDeviceAddressParseXML(xmlNodePtr node,
++                                virCCWDeviceAddress *addr);
+ 
+ int virDomainDeviceDriveAddressParseXML(xmlNodePtr node,
+                                         virDomainDeviceDriveAddress *addr);
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 1e1c7f01b1..401ddaa1a0 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -6630,8 +6630,7 @@ virDomainDeviceAddressParseXML(xmlNodePtr address,
+         break;
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_CCW:
+-        if (virDomainDeviceCCWAddressParseXML
+-                (address, &info->addr.ccw) < 0)
++        if (virCCWDeviceAddressParseXML(address, &info->addr.ccw) < 0)
+             return -1;
+         break;
+ 
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 0d3ee4c20a..44b551fb60 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -124,6 +124,7 @@ virCPUModeTypeToString;
+ 
+ 
+ # conf/device_conf.h
++virCCWDeviceAddressParseXML;
+ virDeviceInfoPCIAddressExtensionIsPresent;
+ virDeviceInfoPCIAddressExtensionIsWanted;
+ virDeviceInfoPCIAddressIsPresent;
+@@ -131,7 +132,6 @@ virDeviceInfoPCIAddressIsWanted;
+ virDomainDeviceAddressIsValid;
+ virDomainDeviceAddressTypeToString;
+ virDomainDeviceCcidAddressParseXML;
+-virDomainDeviceCCWAddressParseXML;
+ virDomainDeviceDriveAddressParseXML;
+ virDomainDeviceInfoAddressIsEqual;
+ virDomainDeviceSpaprVioAddressParseXML;
+-- 
+2.39.1
+

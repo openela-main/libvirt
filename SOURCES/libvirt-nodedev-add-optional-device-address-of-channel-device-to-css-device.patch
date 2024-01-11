@@ -1,0 +1,151 @@
+From 5921eeddf0a284ccbec04896901c9bd4177de6dd Mon Sep 17 00:00:00 2001
+Message-Id: <5921eeddf0a284ccbec04896901c9bd4177de6dd@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:15 +0200
+Subject: [PATCH] nodedev: add optional device address of channel device to css
+ device
+
+Add the new introduced sysfs attribute dev_busid which provides the address
+of the device in the subchannel independent from the bound device driver.
+It is added if available in the sysfs as optional channel_dev_addr element into
+the css device capabilty providing the ccw deivce address attributes cssid,
+ssid and devno.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 122b975e4004c83b6fc442ec6cdfd71eb5b55cc4)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ docs/schemas/nodedev.rng           |  5 +++++
+ src/conf/node_device_conf.c        | 28 ++++++++++++++++++++++++++++
+ src/conf/node_device_conf.h        |  2 ++
+ src/node_device/node_device_udev.c |  8 ++++++++
+ 4 files changed, 43 insertions(+)
+
+diff --git a/docs/schemas/nodedev.rng b/docs/schemas/nodedev.rng
+index 29515d2d7e..43f1abc247 100644
+--- a/docs/schemas/nodedev.rng
++++ b/docs/schemas/nodedev.rng
+@@ -677,6 +677,11 @@
+       <value>css</value>
+     </attribute>
+     <ref name="capccwaddress"/>
++    <optional>
++      <element name="channel_dev_addr">
++        <ref name="capccwaddress"/>
++      </element>
++    </optional>
+     <optional>
+       <ref name="mdev_types"/>
+     </optional>
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index fcb5be24e1..16b9497faf 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -643,6 +643,17 @@ virNodeDeviceCapCSSDefFormat(virBuffer *buf,
+ 
+     virNodeDeviceCapCCWDefFormat(buf, data);
+ 
++    if (ccw_dev.channel_dev_addr) {
++        virCCWDeviceAddress *ccw = ccw_dev.channel_dev_addr;
++        virBufferAddLit(buf, "<channel_dev_addr>\n");
++        virBufferAdjustIndent(buf, 2);
++        virBufferAsprintf(buf, "<cssid>0x%x</cssid>\n", ccw->cssid);
++        virBufferAsprintf(buf, "<ssid>0x%x</ssid>\n", ccw->ssid);
++        virBufferAsprintf(buf, "<devno>0x%04x</devno>\n", ccw->devno);
++        virBufferAdjustIndent(buf, -2);
++        virBufferAddLit(buf, "</channel_dev_addr>\n");
++    }
++
+     if (ccw_dev.flags & VIR_NODE_DEV_CAP_FLAG_CSS_MDEV)
+         virNodeDeviceCapMdevTypesFormat(buf,
+                                         ccw_dev.mdev_types,
+@@ -1255,6 +1266,7 @@ virNodeDevCapCSSParseXML(xmlXPathContextPtr ctxt,
+     g_autofree xmlNodePtr *nodes = NULL;
+     int n = 0;
+     size_t i = 0;
++    xmlNodePtr channel_ddno = NULL;
+ 
+     ctxt->node = node;
+ 
+@@ -1269,6 +1281,21 @@ virNodeDevCapCSSParseXML(xmlXPathContextPtr ctxt,
+             return -1;
+     }
+ 
++    /* channel_dev_addr is optional */
++    if ((channel_ddno = virXPathNode("./channel_dev_addr[1]", ctxt))) {
++        g_autofree virCCWDeviceAddress *channel_dev = NULL;
++
++        channel_dev = g_new0(virCCWDeviceAddress, 1);
++
++        if (virNodeDevCCWDeviceAddressParseXML(ctxt,
++                                               channel_ddno,
++                                               def->name,
++                                               channel_dev) < 0)
++            return -1;
++
++        ccw_dev->channel_dev_addr = g_steal_pointer(&channel_dev);
++    }
++
+     return 0;
+ }
+ 
+@@ -2637,6 +2664,7 @@ virNodeDevCapsDefFree(virNodeDevCapsDef *caps)
+         for (i = 0; i < data->ccw_dev.nmdev_types; i++)
+             virMediatedDeviceTypeFree(data->ccw_dev.mdev_types[i]);
+         g_free(data->ccw_dev.mdev_types);
++        g_free(data->ccw_dev.channel_dev_addr);
+         break;
+     case VIR_NODE_DEV_CAP_AP_MATRIX:
+         g_free(data->ap_matrix.addr);
+diff --git a/src/conf/node_device_conf.h b/src/conf/node_device_conf.h
+index e4d1f67d53..d1751ed874 100644
+--- a/src/conf/node_device_conf.h
++++ b/src/conf/node_device_conf.h
+@@ -24,6 +24,7 @@
+ 
+ #include "internal.h"
+ #include "virbitmap.h"
++#include "virccw.h"
+ #include "virpcivpd.h"
+ #include "virscsihost.h"
+ #include "virpci.h"
+@@ -279,6 +280,7 @@ struct _virNodeDevCapCCW {
+     unsigned int flags; /* enum virNodeDevCCWCapFlags */
+     virMediatedDeviceType **mdev_types;
+     size_t nmdev_types;
++    virCCWDeviceAddress *channel_dev_addr;
+ };
+ 
+ typedef struct _virNodeDevCapVDPA virNodeDevCapVDPA;
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index ffcb3e8640..611a2592ca 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -1128,6 +1128,8 @@ static int
+ udevProcessCSS(struct udev_device *device,
+                virNodeDeviceDef *def)
+ {
++    g_autofree char *dev_busid = NULL;
++
+     /* only process IO subchannel and vfio-ccw devices to keep the list sane */
+     if (!def->driver ||
+         (STRNEQ(def->driver, "io_subchannel") &&
+@@ -1139,6 +1141,12 @@ udevProcessCSS(struct udev_device *device,
+ 
+     udevGenerateDeviceName(device, def, NULL);
+ 
++    /* process optional channel devices information */
++    udevGetStringSysfsAttr(device, "dev_busid", &dev_busid);
++
++    if (dev_busid != NULL)
++        def->caps->data.ccw_dev.channel_dev_addr = virCCWDeviceAddressFromString(dev_busid);
++
+     if (virNodeDeviceGetCSSDynamicCaps(def->sysfs_path, &def->caps->data.ccw_dev) < 0)
+         return -1;
+ 
+-- 
+2.39.1
+

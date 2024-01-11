@@ -1,0 +1,67 @@
+From c70b1a8d8a4bc34bcbf9ef4bccac678257b8c494 Mon Sep 17 00:00:00 2001
+Message-Id: <c70b1a8d8a4bc34bcbf9ef4bccac678257b8c494@dist-git>
+From: Vasiliy Ulyanov <vulyanov@suse.de>
+Date: Wed, 2 Feb 2022 17:28:17 +0100
+Subject: [PATCH] qemu: gpu: Get pid without binary validation
+
+The binary validation in virPidFileReadPathIfAlive may fail with EACCES
+if the calling process does not have CAP_SYS_PTRACE capability.
+Therefore instead do only the check that the pidfile is locked by the
+correct process.
+
+Fixes the same issue as with swtpm.
+
+Signed-off-by: Vasiliy Ulyanov <vulyanov@suse.de>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e3dfa52d260da8a41a0ec35767d08e37c825824a)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2152188
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_vhost_user_gpu.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_vhost_user_gpu.c b/src/qemu/qemu_vhost_user_gpu.c
+index ef198a4820..f7d444e851 100644
+--- a/src/qemu/qemu_vhost_user_gpu.c
++++ b/src/qemu/qemu_vhost_user_gpu.c
+@@ -54,7 +54,6 @@ qemuVhostUserGPUCreatePidFilename(const char *stateDir,
+ 
+ /*
+  * qemuVhostUserGPUGetPid:
+- * @binpath: path of executable associated with the pidfile
+  * @stateDir: the directory where vhost-user-gpu writes the pidfile into
+  * @shortName: short name of the domain
+  * @alias: video device alias
+@@ -65,8 +64,7 @@ qemuVhostUserGPUCreatePidFilename(const char *stateDir,
+  * set to -1;
+  */
+ static int
+-qemuVhostUserGPUGetPid(const char *binPath,
+-                       const char *stateDir,
++qemuVhostUserGPUGetPid(const char *stateDir,
+                        const char *shortName,
+                        const char *alias,
+                        pid_t *pid)
+@@ -76,7 +74,7 @@ qemuVhostUserGPUGetPid(const char *binPath,
+     if (!(pidfile = qemuVhostUserGPUCreatePidFilename(stateDir, shortName, alias)))
+         return -1;
+ 
+-    if (virPidFileReadPathIfAlive(pidfile, pid, binPath) < 0)
++    if (virPidFileReadPathIfLocked(pidfile, pid) < 0)
+         return -1;
+ 
+     return 0;
+@@ -253,8 +251,7 @@ qemuExtVhostUserGPUSetupCgroup(virQEMUDriver *driver,
+     if (!shortname)
+         return -1;
+ 
+-    rc = qemuVhostUserGPUGetPid(video->driver->vhost_user_binary,
+-                                cfg->stateDir, shortname, video->info.alias, &pid);
++    rc = qemuVhostUserGPUGetPid(cfg->stateDir, shortname, video->info.alias, &pid);
+     if (rc < 0 || (rc == 0 && pid == (pid_t)-1)) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                        _("Could not get process id of vhost-user-gpu"));
+-- 
+2.39.0
+

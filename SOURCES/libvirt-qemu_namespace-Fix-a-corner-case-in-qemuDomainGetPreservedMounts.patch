@@ -1,0 +1,80 @@
+From 215adedb16aa082d052f84705338de0d77721fe0 Mon Sep 17 00:00:00 2001
+Message-Id: <215adedb16aa082d052f84705338de0d77721fe0@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 6 Sep 2022 13:43:22 +0200
+Subject: [PATCH] qemu_namespace: Fix a corner case in
+ qemuDomainGetPreservedMounts()
+
+When setting up namespace for QEMU we look at mount points under
+/dev (like /dev/pts, /dev/mqueue/, etc.) because we want to
+preserve those (which is done by moving them to a temp location,
+unshare(), and then moving them back). We have a convenience
+helper - qemuDomainGetPreservedMounts() - that processes the
+mount table and (optionally) moves the other filesystems too.
+This helper is also used when attempting to create a path in NS,
+because the path, while starting with "/dev/" prefix, may
+actually lead to one of those filesystems that we preserved.
+
+And here comes the corner case: while we require the parent mount
+table to be in shared mode (equivalent of `mount --make-rshared /'),
+these mount events propagate iff the target path exist inside the
+slave mount table (= QEMU's private namespace). And since we
+create only a subset of /dev nodes, well, that assumption is not
+always the case.
+
+For instance, assume that a domain is already running, no
+hugepages were configured for it nor any hugetlbfs is mounted.
+Now, when a hugetlbfs is mounted into '/dev/hugepages', this is
+propagated into the QEMU's namespace, but since the target dir
+does not exist in the private /dev, the FS is not mounted in the
+namespace.
+
+Fortunately, this difference between namespaces is visible when
+comparing /proc/mounts and /proc/$PID/mounts (where PID is the
+QEMU's PID). Therefore, if possible we should look at the latter.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 46b03819ae8d833b11c2aaccb2c2a0361727f51b)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2123196
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_namespace.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_namespace.c b/src/qemu/qemu_namespace.c
+index 4bff325a2c..fc286ab0be 100644
+--- a/src/qemu/qemu_namespace.c
++++ b/src/qemu/qemu_namespace.c
+@@ -110,6 +110,8 @@ qemuDomainGetPreservedMountPath(virQEMUDriverConfig *cfg,
+  * b) generate backup path for all the entries in a)
+  *
+  * Any of the return pointers can be NULL. Both arrays are NULL-terminated.
++ * Get the mount table either from @vm's PID (if running), or from the
++ * namespace we're in (if @vm's not running).
+  *
+  * Returns 0 on success, -1 otherwise (with error reported)
+  */
+@@ -124,12 +126,18 @@ qemuDomainGetPreservedMounts(virQEMUDriverConfig *cfg,
+     size_t nmounts = 0;
+     g_auto(GStrv) paths = NULL;
+     g_auto(GStrv) savePaths = NULL;
++    g_autofree char *mountsPath = NULL;
+     size_t i;
+ 
+     if (ndevPath)
+         *ndevPath = 0;
+ 
+-    if (virFileGetMountSubtree(QEMU_PROC_MOUNTS, "/dev", &mounts, &nmounts) < 0)
++    if (vm->pid > 0)
++        mountsPath = g_strdup_printf("/proc/%lld/mounts", (long long) vm->pid);
++    else
++        mountsPath = g_strdup(QEMU_PROC_MOUNTS);
++
++    if (virFileGetMountSubtree(mountsPath, "/dev", &mounts, &nmounts) < 0)
+         return -1;
+ 
+     if (nmounts == 0)
+-- 
+2.38.0
+

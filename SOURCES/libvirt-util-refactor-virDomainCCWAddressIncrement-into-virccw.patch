@@ -1,0 +1,100 @@
+From fcb45d357cc3b6e9ee413014e21de1ab2d20273f Mon Sep 17 00:00:00 2001
+Message-Id: <fcb45d357cc3b6e9ee413014e21de1ab2d20273f@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:05 +0200
+Subject: [PATCH] util: refactor virDomainCCWAddressIncrement into virccw
+
+Refactor virDomainCCWAddressIncrement into virccw and rename method as
+virCCWDeviceAddressIncrement.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit be1e16ed1161173b07f2e8f20f2ca3294ac49406)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/domain_addr.c   | 16 +---------------
+ src/libvirt_private.syms |  1 +
+ src/util/virccw.c        | 13 +++++++++++++
+ src/util/virccw.h        |  1 +
+ 4 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 655f3cc09e..b04ab0628b 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1286,20 +1286,6 @@ virDomainPCIAddressSetAllMulti(virDomainDef *def)
+ }
+ 
+ 
+-static int
+-virDomainCCWAddressIncrement(virCCWDeviceAddress *addr)
+-{
+-    virCCWDeviceAddress ccwaddr = *addr;
+-
+-    /* We are not touching subchannel sets and channel subsystems */
+-    if (++ccwaddr.devno > VIR_CCW_DEVICE_MAX_DEVNO)
+-        return -1;
+-
+-    *addr = ccwaddr;
+-    return 0;
+-}
+-
+-
+ int
+ virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+                           virDomainCCWAddressSet *addrs,
+@@ -1325,7 +1311,7 @@ virDomainCCWAddressAssign(virDomainDeviceInfo *dev,
+             return -1;
+ 
+         while (virHashLookup(addrs->defined, addr)) {
+-            if (virDomainCCWAddressIncrement(&addrs->next) < 0) {
++            if (virCCWDeviceAddressIncrement(&addrs->next) < 0) {
+                 virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                                _("There are no more free CCW devnos."));
+                 return -1;
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index e8d3edb0fe..eb56292b34 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -1903,6 +1903,7 @@ virBufferVasprintf;
+ 
+ # util/virccw.h
+ virCCWDeviceAddressAsString;
++virCCWDeviceAddressIncrement;
+ 
+ 
+ # util/vircgroup.h
+diff --git a/src/util/virccw.c b/src/util/virccw.c
+index 5a19d3a112..d14d432414 100644
+--- a/src/util/virccw.c
++++ b/src/util/virccw.c
+@@ -27,3 +27,16 @@ virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+ {
+     return g_strdup_printf(VIR_CCW_DEVICE_ADDRESS_FMT, addr->cssid, addr->ssid, addr->devno);
+ }
++
++int
++virCCWDeviceAddressIncrement(virCCWDeviceAddress *addr)
++{
++    virCCWDeviceAddress ccwaddr = *addr;
++
++    /* We are not touching subchannel sets and channel subsystems */
++    if (++ccwaddr.devno > VIR_CCW_DEVICE_MAX_DEVNO)
++        return -1;
++
++    *addr = ccwaddr;
++    return 0;
++}
+diff --git a/src/util/virccw.h b/src/util/virccw.h
+index c3a47127f1..4c48c9605e 100644
+--- a/src/util/virccw.h
++++ b/src/util/virccw.h
+@@ -37,3 +37,4 @@ struct _virCCWDeviceAddress {
+ 
+ char* virCCWDeviceAddressAsString(virCCWDeviceAddress *addr)
+     ATTRIBUTE_NONNULL(1);
++int virCCWDeviceAddressIncrement(virCCWDeviceAddress *addr);
+-- 
+2.39.1
+

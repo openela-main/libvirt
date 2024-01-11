@@ -1,0 +1,66 @@
+From e52b12a986de8ac469b98135b2c1d2a8a63b9052 Mon Sep 17 00:00:00 2001
+Message-Id: <e52b12a986de8ac469b98135b2c1d2a8a63b9052@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 21 Mar 2022 17:10:15 +0100
+Subject: [PATCH] qemu_command: Generate prealloc-threads property
+
+Let's generate prealloc-threads property onto the cmd line if
+domain configuration requests so.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit b8d6ecc70c8a8e9c90bab48b6829b42d8b77c748)
+
+Conflicts:
+tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args:
+Upstream has moved some cmd line arguments
+(v8.0.0-260-gaf23241cfe) but that is not backported.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2067126
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c                                     | 5 ++++-
+ tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 2acdcca2ff..d23af97e0c 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3856,7 +3856,10 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
+             return -1;
+     } else {
+         if (!priv->memPrealloc &&
+-            virJSONValueObjectAdd(&props, "B:prealloc", prealloc, NULL) < 0)
++            virJSONValueObjectAdd(&props,
++                                  "B:prealloc", prealloc,
++                                  "p:prealloc-threads", def->mem.allocation_threads,
++                                  NULL) < 0)
+             return -1;
+     }
+ 
+diff --git a/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args b/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args
+index 04a320d469..9b2e6086c3 100644
+--- a/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/tmp/lib/domain--1-instance-00000092/.config \
+ -m size=14680064k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+ -smp 8,sockets=1,dies=1,cores=8,threads=1 \
+--object '{"qom-type":"memory-backend-memfd","id":"ram-node0","hugetlb":true,"hugetlbsize":2097152,"share":true,"prealloc":true,"size":15032385536,"host-nodes":[3],"policy":"preferred"}' \
++-object '{"qom-type":"memory-backend-memfd","id":"ram-node0","hugetlb":true,"hugetlbsize":2097152,"share":true,"prealloc":true,"prealloc-threads":8,"size":15032385536,"host-nodes":[3],"policy":"preferred"}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -uuid 126f2720-6f8e-45ab-a886-ec9277079a67 \
+ -display none \
+@@ -29,7 +29,7 @@ XDG_CONFIG_HOME=/tmp/lib/domain--1-instance-00000092/.config \
+ -no-acpi \
+ -boot strict=on \
+ -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 \
+--object '{"qom-type":"memory-backend-file","id":"memnvdimm0","mem-path":"/tmp/nvdimm","share":true,"prealloc":true,"size":536870912,"host-nodes":[3],"policy":"preferred"}' \
++-object '{"qom-type":"memory-backend-file","id":"memnvdimm0","mem-path":"/tmp/nvdimm","share":true,"prealloc":true,"prealloc-threads":8,"size":536870912,"host-nodes":[3],"policy":"preferred"}' \
+ -device nvdimm,node=0,memdev=memnvdimm0,id=nvdimm0,slot=0 \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3 \
+-- 
+2.35.1
+

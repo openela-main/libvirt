@@ -1,0 +1,65 @@
+From 48f4d21cf73e15e145258bf1d590ca279838168c Mon Sep 17 00:00:00 2001
+Message-Id: <48f4d21cf73e15e145258bf1d590ca279838168c@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 8 Dec 2022 08:39:24 +0100
+Subject: [PATCH] tools: Fix install_mode for some scripts
+
+Scripts from the following list were installed with group write
+bit set: virt-xml-validate, virt-pki-validate,
+virt-sanlock-cleanup, libvirt-guests.sh. This is very unusual and
+in contrast with the way other scripts/binaries are installed.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2151202
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit e771e32f15ff2b263ca70306d93080541a96792b)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2153688
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ tools/meson.build | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/tools/meson.build b/tools/meson.build
+index 2d0aecb90b..7c6e527939 100644
+--- a/tools/meson.build
++++ b/tools/meson.build
+@@ -247,7 +247,7 @@ configure_file(
+   configuration: tools_conf,
+   install: true,
+   install_dir: bindir,
+-  install_mode: 'rwxrwxr-x',
++  install_mode: 'rwxr-xr-x',
+ )
+ 
+ configure_file(
+@@ -256,7 +256,7 @@ configure_file(
+   configuration: tools_conf,
+   install: true,
+   install_dir: bindir,
+-  install_mode: 'rwxrwxr-x',
++  install_mode: 'rwxr-xr-x',
+ )
+ 
+ executable(
+@@ -293,7 +293,7 @@ if conf.has('WITH_SANLOCK')
+     configuration: tools_conf,
+     install: true,
+     install_dir: sbindir,
+-    install_mode: 'rwxrwxr-x',
++    install_mode: 'rwxr-xr-x',
+   )
+ endif
+ 
+@@ -304,7 +304,7 @@ if conf.has('WITH_LIBVIRTD')
+     configuration: tools_conf,
+     install: true,
+     install_dir: libexecdir,
+-    install_mode: 'rwxrwxr-x',
++    install_mode: 'rwxr-xr-x',
+   )
+ 
+   if init_script == 'systemd'
+-- 
+2.39.0
+

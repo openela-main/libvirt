@@ -1,0 +1,46 @@
+From c57b31305a7fc8c2a4d11e11e7a48c4826160fa2 Mon Sep 17 00:00:00 2001
+Message-Id: <c57b31305a7fc8c2a4d11e11e7a48c4826160fa2@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 1 Mar 2023 16:51:42 +0100
+Subject: [PATCH] qemu: agent: Make fetching of 'can-offline' member from
+ 'guest-query-vcpus' optional
+
+The 'can-offline' member is optional according to agent's schema and in
+fact in certain cases it's not returned. Libvirt then spams the logs
+if something is polling the bulk guest stats API.
+
+Noticed when going through oVirt logs which appears to call the bulk
+stats API repeatedly.
+
+Instead of requiring it we simply reply that the vCPU can't be offlined.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Laine Stump <laine@redhat.com>
+(cherry picked from commit 790ea58153b9ef1120a577d1a87a4ca2e988ee5c)
+https://bugzilla.redhat.com/show_bug.cgi?id=2174447
+---
+ src/qemu/qemu_agent.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_agent.c b/src/qemu/qemu_agent.c
+index db844148a6..09b7340bc8 100644
+--- a/src/qemu/qemu_agent.c
++++ b/src/qemu/qemu_agent.c
+@@ -1371,12 +1371,8 @@ qemuAgentGetVCPUs(qemuAgent *agent,
+             return -1;
+         }
+ 
+-        if (virJSONValueObjectGetBoolean(entry, "can-offline",
+-                                         &in->offlinable) < 0) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                           _("'can-offline' missing in reply of guest-get-vcpus"));
+-            return -1;
+-        }
++        in->offlinable = false;
++        ignore_value(virJSONValueObjectGetBoolean(entry, "can-offline", &in->offlinable));
+     }
+ 
+     return ndata;
+-- 
+2.39.2
+

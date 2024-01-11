@@ -1,0 +1,89 @@
+From b550b671bace6d979a0763a837ce97ddf72e8fc8 Mon Sep 17 00:00:00 2001
+Message-Id: <b550b671bace6d979a0763a837ce97ddf72e8fc8@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 28 Jan 2022 20:33:12 +0100
+Subject: [PATCH] RHEL: Remove <glib-2.64.0 workaround for GSource race
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2045879
+
+This is to accommodate for RHEL 8 downstream glib being fixed with a backport in
+version 2.56.4-12 (Bug 1948988).  Another reason for that is that our workaround
+does not play nice with a fixed glib, leading to libvirt not properly
+dereferencing the monitor socket, eventually leading to EMFILE: Too many open
+files.
+
+RHEL-only
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+---
+ src/util/glibcompat.c | 46 ++++++++-----------------------------------
+ 1 file changed, 8 insertions(+), 38 deletions(-)
+
+diff --git a/src/util/glibcompat.c b/src/util/glibcompat.c
+index eb6dcc0111..bf890f10d2 100644
+--- a/src/util/glibcompat.c
++++ b/src/util/glibcompat.c
+@@ -212,51 +212,21 @@ vir_g_strdup_vprintf(const char *msg, va_list args)
+     return ret;
+ }
+ 
+-
+ /*
+- * If the last reference to a GSource is released in a non-main
+- * thread we're exposed to a race condition that causes a
+- * crash:
+- *
+- *    https://gitlab.gnome.org/GNOME/glib/-/merge_requests/1358
++ * This is a leftover of a hack that works around glib older than 2.64.0, but
++ * the fix in glib as backported in RHEL-8 to glib2-2.56.4-12 in BZ 1948988:
+  *
+- * Thus we're using an idle func to release our ref...
++ *   https://bugzilla.redhat.com/show_bug.cgi?id=1948988
+  *
+- * ...but this imposes a significant performance penalty on
+- * I/O intensive workloads which are sensitive to the iterations
+- * of the event loop, so avoid the workaround if we know we have
+- * new enough glib.
++ * and our workaround coupled with that glib fix started causing leaks, which
++ * surfaced with us not unreferencing the qemu monitor socket in BZ 2045879:
+  *
+- * The function below is used from a header file definition.
++ *   https://bugzilla.redhat.com/show_bug.cgi?id=2045879
+  *
+- * Drop when min glib >= 2.64.0
++ * Keeping this wrapper makes it easier to follow with other backports without
++ * conflicts in callers due to the function name change.
+  */
+-#if GLIB_CHECK_VERSION(2, 64, 0)
+ void vir_g_source_unref(GSource *src, GMainContext *ctx G_GNUC_UNUSED)
+ {
+     g_source_unref(src);
+ }
+-#else
+-
+-static gboolean
+-virEventGLibSourceUnrefIdle(gpointer data)
+-{
+-    GSource *src = data;
+-
+-    g_source_unref(src);
+-
+-    return FALSE;
+-}
+-
+-void vir_g_source_unref(GSource *src, GMainContext *ctx)
+-{
+-    GSource *idle = g_idle_source_new();
+-
+-    g_source_set_callback(idle, virEventGLibSourceUnrefIdle, src, NULL);
+-
+-    g_source_attach(idle, ctx);
+-
+-    g_source_unref(idle);
+-}
+-
+-#endif
+-- 
+2.35.1
+

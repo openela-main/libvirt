@@ -1,0 +1,55 @@
+From b221b3ab6d881efedc544e0e0ed9c507e21fd178 Mon Sep 17 00:00:00 2001
+Message-Id: <b221b3ab6d881efedc544e0e0ed9c507e21fd178@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 11 May 2022 16:37:27 +0200
+Subject: [PATCH] qemu_domain: Format qemuDomainObjPrivate::originalMemlock
+
+Now that qemuDomainObjPrivate struct gained new member format it
+into XML and parse it so that the value is preserved across
+daemon restarts.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 21aec91790ae14d24512856b20cff49764ede637)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2089433
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 86d673dafa..ee7d310903 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2383,6 +2383,12 @@ qemuDomainObjPrivateXMLFormat(virBuffer *buf,
+     if (qemuDomainObjPrivateXMLFormatBackups(buf, vm) < 0)
+         return -1;
+ 
++    if (priv->originalMemlock > 0) {
++        virBufferAsprintf(buf,
++                          "<originalMemlock>%llu</originalMemlock>\n",
++                          priv->originalMemlock);
++    }
++
+     return 0;
+ }
+ 
+@@ -3104,6 +3110,13 @@ qemuDomainObjPrivateXMLParse(xmlXPathContextPtr ctxt,
+ 
+     priv->memPrealloc = virXPathBoolean("boolean(./memPrealloc)", ctxt) == 1;
+ 
++    if (virXPathULongLong("string(./originalMemlock)",
++                          ctxt, &priv->originalMemlock) == -2) {
++        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                       _("failed to parse original memlock size"));
++        goto error;
++    }
++
+     return 0;
+ 
+  error:
+-- 
+2.35.1
+

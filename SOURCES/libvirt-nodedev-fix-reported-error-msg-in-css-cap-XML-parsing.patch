@@ -1,0 +1,32 @@
+From d82e4473a66da27d2c6f41f8ecadacbd00f44430 Mon Sep 17 00:00:00 2001
+Message-Id: <d82e4473a66da27d2c6f41f8ecadacbd00f44430@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:00 +0200
+Subject: [PATCH] nodedev: fix reported error msg in css cap XML parsing
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Marc Hartmayer <mhartmay@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 78094a4bd1562fec73ae99c67ddcbedd83953d5c)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/conf/node_device_conf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 0bac0fde8d..a6ebf4b66f 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -1193,7 +1193,7 @@ virNodeDevCapCCWParseXML(xmlXPathContextPtr ctxt,
+     if (virStrToLong_uip(ssid, NULL, 0, &ccw_dev->ssid) < 0) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                        _("invalid ssid value '%s' for '%s'"),
+-                       cssid, def->name);
++                       ssid, def->name);
+         return -1;
+     }
+ 
+-- 
+2.39.1
+

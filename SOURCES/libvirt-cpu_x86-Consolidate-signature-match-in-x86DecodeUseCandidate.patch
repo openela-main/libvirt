@@ -1,0 +1,75 @@
+From 99a298a4a0575bf0072f504c4b8e4551400c44c0 Mon Sep 17 00:00:00 2001
+Message-Id: <99a298a4a0575bf0072f504c4b8e4551400c44c0@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 26 Apr 2022 11:58:07 +0200
+Subject: [PATCH] cpu_x86: Consolidate signature match in x86DecodeUseCandidate
+
+Checking the signature in two different places makes no sense since the
+code in between can only mark the candidate as the best option so far,
+which is what the second signature match does as well.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 35ce086667e68e8f546cf36473591dd7c19c72eb)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1851227
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu/cpu_x86.c | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 5cb9caef8a..f007487824 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2020,15 +2020,22 @@ x86DecodeUseCandidate(virCPUx86Model *current,
+     }
+ 
+     /* Ideally we want to select a model with family/model equal to
+-     * family/model of the real CPU. Once we found such model, we only
++     * family/model of the real CPU and once we found such model, we only
+      * consider candidates with matching family/model.
+      */
+-    if (signature &&
+-        virCPUx86SignaturesMatch(current->signatures, signature) &&
+-        !virCPUx86SignaturesMatch(candidate->signatures, signature)) {
+-        VIR_DEBUG("%s differs in signature from matching %s",
+-                  cpuCandidate->model, cpuCurrent->model);
+-        return 0;
++    if (signature) {
++        if (virCPUx86SignaturesMatch(current->signatures, signature) &&
++            !virCPUx86SignaturesMatch(candidate->signatures, signature)) {
++            VIR_DEBUG("%s differs in signature from matching %s",
++                      cpuCandidate->model, cpuCurrent->model);
++            return 0;
++        }
++
++        if (!virCPUx86SignaturesMatch(current->signatures, signature) &&
++            virCPUx86SignaturesMatch(candidate->signatures, signature)) {
++            VIR_DEBUG("%s provides matching signature", cpuCandidate->model);
++            return 1;
++        }
+     }
+ 
+     if (cpuCurrent->nfeatures > cpuCandidate->nfeatures) {
+@@ -2037,16 +2044,6 @@ x86DecodeUseCandidate(virCPUx86Model *current,
+         return 1;
+     }
+ 
+-    /* Prefer a candidate with matching signature even though it would
+-     * result in longer list of features.
+-     */
+-    if (signature &&
+-        virCPUx86SignaturesMatch(candidate->signatures, signature) &&
+-        !virCPUx86SignaturesMatch(current->signatures, signature)) {
+-        VIR_DEBUG("%s provides matching signature", cpuCandidate->model);
+-        return 1;
+-    }
+-
+     VIR_DEBUG("%s does not result in shorter feature list than %s",
+               cpuCandidate->model, cpuCurrent->model);
+     return 0;
+-- 
+2.35.1
+

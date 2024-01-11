@@ -1,0 +1,37 @@
+From 44f83782ba882f9eb037a54fb75231c305d98712 Mon Sep 17 00:00:00 2001
+Message-Id: <44f83782ba882f9eb037a54fb75231c305d98712@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 10 Jun 2022 15:25:00 +0200
+Subject: [PATCH] qemu: virtiofs: format --thread-pool-size
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2079582
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 2753eba20ce76d3d8785b23a6e940574ca12fe3c)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_virtiofs.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_virtiofs.c b/src/qemu/qemu_virtiofs.c
+index 1b853a5a59..1ee3781286 100644
+--- a/src/qemu/qemu_virtiofs.c
++++ b/src/qemu/qemu_virtiofs.c
+@@ -163,6 +163,10 @@ qemuVirtioFSBuildCommandLine(virQEMUDriverConfig *cfg,
+         virBufferAddLit(&opts, ",no_posix_lock");
+ 
+     virCommandAddArgBuffer(cmd, &opts);
++
++    if (fs->thread_pool_size >= 0)
++        virCommandAddArgFormat(cmd, "--thread-pool-size=%i", fs->thread_pool_size);
++
+     if (cfg->virtiofsdDebug)
+         virCommandAddArg(cmd, "-d");
+ 
+-- 
+2.35.1
+

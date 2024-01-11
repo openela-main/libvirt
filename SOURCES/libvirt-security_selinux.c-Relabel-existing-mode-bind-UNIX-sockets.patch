@@ -1,0 +1,64 @@
+From 07fb786e0d17bd395333d276ebbaad42c72ee358 Mon Sep 17 00:00:00 2001
+Message-Id: <07fb786e0d17bd395333d276ebbaad42c72ee358@dist-git>
+From: David Michael <david@bigbadwolfsecurity.com>
+Date: Tue, 28 Jun 2022 08:33:41 -0400
+Subject: [PATCH] security_selinux.c: Relabel existing mode="bind" UNIX sockets
+
+This supports sockets created by libvirt and passed by FD using the
+same method as in security_dac.c.
+
+Signed-off-by: David Michael <david@bigbadwolfsecurity.com>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 9f13f54a6348b54170f7de3595039c99b9da72c7)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2101575
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/security/security_selinux.c            | 9 +++++++--
+ tests/securityselinuxlabeldata/chardev.txt | 2 +-
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/security/security_selinux.c b/src/security/security_selinux.c
+index 0952431064..b90e819fd2 100644
+--- a/src/security/security_selinux.c
++++ b/src/security/security_selinux.c
+@@ -2545,7 +2545,12 @@ virSecuritySELinuxSetChardevLabel(virSecurityManager *mgr,
+         break;
+ 
+     case VIR_DOMAIN_CHR_TYPE_UNIX:
+-        if (!dev_source->data.nix.listen) {
++        if (!dev_source->data.nix.listen ||
++            (dev_source->data.nix.path &&
++             virFileExists(dev_source->data.nix.path))) {
++            /* Also label mode='bind' sockets if they exist,
++             * e.g. because they were created by libvirt
++             * and passed via FD */
+             if (virSecuritySELinuxSetFilecon(mgr,
+                                              dev_source->data.nix.path,
+                                              imagelabel,
+@@ -2622,7 +2627,7 @@ virSecuritySELinuxRestoreChardevLabel(virSecurityManager *mgr,
+     case VIR_DOMAIN_CHR_TYPE_UNIX:
+         if (!dev_source->data.nix.listen) {
+             if (virSecuritySELinuxRestoreFileLabel(mgr,
+-                                                   dev_source->data.file.path,
++                                                   dev_source->data.nix.path,
+                                                    true) < 0)
+                 goto done;
+         }
+diff --git a/tests/securityselinuxlabeldata/chardev.txt b/tests/securityselinuxlabeldata/chardev.txt
+index 3f4b6302b9..bdb367f7a5 100644
+--- a/tests/securityselinuxlabeldata/chardev.txt
++++ b/tests/securityselinuxlabeldata/chardev.txt
+@@ -2,6 +2,6 @@
+ /plain.dev;system_u:object_r:svirt_image_t:s0:c41,c264
+ /plain.fifo;system_u:object_r:svirt_image_t:s0:c41,c264
+ /nolabel.sock;
+-/plain.sock;
++/plain.sock;system_u:object_r:svirt_image_t:s0:c41,c264
+ /yeslabel.sock;system_u:object_r:svirt_image_t:s0:c41,c264
+ /altlabel.sock;system_u:object_r:svirt_image_custom_t:s0:c41,c264
+-- 
+2.35.1
+

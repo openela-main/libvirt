@@ -1,0 +1,64 @@
+From eb17cd2553366491b54c834b00fd953e94ef0bd2 Mon Sep 17 00:00:00 2001
+Message-Id: <eb17cd2553366491b54c834b00fd953e94ef0bd2@dist-git>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Fri, 13 May 2022 12:31:14 +0200
+Subject: [PATCH] schemas: refactor out nodedev ccw address schema
+
+Refactor out nodedev ccw address schema for easy reuse later.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e9ba2ced0b6bdcf6ed4c4b38d8f3fc63b6fa6d59)
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2165011
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ docs/schemas/nodedev.rng | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/docs/schemas/nodedev.rng b/docs/schemas/nodedev.rng
+index e4733f0804..29515d2d7e 100644
+--- a/docs/schemas/nodedev.rng
++++ b/docs/schemas/nodedev.rng
+@@ -653,10 +653,7 @@
+     </interleave>
+   </define>
+ 
+-  <define name="capccwdev">
+-    <attribute name="type">
+-      <value>ccw</value>
+-    </attribute>
++  <define name="capccwaddress">
+     <element name="cssid">
+       <ref name="ccwCssidRange"/>
+     </element>
+@@ -668,19 +665,18 @@
+     </element>
+   </define>
+ 
++  <define name="capccwdev">
++    <attribute name="type">
++      <value>ccw</value>
++    </attribute>
++    <ref name="capccwaddress"/>
++  </define>
++
+   <define name="capcssdev">
+     <attribute name="type">
+       <value>css</value>
+     </attribute>
+-    <element name="cssid">
+-      <ref name="ccwCssidRange"/>
+-    </element>
+-    <element name="ssid">
+-      <ref name="ccwSsidRange"/>
+-    </element>
+-    <element name="devno">
+-      <ref name="ccwDevnoRange"/>
+-    </element>
++    <ref name="capccwaddress"/>
+     <optional>
+       <ref name="mdev_types"/>
+     </optional>
+-- 
+2.39.1
+

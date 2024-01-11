@@ -1,0 +1,200 @@
+From 5b96a8773d33af9822f6b6ccddc8f372841895a6 Mon Sep 17 00:00:00 2001
+Message-Id: <5b96a8773d33af9822f6b6ccddc8f372841895a6@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 6 Mar 2020 15:52:22 +0100
+Subject: [PATCH] RHEL: virscsi: Support TAPEs in virSCSIDeviceGetDevName()
+
+If the SCSI device we want to get /dev node name for is TAPE
+device we need to look at 'tape' symlink in the sysfs dir
+corresponding to the device.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1808390
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Message-Id: <20200306145226.1610708-3-abologna@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/util/virscsi.c                          | 27 +++++++++++++++
+ tests/virscsidata/2-0-0-0/model             |  1 +
+ tests/virscsidata/2-0-0-0/scsi_tape/st0/dev |  1 +
+ tests/virscsidata/2-0-0-0/sg3/dev           |  1 +
+ tests/virscsidata/2-0-0-0/tape              |  1 +
+ tests/virscsidata/2-0-0-0/type              |  1 +
+ tests/virscsidata/2-0-0-0/vendor            |  1 +
+ tests/virscsidata/sg3                       |  0
+ tests/virscsitest.c                         | 38 ++++++++++++++++++---
+ 9 files changed, 66 insertions(+), 5 deletions(-)
+ create mode 100644 tests/virscsidata/2-0-0-0/model
+ create mode 100644 tests/virscsidata/2-0-0-0/scsi_tape/st0/dev
+ create mode 100644 tests/virscsidata/2-0-0-0/sg3/dev
+ create mode 120000 tests/virscsidata/2-0-0-0/tape
+ create mode 100644 tests/virscsidata/2-0-0-0/type
+ create mode 100644 tests/virscsidata/2-0-0-0/vendor
+ create mode 100644 tests/virscsidata/sg3
+
+diff --git a/src/util/virscsi.c b/src/util/virscsi.c
+index 770f727cac..6165196423 100644
+--- a/src/util/virscsi.c
++++ b/src/util/virscsi.c
+@@ -224,6 +224,31 @@ virSCSIDeviceGetDevNameBlock(const char *prefix,
+ }
+ 
+ 
++static char *
++virSCSIDeviceGetDevNameTape(const char *prefix,
++                            unsigned int adapter,
++                            unsigned int bus,
++                            unsigned int target,
++                            unsigned long long unit)
++{
++    g_autofree char *path = NULL;
++    g_autofree char *resolvedPath = NULL;
++    g_autoptr(GError) err = NULL;
++
++    path = g_strdup_printf("%s/%d:%u:%u:%llu/tape",
++                           prefix, adapter, bus, target, unit);
++
++    if (!(resolvedPath = g_file_read_link(path, &err))) {
++        virReportError(VIR_ERR_SYSTEM_ERROR,
++                       _("Unable to read link: %s"),
++                       err->message);
++        return NULL;
++    }
++
++    return g_path_get_basename(resolvedPath);
++}
++
++
+ /* Returns device name (e.g. "sdc") on success, or NULL
+  * on failure.
+  */
+@@ -250,6 +275,8 @@ virSCSIDeviceGetDevName(const char *sysfs_prefix,
+         return virSCSIDeviceGetDevNameBlock(prefix, adapter_id, bus, target, unit);
+ 
+     case VIR_SCSI_DEVICE_TYPE_TAPE:
++        return virSCSIDeviceGetDevNameTape(prefix, adapter_id, bus, target, unit);
++
+     case VIR_SCSI_DEVICE_TYPE_PRINTER:
+     case VIR_SCSI_DEVICE_TYPE_PROCESSOR:
+     case VIR_SCSI_DEVICE_TYPE_WORM:
+diff --git a/tests/virscsidata/2-0-0-0/model b/tests/virscsidata/2-0-0-0/model
+new file mode 100644
+index 0000000000..d2ab4715c3
+--- /dev/null
++++ b/tests/virscsidata/2-0-0-0/model
+@@ -0,0 +1 @@
++scsi_debug
+diff --git a/tests/virscsidata/2-0-0-0/scsi_tape/st0/dev b/tests/virscsidata/2-0-0-0/scsi_tape/st0/dev
+new file mode 100644
+index 0000000000..3dd777e840
+--- /dev/null
++++ b/tests/virscsidata/2-0-0-0/scsi_tape/st0/dev
+@@ -0,0 +1 @@
++9:0
+diff --git a/tests/virscsidata/2-0-0-0/sg3/dev b/tests/virscsidata/2-0-0-0/sg3/dev
+new file mode 100644
+index 0000000000..b369a59b3e
+--- /dev/null
++++ b/tests/virscsidata/2-0-0-0/sg3/dev
+@@ -0,0 +1 @@
++21:3
+diff --git a/tests/virscsidata/2-0-0-0/tape b/tests/virscsidata/2-0-0-0/tape
+new file mode 120000
+index 0000000000..6ca7f77539
+--- /dev/null
++++ b/tests/virscsidata/2-0-0-0/tape
+@@ -0,0 +1 @@
++scsi_tape/st0
+\ No newline at end of file
+diff --git a/tests/virscsidata/2-0-0-0/type b/tests/virscsidata/2-0-0-0/type
+new file mode 100644
+index 0000000000..d00491fd7e
+--- /dev/null
++++ b/tests/virscsidata/2-0-0-0/type
+@@ -0,0 +1 @@
++1
+diff --git a/tests/virscsidata/2-0-0-0/vendor b/tests/virscsidata/2-0-0-0/vendor
+new file mode 100644
+index 0000000000..9b075671ea
+--- /dev/null
++++ b/tests/virscsidata/2-0-0-0/vendor
+@@ -0,0 +1 @@
++Linux
+diff --git a/tests/virscsidata/sg3 b/tests/virscsidata/sg3
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/tests/virscsitest.c b/tests/virscsitest.c
+index c96699e157..924b77af08 100644
+--- a/tests/virscsitest.c
++++ b/tests/virscsitest.c
+@@ -33,17 +33,33 @@ VIR_LOG_INIT("tests.scsitest");
+ 
+ static char *virscsi_prefix;
+ 
++typedef struct {
++    const char *adapter;
++    unsigned int bus;
++    unsigned int target;
++    unsigned int unit;
++    const char *expectedName;
++} testGetDevNameData;
++
+ static int
+-test1(const void *data G_GNUC_UNUSED)
++testGetDevName(const void *opaque)
+ {
++    const testGetDevNameData *data = opaque;
+     g_autofree char *name = NULL;
+ 
+     if (!(name = virSCSIDeviceGetDevName(virscsi_prefix,
+-                                         "scsi_host1", 0, 0, 0)))
++                                         data->adapter,
++                                         data->bus,
++                                         data->target,
++                                         data->unit)))
+         return -1;
+ 
+-    if (STRNEQ(name, "sdh"))
++    if (STRNEQ(name, data->expectedName)) {
++        fprintf(stderr,
++                "SCSI dev name mismatch, expected %s got %s",
++                data->expectedName, name);
+         return -1;
++    }
+ 
+     return 0;
+ }
+@@ -200,15 +216,27 @@ mymain(void)
+ 
+     CREATE_SYMLINK("0-0-0-0", "0:0:0:0");
+     CREATE_SYMLINK("1-0-0-0", "1:0:0:0");
++    CREATE_SYMLINK("2-0-0-0", "2:0:0:0");
+     CREATE_SYMLINK("sg0", "sg0");
++    CREATE_SYMLINK("sg3", "sg3");
+     CREATE_SYMLINK("sg8", "sg8");
+ 
+     VIR_FREE(virscsi_prefix);
+ 
+     virscsi_prefix = g_strdup(tmpdir);
+ 
+-    if (virTestRun("test1", test1, NULL) < 0)
+-        ret = -1;
++#define TEST_GET_DEV_NAME(adapter, bus, target, unit, expectedName) \
++    do { \
++        testGetDevNameData data = {adapter, bus, target, unit, expectedName}; \
++        if (virTestRun("test getDevname " expectedName, \
++                       testGetDevName, &data) < 0) \
++            ret = -1; \
++    } while (0)
++
++    TEST_GET_DEV_NAME("scsi_host0", 0, 0, 0, "sda");
++    TEST_GET_DEV_NAME("scsi_host1", 0, 0, 0, "sdh");
++    TEST_GET_DEV_NAME("scsi_host2", 0, 0, 0, "st0");
++
+     if (virTestRun("test2", test2, NULL) < 0)
+         ret = -1;
+ 
+-- 
+2.34.1
+

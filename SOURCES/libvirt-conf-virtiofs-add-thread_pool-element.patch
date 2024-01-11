@@ -1,0 +1,151 @@
+From 0c09e4225c511ce1b0ebe22e45962f83d5145e66 Mon Sep 17 00:00:00 2001
+Message-Id: <0c09e4225c511ce1b0ebe22e45962f83d5145e66@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 10 Jun 2022 15:10:29 +0200
+Subject: [PATCH] conf: virtiofs: add thread_pool element
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add an element to configure the thread pool size:
+
+...
+<binary>
+  <thread_pool size='16'/>
+</binary>
+...
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2072905
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 0df2e7df80452f81edbfeb0ee355235b533346a9)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=2079582
+---
+ docs/formatdomain.rst                             |  6 ++++++
+ docs/schemas/domaincommon.rng                     |  9 +++++++++
+ src/conf/domain_conf.c                            | 15 +++++++++++++++
+ src/conf/domain_conf.h                            |  1 +
+ .../qemuxml2argvdata/vhost-user-fs-fd-memory.xml  |  1 +
+ 5 files changed, 32 insertions(+)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 17e89a0c0d..e6cf2ec083 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -3316,6 +3316,7 @@ A directory on the host that can be accessed directly from the guest.
+             <cache mode='always'/>
+             <sandbox mode='namespace'/>
+             <lock posix='on' flock='on'/>
++            <thread_pool size='16'/>
+          </binary>
+          <source dir='/path'/>
+          <target dir='mount_tag'/>
+@@ -3449,6 +3450,11 @@ A directory on the host that can be accessed directly from the guest.
+    ``chroot``, see the
+    `virtiofsd documentation <https://qemu.readthedocs.io/en/latest/tools/virtiofsd.html>`__
+    for more details. ( :since:`Since 7.2.0` )
++   Element ``thread_pool`` accepts one attribute ``size`` which defines the
++   maximum thread pool size. A value of "0" disables the pool.
++   The thread pool helps increase the number of requests in flight when used with
++   storage that has a higher latency.  However, it has an overhead, and so for
++   fast, low latency filesystems, it may be best to turn it off. ( :since:`Since 8.5.0` )
+ ``source``
+    The resource on the host that is being accessed in the guest. The ``name``
+    attribute must be used with ``type='template'``, and the ``dir`` attribute
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index c9c1529979..79c8979410 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -3064,6 +3064,15 @@
+             </optional>
+           </element>
+         </optional>
++        <optional>
++          <element name="thread_pool">
++            <optional>
++              <attribute name="size">
++                <data type="integer"/>
++              </attribute>
++            </optional>
++          </element>
++        </optional>
+       </interleave>
+     </element>
+   </define>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 92510973e6..95afd9226e 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2447,6 +2447,8 @@ virDomainFSDefNew(virDomainXMLOption *xmlopt)
+ 
+     ret->src = virStorageSourceNew();
+ 
++    ret->thread_pool_size = -1;
++
+     if (xmlopt &&
+         xmlopt->privateData.fsNew &&
+         !(ret->privateData = xmlopt->privateData.fsNew()))
+@@ -9869,6 +9871,7 @@ virDomainFSDefParseXML(virDomainXMLOption *xmlopt,
+     if (def->fsdriver == VIR_DOMAIN_FS_DRIVER_TYPE_VIRTIOFS) {
+         g_autofree char *queue_size = virXPathString("string(./driver/@queue)", ctxt);
+         g_autofree char *binary = virXPathString("string(./binary/@path)", ctxt);
++        g_autofree char *thread_pool_size = virXPathString("string(./binary/thread_pool/@size)", ctxt);
+         g_autofree char *xattr = virXPathString("string(./binary/@xattr)", ctxt);
+         g_autofree char *cache = virXPathString("string(./binary/cache/@mode)", ctxt);
+         g_autofree char *sandbox = virXPathString("string(./binary/sandbox/@mode)", ctxt);
+@@ -9883,6 +9886,14 @@ virDomainFSDefParseXML(virDomainXMLOption *xmlopt,
+             goto error;
+         }
+ 
++        if (thread_pool_size &&
++            virStrToLong_i(thread_pool_size, NULL, 10, &def->thread_pool_size) < 0) {
++            virReportError(VIR_ERR_XML_ERROR,
++                           _("cannot parse thread pool size '%s' for virtiofs"),
++                           queue_size);
++            goto error;
++        }
++
+         if (binary)
+             def->binary = virFileSanitizePath(binary);
+ 
+@@ -24205,6 +24216,10 @@ virDomainFSDefFormat(virBuffer *buf,
+         }
+ 
+         virXMLFormatElement(&binaryBuf, "lock", &lockAttrBuf, NULL);
++
++        if (def->thread_pool_size >= 0)
++            virBufferAsprintf(&binaryBuf, "<thread_pool size='%d'/>\n", def->thread_pool_size);
++
+     }
+ 
+     virDomainVirtioOptionsFormat(&driverAttrBuf, def->virtio);
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 10af94e2e4..d0d0fdc815 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -892,6 +892,7 @@ struct _virDomainFSDef {
+     virTristateSwitch posix_lock;
+     virTristateSwitch flock;
+     virDomainFSSandboxMode sandbox;
++    int thread_pool_size;
+     virDomainVirtioOptions *virtio;
+     virObject *privateData;
+ };
+diff --git a/tests/qemuxml2argvdata/vhost-user-fs-fd-memory.xml b/tests/qemuxml2argvdata/vhost-user-fs-fd-memory.xml
+index abddf0870b..81de8c0dd7 100644
+--- a/tests/qemuxml2argvdata/vhost-user-fs-fd-memory.xml
++++ b/tests/qemuxml2argvdata/vhost-user-fs-fd-memory.xml
+@@ -32,6 +32,7 @@
+         <cache mode='always'/>
+         <sandbox mode='chroot'/>
+         <lock posix='off' flock='off'/>
++        <thread_pool size='16'/>
+       </binary>
+       <source dir='/path'/>
+       <target dir='mount_tag'/>
+-- 
+2.35.1
+

@@ -1,0 +1,57 @@
+From 1ad707f19e570b76c1f6517194d9cc86b084014d Mon Sep 17 00:00:00 2001
+Message-Id: <1ad707f19e570b76c1f6517194d9cc86b084014d@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 1 Dec 2022 17:02:42 +0100
+Subject: [PATCH] qemuAgentGetDisks: Don't use virJSONValueObjectGetStringArray
+ for optional data
+
+The 'dependencies' field in the return data may be missing in some
+cases. Historically 'virJSONValueObjectGetStringArray' didn't report
+error in such case, but later refactor (commit 043b50b948ef3c2 ) added
+an error in order to use it in other places too.
+
+Unfortunately this results in the error log being spammed with an
+irrelevant error in case when qemuAgentGetDisks is invoked on a VM
+running windows.
+
+Replace the use of virJSONValueObjectGetStringArray by fetching the
+array first and calling virJSONValueArrayToStringList only when we have
+an array.
+
+Fixes: 043b50b948ef3c2a4adf5fa32a93ec2589851ac6
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2149752
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 3b576601dfb924bb518870a01de5d1a421cbb467)
+---
+ src/qemu/qemu_agent.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_agent.c b/src/qemu/qemu_agent.c
+index f33cd47078..8a55044c9e 100644
+--- a/src/qemu/qemu_agent.c
++++ b/src/qemu/qemu_agent.c
+@@ -2550,6 +2550,7 @@ int qemuAgentGetDisks(qemuAgent *agent,
+     for (i = 0; i < ndata; i++) {
+         virJSONValue *addr;
+         virJSONValue *entry = virJSONValueArrayGet(data, i);
++        virJSONValue *dependencies;
+         qemuAgentDiskInfo *disk;
+ 
+         if (!entry) {
+@@ -2575,7 +2576,11 @@ int qemuAgentGetDisks(qemuAgent *agent,
+             goto error;
+         }
+ 
+-        disk->dependencies = virJSONValueObjectGetStringArray(entry, "dependencies");
++        if ((dependencies = virJSONValueObjectGetArray(entry, "dependencies"))) {
++            if (!(disk->dependencies = virJSONValueArrayToStringList(dependencies)))
++                goto error;
++        }
++
+         disk->alias = g_strdup(virJSONValueObjectGetString(entry, "alias"));
+         addr = virJSONValueObjectGetObject(entry, "address");
+         if (addr) {
+-- 
+2.39.0
+

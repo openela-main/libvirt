@@ -1,0 +1,49 @@
+From 87b0f241db1eba0e9db1fd233c5ab8a8d0115979 Mon Sep 17 00:00:00 2001
+Message-Id: <87b0f241db1eba0e9db1fd233c5ab8a8d0115979@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 21 Mar 2022 13:33:06 +0100
+Subject: [PATCH] qemu_tpm: Do async IO when starting swtpm emulator
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When vTPM is secured via virSecret libvirt passes the secret
+value via an FD when swtpm is started (arguments --key and
+--migration-key). The writing of the secret into the FDs is
+handled via virCommand, specifically qemu_tpm calls
+virCommandSetSendBuffer()) and then virCommandRunAsync() spawns a
+thread to handle writing into the FD via
+virCommandDoAsyncIOHelper. But the thread is not created unless
+VIR_EXEC_ASYNC_IO flag is set, which it isn't. In order to fix
+it, virCommandDoAsyncIO() must be called.
+
+The credit goes to Marc-André Lureau
+<marcandre.lureau@redhat.com> who has done all the debugging and
+proposed fix in the bugzilla.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2064115
+Fixes: a9c500d2b50c5c041a1bb6ae9724402cf1cec8fe
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 4d7bb0177a33c4e90fd001edfe27bc030354d875)
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2152188
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_tpm.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/qemu/qemu_tpm.c b/src/qemu/qemu_tpm.c
+index 9c5d1ffed4..29dcb2ac0f 100644
+--- a/src/qemu/qemu_tpm.c
++++ b/src/qemu/qemu_tpm.c
+@@ -923,6 +923,7 @@ qemuExtTPMStartEmulator(virQEMUDriver *driver,
+     if (!(pidfile = qemuTPMEmulatorCreatePidFilename(cfg->swtpmStateDir, shortName)))
+         return -1;
+ 
++    virCommandDoAsyncIO(cmd);
+     virCommandDaemonize(cmd);
+     virCommandSetPidFile(cmd, pidfile);
+     virCommandSetErrorFD(cmd, &errfd);
+-- 
+2.39.0
+

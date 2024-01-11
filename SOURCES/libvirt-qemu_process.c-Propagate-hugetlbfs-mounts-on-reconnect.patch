@@ -1,0 +1,65 @@
+From 2aeb222d9d61868ef40932b4349af84696415e11 Mon Sep 17 00:00:00 2001
+Message-Id: <2aeb222d9d61868ef40932b4349af84696415e11@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 6 Sep 2022 13:45:51 +0200
+Subject: [PATCH] qemu_process.c: Propagate hugetlbfs mounts on reconnect
+
+When reconnecting to a running QEMU process, we construct the
+per-domain path in all hugetlbfs mounts. This is a relict from
+the past (v3.4.0-100-g5b24d25062) where we switched to a
+per-domain path and we want to create those paths when libvirtd
+restarts on upgrade.
+
+And with namespaces enabled there is one corner case where the
+path is not created. In fact an error is reported and the
+reconnect fails. Ideally, all mount events are propagated into
+the QEMU's namespace. And they probably are, except when the
+target path does not exist inside the namespace. Now, it's pretty
+common for users to mount hugetlbfs under /dev (e.g.
+/dev/hugepages), but if domain is started without hugepages (or
+more specifically - private hugetlbfs path wasn't created on
+domain startup), then the reconnect code tries to create it.
+But it fails to do so, well, it fails to set seclabels on the
+path because, because the path does not exist in the private
+namespace. And it doesn't exist because we specifically create
+only a subset of all possible /dev nodes. Therefore, the mount
+event, whilst propagated, is not successful and hence the
+filesystem is not mounted. We have to do it ourselves.
+
+If hugetlbfs is mount anywhere else there's no problem and this
+is effectively a dead code.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2123196
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 0377177c7856bb87a9d8aa1324b54f5fbe9f1e5b)
+
+Conflicts:
+- docs/kbase/qemu-passthrough-security.rst: Well, v8.8.0-rc1~32
+  isn't backported, thus we can't remove a paragraph that the
+  backported commit did. It's a documentation after all, so no
+  harm.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2123196
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_process.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 540eee9ff0..1164340aa9 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3906,6 +3906,9 @@ qemuProcessBuildDestroyMemoryPathsImpl(virQEMUDriver *driver,
+             return -1;
+         }
+ 
++        if (qemuDomainNamespaceSetupPath(vm, path, NULL) < 0)
++            return -1;
++
+         if (qemuSecurityDomainSetPathLabel(driver, vm, path, true) < 0)
+             return -1;
+     } else {
+-- 
+2.38.0
+
