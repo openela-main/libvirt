@@ -1,0 +1,209 @@
+From 55d54ad0f0d22818cc5e1c5db28e3bd69e751a89 Mon Sep 17 00:00:00 2001
+Message-ID: <55d54ad0f0d22818cc5e1c5db28e3bd69e751a89.1708529413.git.jdenemar@redhat.com>
+From: Tim Wiederhake <twiederh@redhat.com>
+Date: Wed, 6 Sep 2023 13:13:34 +0200
+Subject: [PATCH] cpu_map: Add cpu model EPYC Genoa
+
+This was added in qemu commit 166b174188.
+No additional features had to be added to libvirt.
+
+Signed-off-by: Tim Wiederhake <twiederh@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit bfe53e9145cd5996a791c5caff0686572b850f82)
+
+https://issues.redhat.com/browse/RHEL-15334
+
+Signed-off-by: Tim Wiederhake <twiederh@redhat.com>
+---
+ src/cpu_map/index.xml                         |   1 +
+ src/cpu_map/meson.build                       |   1 +
+ src/cpu_map/x86_EPYC-Genoa.xml                | 115 ++++++++++++++++++
+ .../domaincapsdata/qemu_8.1.0-q35.x86_64.xml  |   1 +
+ .../domaincapsdata/qemu_8.1.0-tcg.x86_64.xml  |   1 +
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml    |   1 +
+ 6 files changed, 120 insertions(+)
+ create mode 100644 src/cpu_map/x86_EPYC-Genoa.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index 0187016c1c..d2c5af5797 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -70,6 +70,7 @@
+     <include filename='x86_EPYC-IBPB.xml'/>
+     <include filename='x86_EPYC-Rome.xml'/>
+     <include filename='x86_EPYC-Milan.xml'/>
++    <include filename='x86_EPYC-Genoa.xml'/>
+ 
+     <!-- Hygon CPU models -->
+     <include filename='x86_Dhyana.xml'/>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index fa83b23474..ae5293e85f 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -39,6 +39,7 @@ cpumap_data = [
+   'x86_Dhyana.xml',
+   'x86_EPYC-IBPB.xml',
+   'x86_EPYC.xml',
++  'x86_EPYC-Genoa.xml',
+   'x86_EPYC-Milan.xml',
+   'x86_EPYC-Rome.xml',
+   'x86_features.xml',
+diff --git a/src/cpu_map/x86_EPYC-Genoa.xml b/src/cpu_map/x86_EPYC-Genoa.xml
+new file mode 100644
+index 0000000000..3e765b89b1
+--- /dev/null
++++ b/src/cpu_map/x86_EPYC-Genoa.xml
+@@ -0,0 +1,115 @@
++<cpus>
++  <model name='EPYC-Genoa'>
++    <decode host='on' guest='on'/>
++    <signature family='25' model='17'/>
++    <vendor name='AMD'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='amd-psfd'/>
++    <feature name='amd-ssbd'/>
++    <feature name='amd-stibp'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='auto-ibrs'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='avx512-bf16'/>
++    <feature name='avx512-vpopcntdq'/>
++    <feature name='avx512bitalg'/>
++    <feature name='avx512bw'/>
++    <feature name='avx512cd'/>
++    <feature name='avx512dq'/>
++    <feature name='avx512f'/>
++    <feature name='avx512ifma'/>
++    <feature name='avx512vbmi'/>
++    <feature name='avx512vbmi2'/>
++    <feature name='avx512vl'/>
++    <feature name='avx512vnni'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='clflushopt'/>
++    <feature name='clwb'/>
++    <feature name='clzero'/>
++    <feature name='cmov'/>
++    <feature name='cr8legacy'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fsrm'/>
++    <feature name='fxsr'/>
++    <feature name='fxsr_opt'/>
++    <feature name='gfni'/>
++    <feature name='ibpb'/>
++    <feature name='ibrs'/>
++    <feature name='invpcid'/>
++    <feature name='la57'/>
++    <feature name='lahf_lm'/>
++    <feature name='lfence-always-serializing'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='misalignsse'/>
++    <feature name='mmx'/>
++    <feature name='mmxext'/>
++    <feature name='movbe'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='no-nested-data-bp'/>
++    <feature name='npt'/>
++    <feature name='nrip-save'/>
++    <feature name='null-sel-clr-base'/>
++    <feature name='nx'/>
++    <feature name='osvw'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pdpe1gb'/>
++    <feature name='perfctr_core'/>
++    <feature name='pge'/>
++    <feature name='pku'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdpid'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='sha-ni'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='sse4a'/>
++    <feature name='ssse3'/>
++    <feature name='stibp-always-on'/>
++    <feature name='svm'/>
++    <feature name='svme-addr-chk'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='umip'/>
++    <feature name='vaes'/>
++    <feature name='vme'/>
++    <feature name='vnmi'/>
++    <feature name='vpclmulqdq'/>
++    <feature name='wbnoinvd'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveerptr'/>
++    <feature name='xsaveopt'/>
++    <feature name='xsaves'/>
++  </model>
++</cpus>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index f8165fe212..db5ad80ffa 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -116,6 +116,7 @@
+       <model usable='no' vendor='AMD'>EPYC-Rome</model>
+       <model usable='no' vendor='AMD'>EPYC-Milan</model>
+       <model usable='yes' vendor='AMD'>EPYC-IBPB</model>
++      <model usable='no' vendor='AMD'>EPYC-Genoa</model>
+       <model usable='yes' vendor='AMD'>EPYC</model>
+       <model usable='yes' vendor='Hygon'>Dhyana</model>
+       <model usable='no' vendor='Intel'>Cooperlake</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index ea9e085af5..0628c4c438 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -115,6 +115,7 @@
+       <model usable='no' vendor='AMD'>EPYC-Rome</model>
+       <model usable='no' vendor='AMD'>EPYC-Milan</model>
+       <model usable='no' vendor='AMD'>EPYC-IBPB</model>
++      <model usable='no' vendor='AMD'>EPYC-Genoa</model>
+       <model usable='no' vendor='AMD'>EPYC</model>
+       <model usable='no' vendor='Hygon'>Dhyana</model>
+       <model usable='no' vendor='Intel'>Cooperlake</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 51a104798f..7024f0e486 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -115,6 +115,7 @@
+       <model usable='no' vendor='AMD'>EPYC-Rome</model>
+       <model usable='no' vendor='AMD'>EPYC-Milan</model>
+       <model usable='yes' vendor='AMD'>EPYC-IBPB</model>
++      <model usable='no' vendor='AMD'>EPYC-Genoa</model>
+       <model usable='yes' vendor='AMD'>EPYC</model>
+       <model usable='yes' vendor='Hygon'>Dhyana</model>
+       <model usable='no' vendor='Intel'>Cooperlake</model>
+-- 
+2.43.2

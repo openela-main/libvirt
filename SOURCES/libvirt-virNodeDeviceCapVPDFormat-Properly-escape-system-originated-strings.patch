@@ -1,0 +1,94 @@
+From d7e1cd95acca8573a9706ef88fa4a7c9621cb395 Mon Sep 17 00:00:00 2001
+Message-ID: <d7e1cd95acca8573a9706ef88fa4a7c9621cb395.1708340442.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 30 Jan 2024 17:11:37 +0100
+Subject: [PATCH] virNodeDeviceCapVPDFormat: Properly escape system-originated
+ strings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Similarly to previous commit other specific fields which come from the
+system data and aren't sanitized enough to be safe for XML were also
+formatted via virBufferAsprintf.
+
+Other static and safe strings used virBufferEscapeString instead of
+virBufferAddLit.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 2ccac1e42f34404e3a5af22671a31fa1dca94e94)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+https://issues.redhat.com/browse/RHEL-22400 [9.3.z]
+https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
+---
+ src/conf/node_device_conf.c | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 258c70c28d..7d30c7667b 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -270,14 +270,6 @@ virNodeDeviceCapVPDFormatCustomSystemField(virPCIVPDResourceCustom *field, virBu
+     virNodeDeviceCapVPDFormatCustomField(buf, "system_field", field);
+ }
+ 
+-static inline void
+-virNodeDeviceCapVPDFormatRegularField(virBuffer *buf, const char *keyword, const char *value)
+-{
+-    if (keyword == NULL || value == NULL)
+-        return;
+-
+-    virBufferAsprintf(buf, "<%s>%s</%s>\n", keyword, value, keyword);
+-}
+ 
+ static void
+ virNodeDeviceCapVPDFormat(virBuffer *buf, virPCIVPDResource *res)
+@@ -290,31 +282,33 @@ virNodeDeviceCapVPDFormat(virBuffer *buf, virPCIVPDResource *res)
+     virBufferEscapeString(buf, "<name>%s</name>\n", res->name);
+ 
+     if (res->ro != NULL) {
+-        virBufferEscapeString(buf, "<fields access='%s'>\n", "readonly");
+-
++        virBufferAddLit(buf, "<fields access='readonly'>\n");
+         virBufferAdjustIndent(buf, 2);
+-        virNodeDeviceCapVPDFormatRegularField(buf, "change_level", res->ro->change_level);
+-        virNodeDeviceCapVPDFormatRegularField(buf, "manufacture_id", res->ro->manufacture_id);
+-        virNodeDeviceCapVPDFormatRegularField(buf, "part_number", res->ro->part_number);
+-        virNodeDeviceCapVPDFormatRegularField(buf, "serial_number", res->ro->serial_number);
++
++        virBufferEscapeString(buf, "<change_level>%s</change_level>\n", res->ro->change_level);
++        virBufferEscapeString(buf, "<manufacture_id>%s</manufacture_id>\n", res->ro->manufacture_id);
++        virBufferEscapeString(buf, "<part_number>%s</part_number>\n", res->ro->part_number);
++        virBufferEscapeString(buf, "<serial_number>%s</serial_number>\n", res->ro->serial_number);
++
+         g_ptr_array_foreach(res->ro->vendor_specific,
+                             (GFunc)virNodeDeviceCapVPDFormatCustomVendorField, buf);
+-        virBufferAdjustIndent(buf, -2);
+ 
++        virBufferAdjustIndent(buf, -2);
+         virBufferAddLit(buf, "</fields>\n");
+     }
+ 
+     if (res->rw != NULL) {
+-        virBufferEscapeString(buf, "<fields access='%s'>\n", "readwrite");
+-
++        virBufferAddLit(buf, "<fields access='readwrite'>\n");
+         virBufferAdjustIndent(buf, 2);
+-        virNodeDeviceCapVPDFormatRegularField(buf, "asset_tag", res->rw->asset_tag);
++
++        virBufferEscapeString(buf, "<asset_tag>%s</asset_tag>\n", res->rw->asset_tag);
++
+         g_ptr_array_foreach(res->rw->vendor_specific,
+                             (GFunc)virNodeDeviceCapVPDFormatCustomVendorField, buf);
+         g_ptr_array_foreach(res->rw->system_specific,
+                             (GFunc)virNodeDeviceCapVPDFormatCustomSystemField, buf);
+-        virBufferAdjustIndent(buf, -2);
+ 
++        virBufferAdjustIndent(buf, -2);
+         virBufferAddLit(buf, "</fields>\n");
+     }
+ 
+-- 
+2.43.2

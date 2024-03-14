@@ -1,0 +1,39 @@
+From 095bc46a349055bcba6a95574d8693c22a17de26 Mon Sep 17 00:00:00 2001
+Message-ID: <095bc46a349055bcba6a95574d8693c22a17de26.1708340442.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 16:12:09 +0100
+Subject: [PATCH] schema: nodedev: Adjust allowed characters in
+ 'vpdFieldValueFormat'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The check in 'virPCIVPDResourceIsValidTextValue' allows any printable
+characters, thus the XML schema should do the same.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit edaa1112ffef253013dcc3318794cebfaa2a6cb7)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+https://issues.redhat.com/browse/RHEL-22400 [9.3.z]
+https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
+---
+ src/conf/schemas/nodedev.rng | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/conf/schemas/nodedev.rng b/src/conf/schemas/nodedev.rng
+index fba4021754..ff07313968 100644
+--- a/src/conf/schemas/nodedev.rng
++++ b/src/conf/schemas/nodedev.rng
+@@ -869,7 +869,7 @@
+ 
+   <define name="vpdFieldValueFormat">
+     <data type="string">
+-      <param name="pattern">[0-9a-zA-F -_,.:;=]{0,255}</param>
++      <param name="pattern">.{0,255}</param>
+     </data>
+   </define>
+ 
+-- 
+2.43.2

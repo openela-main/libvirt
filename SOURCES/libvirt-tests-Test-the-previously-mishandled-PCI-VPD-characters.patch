@@ -1,0 +1,88 @@
+From b7adc938ae381c321cff0306d9f1ad877831e876 Mon Sep 17 00:00:00 2001
+Message-ID: <b7adc938ae381c321cff0306d9f1ad877831e876.1708340442.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 23 Jan 2024 16:40:34 +0100
+Subject: [PATCH] tests: Test the previously mishandled PCI VPD characters
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Modify the test data to validate '<>' and other characters.
+Unfortunately the test suite doesn't have a proper end-to-end test, thus
+we just add a XML->XML variant and also add data to the binary parser.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 9eda33161f49fcf3ba07d648bd80d2a9a2388479)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+https://issues.redhat.com/browse/RHEL-22400 [9.3.z]
+https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
+---
+ tests/nodedevschemadata/pci_0000_42_00_0_vpd.xml | 4 ++--
+ tests/virpcimock.c                               | 4 ++--
+ tests/virpcivpdtest.c                            | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/tests/nodedevschemadata/pci_0000_42_00_0_vpd.xml b/tests/nodedevschemadata/pci_0000_42_00_0_vpd.xml
+index 8b56e4f6b4..c9a2901381 100644
+--- a/tests/nodedevschemadata/pci_0000_42_00_0_vpd.xml
++++ b/tests/nodedevschemadata/pci_0000_42_00_0_vpd.xml
+@@ -15,7 +15,7 @@
+         <change_level>B1</change_level>
+         <manufacture_id>foobar</manufacture_id>
+         <part_number>MBF2H332A-AEEOT</part_number>
+-        <serial_number>MT2113X00000</serial_number>
++        <serial_number>MT2113X00000&gt;&lt;</serial_number>
+         <vendor_field index='0'>PCIeGen4 x8</vendor_field>
+         <vendor_field index='2'>MBF2H332A-AEEOT</vendor_field>
+         <vendor_field index='3'>3c53d07eec484d8aab34dabd24fe575aa</vendor_field>
+@@ -25,7 +25,7 @@
+         <asset_tag>fooasset</asset_tag>
+         <vendor_field index='0'>vendorfield0</vendor_field>
+         <vendor_field index='2'>vendorfield2</vendor_field>
+-        <vendor_field index='A'>vendorfieldA</vendor_field>
++        <vendor_field index='A'>!@#$./&gt;&lt;</vendor_field>
+         <system_field index='B'>systemfieldB</system_field>
+         <system_field index='0'>systemfield0</system_field>
+       </fields>
+diff --git a/tests/virpcimock.c b/tests/virpcimock.c
+index b2111794e6..fbd6d49e33 100644
+--- a/tests/virpcimock.c
++++ b/tests/virpcimock.c
+@@ -957,9 +957,9 @@ init_env(void)
+         't', 'e', 's', 't', 'n', 'a', 'm', 'e',
+         PCI_VPD_LARGE_RESOURCE_FLAG | PCI_VPD_READ_ONLY_LARGE_RESOURCE_FLAG, 0x16, 0x00,
+         'P', 'N', 0x02, '4', '2',
+-        'E', 'C', 0x04, '4', '2', '4', '2',
++        'E', 'C', 0x04, '4', '<', '>', '2',
+         'V', 'A', 0x02, 'E', 'X',
+-        'R', 'V', 0x02, 0x31, 0x00,
++        'R', 'V', 0x02, 0x1D, 0x00,
+         PCI_VPD_RESOURCE_END_VAL
+     };
+     struct pciVPD exampleVPD = {
+diff --git a/tests/virpcivpdtest.c b/tests/virpcivpdtest.c
+index b4dd68b7aa..ae5772d3f5 100644
+--- a/tests/virpcivpdtest.c
++++ b/tests/virpcivpdtest.c
+@@ -424,7 +424,7 @@ testPCIVPDGetFieldValueFormat(const void *data G_GNUC_UNUSED)
+ 
+ # define VPD_W_EXAMPLE_FIELDS \
+     'V', 'Z', 0x02, '4', '2', \
+-    'Y', 'A', 0x04, 'I', 'D', '4', '2', \
++    'Y', 'A', 0x04, '!', '<', '>', ':', \
+     'Y', 'F', 0x02, 'E', 'X', \
+     'Y', 'E', 0x00, \
+     'R', 'W', 0x02, 0x00, 0x00
+@@ -579,7 +579,7 @@ testVirPCIVPDParseFullVPD(const void *opaque G_GNUC_UNUSED)
+     if (testVirPCIVPDValidateExampleReadOnlyFields(res))
+         return -1;
+ 
+-    if (STRNEQ_NULLABLE(res->rw->asset_tag, "ID42"))
++    if (STRNEQ_NULLABLE(res->rw->asset_tag, "!<>:"))
+         return -1;
+ 
+     if (!res->rw->vendor_specific)
+-- 
+2.43.2

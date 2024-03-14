@@ -1,0 +1,62 @@
+From 477517a5b1872e7edbd974e0542eaef573efdb7c Mon Sep 17 00:00:00 2001
+Message-ID: <477517a5b1872e7edbd974e0542eaef573efdb7c.1708340442.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Jan 2024 15:53:39 +0100
+Subject: [PATCH] util: pcivpd: Refactor virPCIVPDResourceIsValidTextValue
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function is never called with NULL argument. Remove the check and
+refactor the rest including the debug statement.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit eb3844009dc3bdd50274954618b8cd9962218317)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+https://issues.redhat.com/browse/RHEL-22400 [9.3.z]
+https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
+---
+ src/util/virpcivpd.c | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index 248a9b2790..81c7c317b3 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -175,23 +175,18 @@ virPCIVPDResourceGetFieldValueFormat(const char *keyword)
+ bool
+ virPCIVPDResourceIsValidTextValue(const char *value)
+ {
+-    size_t i = 0;
++    const char *v;
++    bool ret = true;
+ 
+-    if (value == NULL)
+-        return false;
+-
+-    /* An empty string is a valid value. */
+-    if (STREQ(value, ""))
+-        return true;
+-
+-    while (i < strlen(value)) {
+-        if (!g_ascii_isprint(value[i])) {
+-            VIR_DEBUG("The provided value contains non-ASCII printable characters: %s", value);
+-            return false;
++    for (v = value; *v; v++) {
++        if (!g_ascii_isprint(*v)) {
++            ret = false;
++            break;
+         }
+-        ++i;
+     }
+-    return true;
++
++    VIR_DEBUG("val='%s' ret='%d'", value, ret);
++    return ret;
+ }
+ 
+ void
+-- 
+2.43.2

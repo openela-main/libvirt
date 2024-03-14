@@ -229,7 +229,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 9.5.0
-Release: 7%{?dist}%{?extra_release}
+Release: 7.2%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -281,6 +281,13 @@ Patch40: libvirt-util-honor-stubDriverName-when-probing-binding-stub-driver-for-
 Patch41: libvirt-node_device-support-binding-other-drivers-with-virNodeDeviceDetachFlags.patch
 Patch42: libvirt-qemu-turn-two-multiline-log-messages-into-single-line.patch
 Patch43: libvirt-docs-update-description-of-virsh-nodedev-detach-driver-option.patch
+Patch44: libvirt-virPCIVPDResourceIsValidTextValue-Adjust-comment-to-reflect-actual-code.patch
+Patch45: libvirt-util-pcivpd-Refactor-virPCIVPDResourceIsValidTextValue.patch
+Patch46: libvirt-virNodeDeviceCapVPDFormatCustom-Escape-unsanitized-strings.patch
+Patch47: libvirt-virNodeDeviceCapVPDFormat-Properly-escape-system-originated-strings.patch
+Patch48: libvirt-schema-nodedev-Adjust-allowed-characters-in-vpdFieldValueFormat.patch
+Patch49: libvirt-tests-Test-the-previously-mishandled-PCI-VPD-characters.patch
+Patch50: libvirt-cpu_map-Add-cpu-model-EPYC-Genoa.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2533,6 +2540,17 @@ exit 0
 %endif
 
 %changelog
+* Wed Feb 21 2024 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-7.2.el9_3
+- cpu_map: Add cpu model EPYC Genoa (RHEL-15334)
+
+* Mon Feb 19 2024 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-7.1.el9_3
+- virPCIVPDResourceIsValidTextValue: Adjust comment to reflect actual code (RHEL-22400)
+- util: pcivpd: Refactor virPCIVPDResourceIsValidTextValue (RHEL-22400)
+- virNodeDeviceCapVPDFormatCustom*: Escape unsanitized strings (RHEL-22400)
+- virNodeDeviceCapVPDFormat: Properly escape system-originated strings (RHEL-22400)
+- schema: nodedev: Adjust allowed characters in 'vpdFieldValueFormat' (RHEL-22400)
+- tests: Test the previously mishandled PCI VPD characters (RHEL-22400)
+
 * Fri Sep  8 2023 Jiri Denemark <jdenemar@redhat.com> - 9.5.0-7
 - util: use "stubDriverType" instead of just "stubDriver" (rhbz#2074209)
 - util: add stub driver name to virPCIDevice object (rhbz#2074209)

@@ -1,0 +1,80 @@
+From 43ea432bda4b58a7ec491b0517887a1bfe2ddcaf Mon Sep 17 00:00:00 2001
+Message-ID: <43ea432bda4b58a7ec491b0517887a1bfe2ddcaf.1708340442.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 15:15:03 +0100
+Subject: [PATCH] virNodeDeviceCapVPDFormatCustom*: Escape unsanitized strings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The custom field data is taken from PCI device data which can contain
+any printable characters, and thus must be escaped when putting into
+XML.
+
+Originally, based on the comment and XML schema which was fixed in
+previous commits the idea seemed to be that the parser would validate
+that only characters which don't break the XML would be present but that
+didn't seem to materialize.
+
+Switch to proper escaping of the XML.
+
+Fixes: 3954378d06a
+Resolves: https://issues.redhat.com/browse/RHEL-22314
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 5373b8c02ce44d0284bc9c60b3b7bc12bff2f867)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+https://issues.redhat.com/browse/RHEL-22400 [9.3.z]
+https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
+---
+ src/conf/node_device_conf.c | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 81c9f2a9c8..258c70c28d 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -242,23 +242,32 @@ virNodeDeviceCapMdevTypesFormat(virBuffer *buf,
+ }
+ 
+ static void
+-virNodeDeviceCapVPDFormatCustomVendorField(virPCIVPDResourceCustom *field, virBuffer *buf)
++virNodeDeviceCapVPDFormatCustomField(virBuffer *buf,
++                                     const char *fieldtype,
++                                     virPCIVPDResourceCustom *field)
+ {
++    g_auto(virBuffer) attrBuf = VIR_BUFFER_INITIALIZER;
++    g_auto(virBuffer) content = VIR_BUFFER_INITIALIZER;
++
+     if (field == NULL || field->value == NULL)
+         return;
+ 
+-    virBufferAsprintf(buf, "<vendor_field index='%c'>%s</vendor_field>\n", field->idx,
+-                      field->value);
++    virBufferAsprintf(&attrBuf, " index='%c'", field->idx);
++    virBufferEscapeString(&content, "%s", field->value);
++
++    virXMLFormatElementInternal(buf, fieldtype, &attrBuf, &content, false, false);
+ }
+ 
+ static void
+-virNodeDeviceCapVPDFormatCustomSystemField(virPCIVPDResourceCustom *field, virBuffer *buf)
++virNodeDeviceCapVPDFormatCustomVendorField(virPCIVPDResourceCustom *field, virBuffer *buf)
+ {
+-    if (field == NULL || field->value == NULL)
+-        return;
++    virNodeDeviceCapVPDFormatCustomField(buf, "vendor_field", field);
++}
+ 
+-    virBufferAsprintf(buf, "<system_field index='%c'>%s</system_field>\n", field->idx,
+-                      field->value);
++static void
++virNodeDeviceCapVPDFormatCustomSystemField(virPCIVPDResourceCustom *field, virBuffer *buf)
++{
++    virNodeDeviceCapVPDFormatCustomField(buf, "system_field", field);
+ }
+ 
+ static inline void
+-- 
+2.43.2
