@@ -1,0 +1,84 @@
+From d968a490b2fb8b4c7af2c835288e6f693ea1cc67 Mon Sep 17 00:00:00 2001
+Message-ID: <d968a490b2fb8b4c7af2c835288e6f693ea1cc67.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 16 Jan 2024 16:22:03 +0100
+Subject: [PATCH] qemuMigrationDstStartNBDServer: Refactor cleanup
+
+There's nothing under the 'cleanup:' label thus the whole code can be
+simplified.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 36e11cca83c6617a81528969c27579a1ab891443)
+https://issues.redhat.com/browse/RHEL-21543
+---
+ src/qemu/qemu_migration.c | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 6f8b830969..01ab803842 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -541,7 +541,6 @@ qemuMigrationDstStartNBDServer(virQEMUDriver *driver,
+                                const char *nbdURI,
+                                const char *tls_alias)
+ {
+-    int ret = -1;
+     qemuDomainObjPrivate *priv = vm->privateData;
+     size_t i;
+     virStorageNetHostDef server = {
+@@ -610,22 +609,22 @@ qemuMigrationDstStartNBDServer(virQEMUDriver *driver,
+             virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                            _("Cannot migrate empty or read-only disk %1$s"),
+                            disk->dst);
+-            goto cleanup;
++            return -1;
+         }
+ 
+         if (!(diskAlias = qemuAliasDiskDriveFromDisk(disk)))
+-            goto cleanup;
++            return -1;
+ 
+         if (!server_started &&
+             server.transport == VIR_STORAGE_NET_HOST_TRANS_TCP) {
+             if (server.port) {
+                 if (virPortAllocatorSetUsed(server.port) < 0)
+-                    goto cleanup;
++                    return -1;
+             } else {
+                 unsigned short port = 0;
+ 
+                 if (virPortAllocatorAcquire(driver->migrationPorts, &port) < 0)
+-                    goto cleanup;
++                    return -1;
+ 
+                 server.port = port;
+             }
+@@ -635,7 +634,7 @@ qemuMigrationDstStartNBDServer(virQEMUDriver *driver,
+         }
+ 
+         if (qemuDomainObjEnterMonitorAsync(vm, VIR_ASYNC_JOB_MIGRATION_IN) < 0)
+-            goto cleanup;
++            return -1;
+ 
+         if (!server_started) {
+             if (qemuMonitorNBDServerStart(priv->mon, &server, tls_alias) < 0)
+@@ -648,14 +647,11 @@ qemuMigrationDstStartNBDServer(virQEMUDriver *driver,
+         qemuDomainObjExitMonitor(vm);
+     }
+ 
+-    ret = 0;
+-
+- cleanup:
+-    return ret;
++    return 0;
+ 
+  exit_monitor:
+     qemuDomainObjExitMonitor(vm);
+-    goto cleanup;
++    return -1;
+ }
+ 
+ 
+-- 
+2.43.0

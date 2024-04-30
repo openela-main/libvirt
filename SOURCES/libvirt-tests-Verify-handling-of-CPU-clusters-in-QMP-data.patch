@@ -1,0 +1,458 @@
+From 28cda48f6a1af4868de1604755137db2ef5a2405 Mon Sep 17 00:00:00 2001
+Message-ID: <28cda48f6a1af4868de1604755137db2ef5a2405.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Mon, 8 Jan 2024 18:44:25 +0100
+Subject: [PATCH] tests: Verify handling of CPU clusters in QMP data
+
+Since aarch64 doesn't support CPU hotplug at the moment, we have
+to get a bit creative.
+
+While the 'query-cpus-fast' output is taken directly from a VM
+configured as
+
+  <vcpu current='7'>16</vcpu>
+  <cpu mode='host-passthrough'>
+    <topology sockets='2' dies='1' clusters='2' cores='2' threads='2'/>
+  </cpu>
+
+the 'query-hotpluggable-cpus' output is constructed by hand
+starting from the former and using the 'x86-dies' test data as
+a model.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit cb7abb0703f4c2b55b17cce5ecb8f83fed8775be)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ ...torjson-cpuinfo-aarch64-clusters-cpus.json |  88 +++++++++
+ ...json-cpuinfo-aarch64-clusters-hotplug.json | 171 ++++++++++++++++++
+ ...umonitorjson-cpuinfo-aarch64-clusters.data | 108 +++++++++++
+ tests/qemumonitorjsontest.c                   |   9 +-
+ 4 files changed, 375 insertions(+), 1 deletion(-)
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-cpus.json
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-hotplug.json
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters.data
+
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-cpus.json b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-cpus.json
+new file mode 100644
+index 0000000000..817f65d109
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-cpus.json
+@@ -0,0 +1,88 @@
++{
++  "return": [
++    {
++      "thread-id": 284700,
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "qom-path": "/machine/unattached/device[0]",
++      "cpu-index": 0,
++      "target": "aarch64"
++    },
++    {
++      "thread-id": 284701,
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "qom-path": "/machine/unattached/device[1]",
++      "cpu-index": 1,
++      "target": "aarch64"
++    },
++    {
++      "thread-id": 284702,
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "qom-path": "/machine/unattached/device[2]",
++      "cpu-index": 2,
++      "target": "aarch64"
++    },
++    {
++      "thread-id": 284703,
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "qom-path": "/machine/unattached/device[3]",
++      "cpu-index": 3,
++      "target": "aarch64"
++    },
++    {
++      "thread-id": 284704,
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "qom-path": "/machine/unattached/device[4]",
++      "cpu-index": 4,
++      "target": "aarch64"
++    },
++    {
++      "thread-id": 284705,
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "qom-path": "/machine/unattached/device[5]",
++      "cpu-index": 5,
++      "target": "aarch64"
++    },
++    {
++      "thread-id": 284706,
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "qom-path": "/machine/unattached/device[6]",
++      "cpu-index": 6,
++      "target": "aarch64"
++    }
++  ]
++}
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-hotplug.json b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-hotplug.json
+new file mode 100644
+index 0000000000..7ae30bf111
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters-hotplug.json
+@@ -0,0 +1,171 @@
++{
++  "return": [
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 1,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 1,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 1,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 1,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 1,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 1,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 1,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 1,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[6]",
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[5]",
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 1
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[4]",
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[3]",
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[2]",
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[1]",
++      "type": "host-arm-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 0,
++        "cluster-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[0]",
++      "type": "host-arm-cpu"
++    }
++  ]
++}
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters.data b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters.data
+new file mode 100644
+index 0000000000..87e927e7a8
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-aarch64-clusters.data
+@@ -0,0 +1,108 @@
++[vcpu libvirt-id='0']
++    online=yes
++    hotpluggable=no
++    thread-id='284700'
++    enable-id='1'
++    query-cpus-id='0'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[0]'
++    topology: socket='0' cluster_id='0' core='0' thread='0' vcpus='1'
++[vcpu libvirt-id='1']
++    online=yes
++    hotpluggable=no
++    thread-id='284701'
++    enable-id='2'
++    query-cpus-id='1'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[1]'
++    topology: socket='0' cluster_id='0' core='0' thread='1' vcpus='1'
++[vcpu libvirt-id='2']
++    online=yes
++    hotpluggable=no
++    thread-id='284702'
++    enable-id='3'
++    query-cpus-id='2'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[2]'
++    topology: socket='0' cluster_id='0' core='1' thread='0' vcpus='1'
++[vcpu libvirt-id='3']
++    online=yes
++    hotpluggable=no
++    thread-id='284703'
++    enable-id='4'
++    query-cpus-id='3'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[3]'
++    topology: socket='0' cluster_id='0' core='1' thread='1' vcpus='1'
++[vcpu libvirt-id='4']
++    online=yes
++    hotpluggable=no
++    thread-id='284704'
++    enable-id='5'
++    query-cpus-id='4'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[4]'
++    topology: socket='0' cluster_id='1' core='0' thread='0' vcpus='1'
++[vcpu libvirt-id='5']
++    online=yes
++    hotpluggable=no
++    thread-id='284705'
++    enable-id='6'
++    query-cpus-id='5'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[5]'
++    topology: socket='0' cluster_id='1' core='0' thread='1' vcpus='1'
++[vcpu libvirt-id='6']
++    online=yes
++    hotpluggable=no
++    thread-id='284706'
++    enable-id='7'
++    query-cpus-id='6'
++    type='host-arm-cpu'
++    qom_path='/machine/unattached/device[6]'
++    topology: socket='0' cluster_id='1' core='1' thread='0' vcpus='1'
++[vcpu libvirt-id='7']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='0' cluster_id='1' core='1' thread='1' vcpus='1'
++[vcpu libvirt-id='8']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='0' core='0' thread='0' vcpus='1'
++[vcpu libvirt-id='9']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='0' core='0' thread='1' vcpus='1'
++[vcpu libvirt-id='10']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='0' core='1' thread='0' vcpus='1'
++[vcpu libvirt-id='11']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='0' core='1' thread='1' vcpus='1'
++[vcpu libvirt-id='12']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='1' core='0' thread='0' vcpus='1'
++[vcpu libvirt-id='13']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='1' core='0' thread='1' vcpus='1'
++[vcpu libvirt-id='14']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='1' core='1' thread='0' vcpus='1'
++[vcpu libvirt-id='15']
++    online=no
++    hotpluggable=yes
++    type='host-arm-cpu'
++    topology: socket='1' cluster_id='1' core='1' thread='1' vcpus='1'
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index d9ebb429e7..45cee23798 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -2262,13 +2262,16 @@ testQemuMonitorCPUInfoFormat(qemuMonitorCPUInfo *vcpus,
+         if (vcpu->qom_path)
+             virBufferAsprintf(&buf, "qom_path='%s'\n", vcpu->qom_path);
+ 
+-        if (vcpu->socket_id != -1 || vcpu->core_id != -1 ||
++        if (vcpu->socket_id != -1 || vcpu->die_id != -1 ||
++            vcpu->cluster_id != -1 || vcpu->core_id != -1 ||
+             vcpu->thread_id != -1 || vcpu->vcpus != 0) {
+             virBufferAddLit(&buf, "topology:");
+             if (vcpu->socket_id != -1)
+                 virBufferAsprintf(&buf, " socket='%d'", vcpu->socket_id);
+             if (vcpu->die_id != -1)
+                 virBufferAsprintf(&buf, " die='%d'", vcpu->die_id);
++            if (vcpu->cluster_id != -1)
++                virBufferAsprintf(&buf, " cluster_id='%d'", vcpu->cluster_id);
+             if (vcpu->core_id != -1)
+                 virBufferAsprintf(&buf, " core='%d'", vcpu->core_id);
+             if (vcpu->thread_id != -1)
+@@ -2919,6 +2922,10 @@ mymain(void)
+     DO_TEST_CPU_INFO("ppc64-hotplug-4", 24);
+     DO_TEST_CPU_INFO("ppc64-no-threads", 16);
+ 
++    /* aarch64 doesn't support CPU hotplug yet, so the data used in
++     * this test is partially synthetic */
++    DO_TEST_CPU_INFO("aarch64-clusters", 16);
++
+     DO_TEST_CPU_INFO("s390", 2);
+ 
+ 
+-- 
+2.43.0

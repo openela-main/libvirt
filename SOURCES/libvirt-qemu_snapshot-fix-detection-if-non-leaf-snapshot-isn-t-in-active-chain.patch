@@ -1,0 +1,66 @@
+From aa70508df0626a00e4ed7c0ecb11b985beeb92cd Mon Sep 17 00:00:00 2001
+Message-ID: <aa70508df0626a00e4ed7c0ecb11b985beeb92cd.1707394627.git.jdenemar@redhat.com>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Tue, 30 Jan 2024 13:05:22 +0100
+Subject: [PATCH] qemu_snapshot: fix detection if non-leaf snapshot isn't in
+ active chain
+
+The condition was completely wrong. As per the comment for function
+virDomainMomentIsAncestor() it checks that the first argument is
+descendant of the second argument.
+
+Consider the following snapshot tree for VM:
+
+  s1
+    |
+    +- s2
+    |   |
+    |   +- s3
+    |
+    +- s4
+        |
+        +- s5 (current)
+
+When deleting s2 with the original code we checked if
+virDomainMomentIsAncestor(s2, s5) which would return false basically for
+any snapshot as s5 is leaf snapshot so no children.
+
+When deleting s2 with fixed code we check if
+virDomainMomentIsAncestor(s5, s2) which still returns false but when
+deleting s4 it will correctly return true.
+
+Before this fix it fails with the following error:
+
+    error: Failed to delete snapshot s2
+    error: invalid argument: could not find base disk source in disk source chain
+
+After the fix it fails with correct error:
+
+    error: Failed to delete snapshot s2
+    error: unsupported configuration: deletion of non-leaf external snapshot that is not in active chain is not supported
+
+Resolves: https://issues.redhat.com/browse/RHEL-23212
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 7143c4e1f95b4dc804f67cc5de98fba746193892)
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_snapshot.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_snapshot.c b/src/qemu/qemu_snapshot.c
+index 73ff533827..af5f995b0d 100644
+--- a/src/qemu/qemu_snapshot.c
++++ b/src/qemu/qemu_snapshot.c
+@@ -3815,7 +3815,7 @@ qemuSnapshotDeleteValidate(virDomainObj *vm,
+         }
+ 
+         if (snap != current && snap->nchildren != 0 &&
+-            virDomainMomentIsAncestor(snap, current)) {
++            !virDomainMomentIsAncestor(current, snap)) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                            _("deletion of non-leaf external snapshot that is not in active chain is not supported"));
+             return -1;
+-- 
+2.43.0

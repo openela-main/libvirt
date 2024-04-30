@@ -1,0 +1,138 @@
+From 8d84e4af4cbb93d73f4d9967f517552257f025f5 Mon Sep 17 00:00:00 2001
+Message-ID: <8d84e4af4cbb93d73f4d9967f517552257f025f5.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 18:26:29 +0100
+Subject: [PATCH] conf: node_device: Refactor
+ 'virNodeDeviceCapVPDParseCustomFields' to fix error reporting
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The errors raised in virNodeDeviceCapVPDParseCustomFields were actually
+ignored by continuing the parse rather than raised.
+
+Rather than just replace 'continue' by 'return -1' this patch refactors
+the whole parser to simplify it as well as report reasonable errors.
+
+Parsing of individual fields is done without XPath and is extracted into
+a common helper.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit ea8d864d9ecf3ee72910ccc1497244f1ef74e948)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/conf/node_device_conf.c | 81 ++++++++++++++++++-------------------
+ 1 file changed, 40 insertions(+), 41 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index d7e1a23034..0f2c341967 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -953,63 +953,62 @@ virNodeDevCapMdevTypesParseXML(xmlXPathContextPtr ctxt,
+     return ret;
+ }
+ 
++
+ static int
+-virNodeDeviceCapVPDParseCustomFields(xmlXPathContextPtr ctxt, virPCIVPDResource *res, bool readOnly)
++virNodeDeviceCapVPDParseCustomFieldOne(xmlNodePtr node,
++                                       virPCIVPDResource *res,
++                                       bool read_only,
++                                       const char keyword_prefix)
++{
++    g_autofree char *value = NULL;
++    g_autofree char *index = NULL;
++    g_autofree char *keyword = NULL;
++
++    if (!(index = virXMLPropStringRequired(node, "index")))
++        return -1;
++
++    if (strlen(index) != 1) {
++        virReportError(VIR_ERR_XML_ERROR,
++                       _("'%1$s' 'index' value '%2$s' malformed"),
++                       node->name, index);
++        return -1;
++    }
++
++    keyword = g_strdup_printf("%c%c", keyword_prefix, index[0]);
++
++    if (!(value = virXMLNodeContentString(node)))
++        return -1;
++
++    virPCIVPDResourceUpdateKeyword(res, read_only, keyword, value);
++    return 0;
++}
++
++
++static int
++virNodeDeviceCapVPDParseCustomFields(xmlXPathContextPtr ctxt,
++                                     virPCIVPDResource *res,
++                                     bool readOnly)
+ {
+     int nfields = -1;
+     g_autofree xmlNodePtr *nodes = NULL;
+     size_t i = 0;
+ 
+-    if ((nfields = virXPathNodeSet("./vendor_field[@index]", ctxt, &nodes)) < 0)
++    if ((nfields = virXPathNodeSet("./vendor_field", ctxt, &nodes)) < 0)
+         return -1;
+ 
+     for (i = 0; i < nfields; i++) {
+-        g_autofree char *value = NULL;
+-        g_autofree char *index = NULL;
+-        VIR_XPATH_NODE_AUTORESTORE(ctxt)
+-        g_autofree char *keyword = NULL;
+-
+-        ctxt->node = nodes[i];
+-        if (!(index = virXPathString("string(./@index[1])", ctxt)) ||
+-            strlen(index) > 1) {
+-            virReportError(VIR_ERR_XML_ERROR, "%s",
+-                    _("<vendor_field> evaluation has failed"));
+-            continue;
+-        }
+-        if (!(value = virXPathString("string(./text())", ctxt))) {
+-            virReportError(VIR_ERR_XML_ERROR, "%s",
+-                    _("<vendor_field> value evaluation has failed"));
+-            continue;
+-        }
+-        keyword = g_strdup_printf("V%c", index[0]);
+-        virPCIVPDResourceUpdateKeyword(res, readOnly, keyword, value);
++        if (virNodeDeviceCapVPDParseCustomFieldOne(nodes[i], res, readOnly, 'V') < 0)
++            return -1;
+     }
+     VIR_FREE(nodes);
+ 
+     if (!readOnly) {
+-        if ((nfields = virXPathNodeSet("./system_field[@index]", ctxt, &nodes)) < 0)
++        if ((nfields = virXPathNodeSet("./system_field", ctxt, &nodes)) < 0)
+             return -1;
+ 
+         for (i = 0; i < nfields; i++) {
+-            g_autofree char *value = NULL;
+-            g_autofree char *index = NULL;
+-            g_autofree char *keyword = NULL;
+-            VIR_XPATH_NODE_AUTORESTORE(ctxt);
+-
+-            ctxt->node = nodes[i];
+-            if (!(index = virXPathString("string(./@index[1])", ctxt)) ||
+-                strlen(index) > 1) {
+-                virReportError(VIR_ERR_XML_ERROR, "%s",
+-                        _("<system_field> evaluation has failed"));
+-                continue;
+-            }
+-            if (!(value = virXPathString("string(./text())", ctxt))) {
+-                virReportError(VIR_ERR_XML_ERROR, "%s",
+-                        _("<system_field> value evaluation has failed"));
+-                continue;
+-            }
+-            keyword = g_strdup_printf("Y%c", index[0]);
+-            virPCIVPDResourceUpdateKeyword(res, readOnly, keyword, value);
++            if (virNodeDeviceCapVPDParseCustomFieldOne(nodes[i], res, readOnly, 'Y') < 0)
++                return -1;
+         }
+     }
+ 
+-- 
+2.43.0

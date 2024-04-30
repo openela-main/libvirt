@@ -1,0 +1,81 @@
+From 7c634eb7244604521b0f2a00f3a7e2e65a6a8399 Mon Sep 17 00:00:00 2001
+Message-ID: <7c634eb7244604521b0f2a00f3a7e2e65a6a8399.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 17:55:06 +0100
+Subject: [PATCH] tests: virpcivpd: Remove
+ 'testVirPCIVPDParseVPDStringResource' case
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The test case excercises 'virPCIVPDParseVPDLargeResourceString' which is
+also tested by other cases which parse the whole VPD block. Remove the
+specific test case as it's not adding any additional value.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 78e17cd550f0ee1f200557d496ef43724319c17e)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ tests/virpcivpdtest.c | 38 --------------------------------------
+ 1 file changed, 38 deletions(-)
+
+diff --git a/tests/virpcivpdtest.c b/tests/virpcivpdtest.c
+index aadd1b222b..fddb42f52c 100644
+--- a/tests/virpcivpdtest.c
++++ b/tests/virpcivpdtest.c
+@@ -429,42 +429,6 @@ testPCIVPDGetFieldValueFormat(const void *data G_GNUC_UNUSED)
+     'Y', 'E', 0x00, \
+     'R', 'W', 0x02, 0x00, 0x00
+ 
+-static int
+-testVirPCIVPDParseVPDStringResource(const void *opaque G_GNUC_UNUSED)
+-{
+-    VIR_AUTOCLOSE fd = -1;
+-    uint8_t csum = 0;
+-    size_t dataLen = 0;
+-    bool result = false;
+-
+-    g_autoptr(virPCIVPDResource) res = g_new0(virPCIVPDResource, 1);
+-    const char *expectedValue = "testname";
+-
+-    const uint8_t stringResExample[] = {
+-        VPD_STRING_RESOURCE_EXAMPLE_DATA
+-    };
+-
+-    dataLen = G_N_ELEMENTS(stringResExample);
+-    if ((fd = virCreateAnonymousFile(stringResExample, dataLen)) < 0)
+-        return -1;
+-
+-    result = virPCIVPDParseVPDLargeResourceString(fd, 0, dataLen, &csum, res);
+-
+-    if (!result) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       "Could not parse the example resource.");
+-        return -1;
+-    }
+-
+-    if (STRNEQ(expectedValue, res->name)) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "Unexpected string resource value: %s, expected: %s",
+-                       res->name, expectedValue);
+-        return -1;
+-    }
+-    return 0;
+-}
+-
+ static int
+ testVirPCIVPDValidateExampleReadOnlyFields(virPCIVPDResource *res)
+ {
+@@ -964,8 +928,6 @@ mymain(void)
+     if (virTestRun("Determining a field value format by a key ",
+                    testPCIVPDGetFieldValueFormat, NULL) < 0)
+         ret = -1;
+-    if (virTestRun("Parsing VPD string resources ", testVirPCIVPDParseVPDStringResource, NULL) < 0)
+-        ret = -1;
+     if (virTestRun("Parsing a VPD resource with a zero-length RW ",
+                    testVirPCIVPDParseZeroLengthRW, NULL) < 0)
+         ret = -1;
+-- 
+2.43.0

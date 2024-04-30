@@ -1,0 +1,646 @@
+From 53727afb9517dbfe4182f669eaf8dbe8c38e143c Mon Sep 17 00:00:00 2001
+Message-ID: <53727afb9517dbfe4182f669eaf8dbe8c38e143c.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 5 Jan 2024 18:44:56 +0100
+Subject: [PATCH] qemu: Use CPU clusters for guests
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 655459420adb447da4744408e62537bc6ae960dd)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_command.c                                      | 5 ++++-
+ .../qemuxml2argvdata/cpu-hotplug-startup.x86_64-latest.args  | 2 +-
+ tests/qemuxml2argvdata/cpu-numa-disjoint.x86_64-latest.args  | 2 +-
+ .../qemuxml2argvdata/cpu-numa-disordered.x86_64-latest.args  | 2 +-
+ tests/qemuxml2argvdata/cpu-numa-memshared.x86_64-latest.args | 2 +-
+ .../cpu-numa-no-memory-element.x86_64-latest.args            | 2 +-
+ tests/qemuxml2argvdata/cpu-numa1.x86_64-latest.args          | 2 +-
+ tests/qemuxml2argvdata/cpu-numa2.x86_64-latest.args          | 2 +-
+ tests/qemuxml2argvdata/cpu-topology1.x86_64-latest.args      | 2 +-
+ tests/qemuxml2argvdata/cpu-topology2.x86_64-latest.args      | 2 +-
+ tests/qemuxml2argvdata/cpu-topology3.x86_64-latest.args      | 2 +-
+ tests/qemuxml2argvdata/cpu-topology4.x86_64-latest.args      | 2 +-
+ .../fd-memory-no-numa-topology.x86_64-latest.args            | 2 +-
+ .../fd-memory-numa-topology.x86_64-latest.args               | 2 +-
+ .../fd-memory-numa-topology2.x86_64-latest.args              | 2 +-
+ .../fd-memory-numa-topology3.x86_64-latest.args              | 2 +-
+ tests/qemuxml2argvdata/hugepages-nvdimm.x86_64-latest.args   | 2 +-
+ .../memfd-memory-default-hugepage.x86_64-latest.args         | 2 +-
+ tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args  | 2 +-
+ .../memory-hotplug-dimm-addr.x86_64-latest.args              | 2 +-
+ .../qemuxml2argvdata/memory-hotplug-dimm.x86_64-latest.args  | 2 +-
+ .../memory-hotplug-multiple.x86_64-latest.args               | 2 +-
+ .../memory-hotplug-nvdimm-access.x86_64-latest.args          | 2 +-
+ .../memory-hotplug-nvdimm-align.x86_64-latest.args           | 2 +-
+ .../memory-hotplug-nvdimm-label.x86_64-latest.args           | 2 +-
+ .../memory-hotplug-nvdimm-pmem.x86_64-latest.args            | 2 +-
+ .../memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.args | 2 +-
+ .../memory-hotplug-nvdimm-ppc64.ppc64-latest.args            | 2 +-
+ .../memory-hotplug-nvdimm-readonly.x86_64-latest.args        | 2 +-
+ .../memory-hotplug-nvdimm.x86_64-latest.args                 | 2 +-
+ .../memory-hotplug-virtio-mem.x86_64-latest.args             | 2 +-
+ .../memory-hotplug-virtio-pmem.x86_64-latest.args            | 2 +-
+ tests/qemuxml2argvdata/memory-hotplug.x86_64-latest.args     | 2 +-
+ .../numad-auto-memory-vcpu-cpuset.x86_64-latest.args         | 2 +-
+ ...to-memory-vcpu-no-cpuset-and-placement.x86_64-latest.args | 2 +-
+ .../numad-auto-vcpu-no-numatune.x86_64-latest.args           | 2 +-
+ .../numad-auto-vcpu-static-numatune.x86_64-latest.args       | 2 +-
+ .../numad-static-memory-auto-vcpu.x86_64-latest.args         | 2 +-
+ .../numad-static-vcpu-no-numatune.x86_64-latest.args         | 2 +-
+ tests/qemuxml2argvdata/numad.x86_64-latest.args              | 2 +-
+ .../numatune-auto-nodeset-invalid.x86_64-latest.args         | 2 +-
+ tests/qemuxml2argvdata/pci-expander-bus.x86_64-latest.args   | 2 +-
+ tests/qemuxml2argvdata/pcie-expander-bus.x86_64-latest.args  | 2 +-
+ .../qemuxml2argvdata/pseries-phb-numa-node.ppc64-latest.args | 2 +-
+ 44 files changed, 47 insertions(+), 44 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 71daa85e55..712feb7b81 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -7226,7 +7226,8 @@ qemuBuildSmpCommandLine(virCommand *cmd,
+                            _("Only 1 die per socket is supported"));
+             return -1;
+         }
+-        if (def->cpu->clusters != 1) {
++        if (def->cpu->clusters != 1 &&
++            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_SMP_CLUSTERS)) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                            _("Only 1 cluster per die is supported"));
+             return -1;
+@@ -7234,6 +7235,8 @@ qemuBuildSmpCommandLine(virCommand *cmd,
+         virBufferAsprintf(&buf, ",sockets=%u", def->cpu->sockets);
+         if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_SMP_DIES))
+             virBufferAsprintf(&buf, ",dies=%u", def->cpu->dies);
++        if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_SMP_CLUSTERS))
++            virBufferAsprintf(&buf, ",clusters=%u", def->cpu->clusters);
+         virBufferAsprintf(&buf, ",cores=%u", def->cpu->cores);
+         virBufferAsprintf(&buf, ",threads=%u", def->cpu->threads);
+     } else {
+diff --git a/tests/qemuxml2argvdata/cpu-hotplug-startup.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-hotplug-startup.x86_64-latest.args
+index 009c08d71a..af1b464104 100644
+--- a/tests/qemuxml2argvdata/cpu-hotplug-startup.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-hotplug-startup.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+--smp 1,maxcpus=6,sockets=3,dies=1,cores=2,threads=1 \
++-smp 1,maxcpus=6,sockets=3,dies=1,clusters=1,cores=2,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/cpu-numa-disjoint.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-numa-disjoint.x86_64-latest.args
+index 3b12934425..22fca082a8 100644
+--- a/tests/qemuxml2argvdata/cpu-numa-disjoint.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-numa-disjoint.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-3,cpus=8-11,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/cpu-numa-disordered.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-numa-disordered.x86_64-latest.args
+index ee6974326d..bc4a6ad5f3 100644
+--- a/tests/qemuxml2argvdata/cpu-numa-disordered.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-numa-disordered.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=328704k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-5,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/cpu-numa-memshared.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-numa-memshared.x86_64-latest.args
+index 0c9ec88b8b..1e486b1bbc 100644
+--- a/tests/qemuxml2argvdata/cpu-numa-memshared.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-numa-memshared.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node0","mem-path":"/var/lib/libvirt/qemu/ram/-1-QEMUGuest1/ram-node0","share":true,"size":112197632}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node1","mem-path":"/var/lib/libvirt/qemu/ram/-1-QEMUGuest1/ram-node1","share":false,"size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/cpu-numa-no-memory-element.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-numa-no-memory-element.x86_64-latest.args
+index 31a61f023e..59372c4ab9 100644
+--- a/tests/qemuxml2argvdata/cpu-numa-no-memory-element.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-numa-no-memory-element.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/cpu-numa1.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-numa1.x86_64-latest.args
+index 31a61f023e..59372c4ab9 100644
+--- a/tests/qemuxml2argvdata/cpu-numa1.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-numa1.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/cpu-numa2.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-numa2.x86_64-latest.args
+index 31a61f023e..59372c4ab9 100644
+--- a/tests/qemuxml2argvdata/cpu-numa2.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-numa2.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/cpu-topology1.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-topology1.x86_64-latest.args
+index 009c08d71a..af1b464104 100644
+--- a/tests/qemuxml2argvdata/cpu-topology1.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-topology1.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+--smp 1,maxcpus=6,sockets=3,dies=1,cores=2,threads=1 \
++-smp 1,maxcpus=6,sockets=3,dies=1,clusters=1,cores=2,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/cpu-topology2.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-topology2.x86_64-latest.args
+index 7ba175fa80..8560eb6126 100644
+--- a/tests/qemuxml2argvdata/cpu-topology2.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-topology2.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+--smp 6,sockets=1,dies=1,cores=2,threads=3 \
++-smp 6,sockets=1,dies=1,clusters=1,cores=2,threads=3 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/cpu-topology3.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-topology3.x86_64-latest.args
+index c11b4cd307..3878c558b8 100644
+--- a/tests/qemuxml2argvdata/cpu-topology3.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-topology3.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+--smp 6,sockets=3,dies=1,cores=2,threads=1 \
++-smp 6,sockets=3,dies=1,clusters=1,cores=2,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/cpu-topology4.x86_64-latest.args b/tests/qemuxml2argvdata/cpu-topology4.x86_64-latest.args
+index d0e31ba2b5..8720038c0d 100644
+--- a/tests/qemuxml2argvdata/cpu-topology4.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/cpu-topology4.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+--smp 1,maxcpus=6,sockets=1,dies=3,cores=2,threads=1 \
++-smp 1,maxcpus=6,sockets=1,dies=3,clusters=1,cores=2,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/fd-memory-no-numa-topology.x86_64-latest.args b/tests/qemuxml2argvdata/fd-memory-no-numa-topology.x86_64-latest.args
+index 58b3c7b544..1bd75a85a6 100644
+--- a/tests/qemuxml2argvdata/fd-memory-no-numa-topology.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/fd-memory-no-numa-topology.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-instance-00000092/.config \
+ -m size=14680064k \
+ -object '{"qom-type":"memory-backend-file","id":"pc.ram","mem-path":"/var/lib/libvirt/qemu/ram/-1-instance-00000092/pc.ram","share":true,"x-use-canonical-path-for-ramblock-id":false,"prealloc":true,"size":15032385536}' \
+ -overcommit mem-lock=off \
+--smp 8,sockets=8,dies=1,cores=1,threads=1 \
++-smp 8,sockets=8,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid 126f2720-6f8e-45ab-a886-ec9277079a67 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/fd-memory-numa-topology.x86_64-latest.args b/tests/qemuxml2argvdata/fd-memory-numa-topology.x86_64-latest.args
+index 21f9a16540..17ef506431 100644
+--- a/tests/qemuxml2argvdata/fd-memory-numa-topology.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/fd-memory-numa-topology.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-instance-00000092/.config \
+ -cpu qemu64 \
+ -m size=14680064k \
+ -overcommit mem-lock=off \
+--smp 8,sockets=1,dies=1,cores=8,threads=1 \
++-smp 8,sockets=1,dies=1,clusters=1,cores=8,threads=1 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node0","mem-path":"/var/lib/libvirt/qemu/ram/-1-instance-00000092/ram-node0","share":true,"prealloc":true,"size":15032385536}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -uuid 126f2720-6f8e-45ab-a886-ec9277079a67 \
+diff --git a/tests/qemuxml2argvdata/fd-memory-numa-topology2.x86_64-latest.args b/tests/qemuxml2argvdata/fd-memory-numa-topology2.x86_64-latest.args
+index 3bf16f9caf..b247231b85 100644
+--- a/tests/qemuxml2argvdata/fd-memory-numa-topology2.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/fd-memory-numa-topology2.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-instance-00000092/.config \
+ -cpu qemu64 \
+ -m size=29360128k \
+ -overcommit mem-lock=off \
+--smp 20,sockets=1,dies=1,cores=20,threads=1 \
++-smp 20,sockets=1,dies=1,clusters=1,cores=20,threads=1 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node0","mem-path":"/var/lib/libvirt/qemu/ram/-1-instance-00000092/ram-node0","share":false,"prealloc":true,"size":15032385536}' \
+ -numa node,nodeid=0,cpus=0-7,cpus=16-19,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node1","mem-path":"/var/lib/libvirt/qemu/ram/-1-instance-00000092/ram-node1","share":true,"prealloc":true,"size":15032385536}' \
+diff --git a/tests/qemuxml2argvdata/fd-memory-numa-topology3.x86_64-latest.args b/tests/qemuxml2argvdata/fd-memory-numa-topology3.x86_64-latest.args
+index 3153e22d56..9e94209499 100644
+--- a/tests/qemuxml2argvdata/fd-memory-numa-topology3.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/fd-memory-numa-topology3.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-instance-00000092/.config \
+ -cpu qemu64 \
+ -m size=44040192k \
+ -overcommit mem-lock=off \
+--smp 32,sockets=1,dies=1,cores=32,threads=1 \
++-smp 32,sockets=1,dies=1,clusters=1,cores=32,threads=1 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node0","mem-path":"/var/lib/libvirt/qemu/ram/-1-instance-00000092/ram-node0","share":true,"prealloc":true,"size":15032385536}' \
+ -numa node,nodeid=0,cpus=0-1,cpus=6-31,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node1","mem-path":"/var/lib/libvirt/qemu/ram/-1-instance-00000092/ram-node1","share":true,"prealloc":true,"size":15032385536}' \
+diff --git a/tests/qemuxml2argvdata/hugepages-nvdimm.x86_64-latest.args b/tests/qemuxml2argvdata/hugepages-nvdimm.x86_64-latest.args
+index fa376accb5..f30db0ad09 100644
+--- a/tests/qemuxml2argvdata/hugepages-nvdimm.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/hugepages-nvdimm.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=1048576k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-file","id":"ram-node0","mem-path":"/dev/hugepages2M/libvirt/qemu/-1-QEMUGuest1","share":true,"prealloc":true,"size":1073741824}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memfd-memory-default-hugepage.x86_64-latest.args b/tests/qemuxml2argvdata/memfd-memory-default-hugepage.x86_64-latest.args
+index 55969eb2fd..f850d7be60 100644
+--- a/tests/qemuxml2argvdata/memfd-memory-default-hugepage.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memfd-memory-default-hugepage.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-instance-00000092/.config \
+ -cpu qemu64 \
+ -m size=14680064k \
+ -overcommit mem-lock=off \
+--smp 8,sockets=1,dies=1,cores=8,threads=1 \
++-smp 8,sockets=1,dies=1,clusters=1,cores=8,threads=1 \
+ -object '{"qom-type":"thread-context","id":"tc-ram-node0","node-affinity":[3]}' \
+ -object '{"qom-type":"memory-backend-memfd","id":"ram-node0","hugetlb":true,"hugetlbsize":2097152,"share":true,"prealloc":true,"size":15032385536,"host-nodes":[3],"policy":"preferred","prealloc-context":"tc-ram-node0"}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+diff --git a/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args b/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args
+index 1ef2d69fcb..dbe2b82a56 100644
+--- a/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memfd-memory-numa.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-instance-00000092/.config \
+ -cpu qemu64 \
+ -m size=14680064k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 8,sockets=1,dies=1,cores=8,threads=1 \
++-smp 8,sockets=1,dies=1,clusters=1,cores=8,threads=1 \
+ -object '{"qom-type":"thread-context","id":"tc-ram-node0","node-affinity":[3]}' \
+ -object '{"qom-type":"memory-backend-memfd","id":"ram-node0","hugetlb":true,"hugetlbsize":2097152,"share":true,"prealloc":true,"prealloc-threads":8,"size":15032385536,"host-nodes":[3],"policy":"preferred","prealloc-context":"tc-ram-node0"}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args
+index 6ae1fd1b98..c15fe191de 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-dimm-addr.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-dimm.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-dimm.x86_64-latest.args
+index 71817da309..a729930db2 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-dimm.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-dimm.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-multiple.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-multiple.x86_64-latest.args
+index ad1dad01ac..f1f2f93a11 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-multiple.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-multiple.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=2095104k,slots=2,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":2145386496}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.x86_64-latest.args
+index f09ae22927..d53732b39e 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.x86_64-latest.args
+index 6cfe4b8263..cba467d9d3 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.x86_64-latest.args
+index 4041c15b2b..2ad23a0224 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.x86_64-latest.args
+index 3547e96c00..ac5ca187b1 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.args
+index 9b57518fca..c2c1623d9f 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu POWER9 \
+ -m size=1048576k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":1073741824}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.args
+index 9b57518fca..c2c1623d9f 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu POWER9 \
+ -m size=1048576k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":1073741824}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.x86_64-latest.args
+index 17bacfb2f6..8af4673841 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-nvdimm.x86_64-latest.args
+index 1321e5556e..6531caa908 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=1048576k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":1073741824}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args
+index 607ce9b0e8..dbe96ae21d 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=2095104k,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":2145386496}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.x86_64-latest.args
+index 9bbde420a9..df7b7f80a9 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=2095104k,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":2145386496}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/memory-hotplug.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug.x86_64-latest.args
+index 53f0fbc68f..d04d9d73e9 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu qemu64 \
+ -m size=219136k,slots=16,maxmem=1099511627776k \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":224395264}' \
+ -numa node,nodeid=0,cpus=0-1,memdev=ram-node0 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.args b/tests/qemuxml2argvdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.args
+index d4238f3d9e..138c8255f7 100644
+--- a/tests/qemuxml2argvdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0,1,2,3],"policy":"interleave"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.args b/tests/qemuxml2argvdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.args
+index d4238f3d9e..138c8255f7 100644
+--- a/tests/qemuxml2argvdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0,1,2,3],"policy":"interleave"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numad-auto-vcpu-no-numatune.x86_64-latest.args b/tests/qemuxml2argvdata/numad-auto-vcpu-no-numatune.x86_64-latest.args
+index 7022d2cc00..f13f04c9d4 100644
+--- a/tests/qemuxml2argvdata/numad-auto-vcpu-no-numatune.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad-auto-vcpu-no-numatune.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0,1,2,3],"policy":"bind"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numad-auto-vcpu-static-numatune.x86_64-latest.args b/tests/qemuxml2argvdata/numad-auto-vcpu-static-numatune.x86_64-latest.args
+index 9ddfb286b5..f1c49619db 100644
+--- a/tests/qemuxml2argvdata/numad-auto-vcpu-static-numatune.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad-auto-vcpu-static-numatune.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0],"policy":"interleave"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numad-static-memory-auto-vcpu.x86_64-latest.args b/tests/qemuxml2argvdata/numad-static-memory-auto-vcpu.x86_64-latest.args
+index d4238f3d9e..138c8255f7 100644
+--- a/tests/qemuxml2argvdata/numad-static-memory-auto-vcpu.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad-static-memory-auto-vcpu.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0,1,2,3],"policy":"interleave"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numad-static-vcpu-no-numatune.x86_64-latest.args b/tests/qemuxml2argvdata/numad-static-vcpu-no-numatune.x86_64-latest.args
+index ffbccb8408..76ca5c4bea 100644
+--- a/tests/qemuxml2argvdata/numad-static-vcpu-no-numatune.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad-static-vcpu-no-numatune.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numad.x86_64-latest.args b/tests/qemuxml2argvdata/numad.x86_64-latest.args
+index d4238f3d9e..138c8255f7 100644
+--- a/tests/qemuxml2argvdata/numad.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numad.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0,1,2,3],"policy":"interleave"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/numatune-auto-nodeset-invalid.x86_64-latest.args b/tests/qemuxml2argvdata/numatune-auto-nodeset-invalid.x86_64-latest.args
+index 57a2b893f1..e35471d91b 100644
+--- a/tests/qemuxml2argvdata/numatune-auto-nodeset-invalid.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/numatune-auto-nodeset-invalid.x86_64-latest.args
+@@ -16,7 +16,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264,"host-nodes":[0,1,2,3],"policy":"preferred"}' \
+ -overcommit mem-lock=off \
+--smp 2,sockets=2,dies=1,cores=1,threads=1 \
++-smp 2,sockets=2,dies=1,clusters=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+ -display none \
+ -no-user-config \
+diff --git a/tests/qemuxml2argvdata/pci-expander-bus.x86_64-latest.args b/tests/qemuxml2argvdata/pci-expander-bus.x86_64-latest.args
+index bf553a8e32..d3960731be 100644
+--- a/tests/qemuxml2argvdata/pci-expander-bus.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/pci-expander-bus.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-expander-test/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/pcie-expander-bus.x86_64-latest.args b/tests/qemuxml2argvdata/pcie-expander-bus.x86_64-latest.args
+index 3fb86c29c2..b179fadc27 100644
+--- a/tests/qemuxml2argvdata/pcie-expander-bus.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/pcie-expander-bus.x86_64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-pcie-expander-bus-te/.config \
+ -cpu qemu64 \
+ -m size=219136k \
+ -overcommit mem-lock=off \
+--smp 16,sockets=2,dies=1,cores=4,threads=2 \
++-smp 16,sockets=2,dies=1,clusters=1,cores=4,threads=2 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":112197632}' \
+ -numa node,nodeid=0,cpus=0-7,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":112197632}' \
+diff --git a/tests/qemuxml2argvdata/pseries-phb-numa-node.ppc64-latest.args b/tests/qemuxml2argvdata/pseries-phb-numa-node.ppc64-latest.args
+index 7ffcb1d8c5..942540a296 100644
+--- a/tests/qemuxml2argvdata/pseries-phb-numa-node.ppc64-latest.args
++++ b/tests/qemuxml2argvdata/pseries-phb-numa-node.ppc64-latest.args
+@@ -15,7 +15,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -cpu POWER9 \
+ -m size=2097152k \
+ -overcommit mem-lock=off \
+--smp 8,sockets=2,dies=1,cores=1,threads=4 \
++-smp 8,sockets=2,dies=1,clusters=1,cores=1,threads=4 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node0","size":1073741824,"host-nodes":[1],"policy":"bind"}' \
+ -numa node,nodeid=0,cpus=0-3,memdev=ram-node0 \
+ -object '{"qom-type":"memory-backend-ram","id":"ram-node1","size":1073741824,"host-nodes":[2],"policy":"bind"}' \
+-- 
+2.43.0

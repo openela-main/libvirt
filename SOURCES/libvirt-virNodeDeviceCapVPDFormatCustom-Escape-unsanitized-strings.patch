@@ -1,5 +1,5 @@
-From 43ea432bda4b58a7ec491b0517887a1bfe2ddcaf Mon Sep 17 00:00:00 2001
-Message-ID: <43ea432bda4b58a7ec491b0517887a1bfe2ddcaf.1708340442.git.jdenemar@redhat.com>
+From 32fe728dafc85c31b34f669b11264967bfc553dd Mon Sep 17 00:00:00 2001
+Message-ID: <32fe728dafc85c31b34f669b11264967bfc553dd.1707394627.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 29 Jan 2024 15:15:03 +0100
 Subject: [PATCH] virNodeDeviceCapVPDFormatCustom*: Escape unsanitized strings
@@ -32,7 +32,7 @@ https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
  1 file changed, 17 insertions(+), 8 deletions(-)
 
 diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
-index 81c9f2a9c8..258c70c28d 100644
+index 4826be6f42..87c046e571 100644
 --- a/src/conf/node_device_conf.c
 +++ b/src/conf/node_device_conf.c
 @@ -242,23 +242,32 @@ virNodeDeviceCapMdevTypesFormat(virBuffer *buf,
@@ -77,4 +77,4 @@ index 81c9f2a9c8..258c70c28d 100644
  
  static inline void
 -- 
-2.43.2
+2.43.0

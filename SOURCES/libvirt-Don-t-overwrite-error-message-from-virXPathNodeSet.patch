@@ -1,0 +1,679 @@
+From 9a31f486329e36bbe6f6156eb89d4d455fc0a7d8 Mon Sep 17 00:00:00 2001
+Message-ID: <9a31f486329e36bbe6f6156eb89d4d455fc0a7d8.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 15:50:27 +0100
+Subject: [PATCH] Don't overwrite error message from 'virXPathNodeSet'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+'virXPathNodeSet' returns -1 only when 'ctxt' or 'xpath' are NULL or
+when the 'xpath' string is invalid. Both are programming errors. It
+doesn't make sense for the code to overwrite the error message for
+anything supposedly more relevant.
+
+The majority of calls to 'virXPathNodeSet' already didn't do this, so
+this patch fixes the rest to prevent it from spreading again.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit a9f76d6ab7278864150d9f4776750ea22d7ef508)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/conf/domain_conf.c           | 78 +++++++------------------------
+ src/conf/network_conf.c          | 80 ++++++++------------------------
+ src/conf/node_device_conf.c      | 17 ++-----
+ src/conf/numa_conf.c             | 15 +++---
+ src/cpu/cpu_ppc64.c              |  5 +-
+ src/qemu/qemu_capabilities.c     | 30 +++---------
+ src/qemu/qemu_domain.c           | 23 +++------
+ src/qemu/qemu_migration_cookie.c |  5 +-
+ src/qemu/qemu_nbdkit.c           |  5 +-
+ src/vz/vz_sdk.c                  |  5 +-
+ 10 files changed, 72 insertions(+), 191 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index ac06fa39f6..52a5796ad2 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -17765,11 +17765,8 @@ virDomainResctrlMonDefParse(virDomainDef *def,
+ 
+     ctxt->node = node;
+ 
+-    if ((n = virXPathNodeSet("./monitor", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("Cannot extract monitor nodes"));
++    if ((n = virXPathNodeSet("./monitor", ctxt, &nodes)) < 0)
+         goto cleanup;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         domresmon = g_new0(virDomainResctrlMonDef, 1);
+@@ -17897,11 +17894,8 @@ virDomainCachetuneDefParse(virDomainDef *def,
+     if (virBitmapIsAllClear(vcpus))
+         return 0;
+ 
+-    if ((n = virXPathNodeSet("./cache", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("Cannot extract cache nodes under cachetune"));
++    if ((n = virXPathNodeSet("./cache", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (virDomainResctrlVcpuMatch(def, vcpus, &resctrl) < 0)
+         return -1;
+@@ -18167,11 +18161,8 @@ virDomainDefParseMemory(virDomainDef *def,
+ 
+     if (virXPathNode("./memoryBacking/hugepages", ctxt)) {
+         /* hugepages will be used */
+-        if ((n = virXPathNodeSet("./memoryBacking/hugepages/page", ctxt, &nodes)) < 0) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                           _("cannot extract hugepages nodes"));
++        if ((n = virXPathNodeSet("./memoryBacking/hugepages/page", ctxt, &nodes)) < 0)
+             return -1;
+-        }
+ 
+         if (n) {
+             def->mem.hugepages = g_new0(virDomainHugePage, n);
+@@ -18255,11 +18246,8 @@ virDomainMemorytuneDefParse(virDomainDef *def,
+     if (virBitmapIsAllClear(vcpus))
+         return 0;
+ 
+-    if ((n = virXPathNodeSet("./node", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("Cannot extract memory nodes under memorytune"));
++    if ((n = virXPathNodeSet("./node", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (virDomainResctrlVcpuMatch(def, vcpus, &resctrl) < 0)
+         return -1;
+@@ -18326,11 +18314,9 @@ virDomainDefTunablesParse(virDomainDef *def,
+                      &def->blkio.weight) < 0)
+         def->blkio.weight = 0;
+ 
+-    if ((n = virXPathNodeSet("./blkiotune/device", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("cannot extract blkiotune nodes"));
++    if ((n = virXPathNodeSet("./blkiotune/device", ctxt, &nodes)) < 0)
+         return -1;
+-    }
++
+     if (n)
+         def->blkio.devices = g_new0(virBlkioDevice, n);
+ 
+@@ -18441,11 +18427,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./cputune/emulatorpin", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract emulatorpin nodes"));
++    if ((n = virXPathNodeSet("./cputune/emulatorpin", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (n) {
+         if (n > 1) {
+@@ -18460,11 +18443,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     VIR_FREE(nodes);
+ 
+ 
+-    if ((n = virXPathNodeSet("./cputune/iothreadpin", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract iothreadpin nodes"));
++    if ((n = virXPathNodeSet("./cputune/iothreadpin", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         if (virDomainIOThreadPinDefParseXML(nodes[i], def) < 0)
+@@ -18472,11 +18452,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./cputune/vcpusched", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract vcpusched nodes"));
++    if ((n = virXPathNodeSet("./cputune/vcpusched", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         if (virDomainVcpuThreadSchedParse(nodes[i], def) < 0)
+@@ -18484,11 +18461,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./cputune/iothreadsched", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract iothreadsched nodes"));
++    if ((n = virXPathNodeSet("./cputune/iothreadsched", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         if (virDomainIOThreadSchedParse(nodes[i], def) < 0)
+@@ -18496,11 +18470,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./cputune/emulatorsched", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract emulatorsched nodes"));
++    if ((n = virXPathNodeSet("./cputune/emulatorsched", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (n) {
+         if (n > 1) {
+@@ -18514,11 +18485,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./cputune/cachetune", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract cachetune nodes"));
++    if ((n = virXPathNodeSet("./cputune/cachetune", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         if (virDomainCachetuneDefParse(def, ctxt, nodes[i], flags) < 0)
+@@ -18526,11 +18494,8 @@ virDomainDefTunablesParse(virDomainDef *def,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./cputune/memorytune", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract memorytune nodes"));
++    if ((n = virXPathNodeSet("./cputune/memorytune", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         if (virDomainMemorytuneDefParse(def, ctxt, nodes[i], flags) < 0)
+@@ -18834,11 +18799,8 @@ virDomainDefParseXML(xmlXPathContextPtr ctxt,
+         !virDomainIOThreadIDArrayHasPin(def))
+         def->placement_mode = VIR_DOMAIN_CPU_PLACEMENT_MODE_AUTO;
+ 
+-    if ((n = virXPathNodeSet("./resource", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("cannot extract resource nodes"));
++    if ((n = virXPathNodeSet("./resource", ctxt, &nodes)) < 0)
+         return NULL;
+-    }
+ 
+     if (n > 1) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+@@ -18886,11 +18848,9 @@ virDomainDefParseXML(xmlXPathContextPtr ctxt,
+         return NULL;
+ 
+     /* analysis of the resource leases */
+-    if ((n = virXPathNodeSet("./devices/lease", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("cannot extract device leases"));
++    if ((n = virXPathNodeSet("./devices/lease", ctxt, &nodes)) < 0)
+         return NULL;
+-    }
++
+     if (n)
+         def->leases = g_new0(virDomainLeaseDef *, n);
+     for (i = 0; i < n; i++) {
+@@ -19009,11 +18969,9 @@ virDomainDefParseXML(xmlXPathContextPtr ctxt,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./devices/console", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("cannot extract console devices"));
++    if ((n = virXPathNodeSet("./devices/console", ctxt, &nodes)) < 0)
+         return NULL;
+-    }
++
+     if (n)
+         def->consoles = g_new0(virDomainChrDef *, n);
+ 
+diff --git a/src/conf/network_conf.c b/src/conf/network_conf.c
+index 6f8a0d2d0b..52c90e53f8 100644
+--- a/src/conf/network_conf.c
++++ b/src/conf/network_conf.c
+@@ -892,13 +892,9 @@ virNetworkDNSDefParseXML(const char *networkName,
+                                &def->forwardPlainNames) < 0)
+         return -1;
+ 
+-    nfwds = virXPathNodeSet("./forwarder", ctxt, &fwdNodes);
+-    if (nfwds < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <forwarder> element found in <dns> of network %1$s"),
+-                       networkName);
++    if ((nfwds = virXPathNodeSet("./forwarder", ctxt, &fwdNodes)) < 0)
+         return -1;
+-    }
++
+     if (nfwds > 0) {
+         def->forwarders = g_new0(virNetworkDNSForwarder, nfwds);
+ 
+@@ -922,13 +918,9 @@ virNetworkDNSDefParseXML(const char *networkName,
+         }
+     }
+ 
+-    nhosts = virXPathNodeSet("./host", ctxt, &hostNodes);
+-    if (nhosts < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <host> element found in <dns> of network %1$s"),
+-                       networkName);
++    if ((nhosts = virXPathNodeSet("./host", ctxt, &hostNodes)) < 0)
+         return -1;
+-    }
++
+     if (nhosts > 0) {
+         def->hosts = g_new0(virNetworkDNSHostDef, nhosts);
+ 
+@@ -941,13 +933,9 @@ virNetworkDNSDefParseXML(const char *networkName,
+         }
+     }
+ 
+-    nsrvs = virXPathNodeSet("./srv", ctxt, &srvNodes);
+-    if (nsrvs < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <srv> element found in <dns> of network %1$s"),
+-                       networkName);
++    if ((nsrvs = virXPathNodeSet("./srv", ctxt, &srvNodes)) < 0)
+         return -1;
+-    }
++
+     if (nsrvs > 0) {
+         def->srvs = g_new0(virNetworkDNSSrvDef, nsrvs);
+ 
+@@ -960,13 +948,9 @@ virNetworkDNSDefParseXML(const char *networkName,
+         }
+     }
+ 
+-    ntxts = virXPathNodeSet("./txt", ctxt, &txtNodes);
+-    if (ntxts < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <txt> element found in <dns> of network %1$s"),
+-                       networkName);
++    if ((ntxts = virXPathNodeSet("./txt", ctxt, &txtNodes)) < 0)
+         return -1;
+-    }
++
+     if (ntxts > 0) {
+         def->txts = g_new0(virNetworkDNSTxtDef, ntxts);
+ 
+@@ -1222,13 +1206,10 @@ virNetworkForwardNatDefParseXML(const char *networkName,
+         return -1;
+ 
+     /* addresses for SNAT */
+-    nNatAddrs = virXPathNodeSet("./address", ctxt, &natAddrNodes);
+-    if (nNatAddrs < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <address> element found in <forward> of network %1$s"),
+-                       networkName);
++    if ((nNatAddrs = virXPathNodeSet("./address", ctxt, &natAddrNodes)) < 0)
+         return -1;
+-    } else if (nNatAddrs > 1) {
++
++    if (nNatAddrs > 1) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("Only one <address> element is allowed in <nat> in <forward> in network %1$s"),
+                        networkName);
+@@ -1284,13 +1265,10 @@ virNetworkForwardNatDefParseXML(const char *networkName,
+     }
+ 
+     /* ports for SNAT and MASQUERADE */
+-    nNatPorts = virXPathNodeSet("./port", ctxt, &natPortNodes);
+-    if (nNatPorts < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <port> element found in <forward> of network %1$s"),
+-                       networkName);
++    if ((nNatPorts = virXPathNodeSet("./port", ctxt, &natPortNodes)) < 0)
+         return -1;
+-    } else if (nNatPorts > 1) {
++
++    if (nNatPorts > 1) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("Only one <port> element is allowed in <nat> in <forward> in network %1$s"),
+                        networkName);
+@@ -1358,37 +1336,19 @@ virNetworkForwardDefParseXML(const char *networkName,
+     }
+ 
+     /* bridge and hostdev modes can use a pool of physical interfaces */
+-    nForwardIfs = virXPathNodeSet("./interface", ctxt, &forwardIfNodes);
+-    if (nForwardIfs < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <interface> element found in <forward> of network %1$s"),
+-                       networkName);
++    if ((nForwardIfs = virXPathNodeSet("./interface", ctxt, &forwardIfNodes)) < 0)
+         return -1;
+-    }
+ 
+-    nForwardAddrs = virXPathNodeSet("./address", ctxt, &forwardAddrNodes);
+-    if (nForwardAddrs < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <address> element found in <forward> of network %1$s"),
+-                       networkName);
++    if ((nForwardAddrs = virXPathNodeSet("./address", ctxt, &forwardAddrNodes)) < 0)
+         return -1;
+-    }
+ 
+-    nForwardPfs = virXPathNodeSet("./pf", ctxt, &forwardPfNodes);
+-    if (nForwardPfs < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <pf> element found in <forward> of network %1$s"),
+-                       networkName);
++    if ((nForwardPfs = virXPathNodeSet("./pf", ctxt, &forwardPfNodes)) < 0)
+         return -1;
+-    }
+ 
+-    nForwardNats = virXPathNodeSet("./nat", ctxt, &forwardNatNodes);
+-    if (nForwardNats < 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid <nat> element found in <forward> of network %1$s"),
+-                       networkName);
++    if ((nForwardNats = virXPathNodeSet("./nat", ctxt, &forwardNatNodes)) < 0)
+         return -1;
+-    } else if (nForwardNats > 1) {
++
++    if (nForwardNats > 1) {
+         virReportError(VIR_ERR_XML_ERROR,
+                        _("Only one <nat> element is allowed in <forward> of network %1$s"),
+                        networkName);
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 95de77abe9..dd174d3020 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -960,11 +960,9 @@ virNodeDeviceCapVPDParseCustomFields(xmlXPathContextPtr ctxt, virPCIVPDResource
+     g_autofree xmlNodePtr *nodes = NULL;
+     size_t i = 0;
+ 
+-    if ((nfields = virXPathNodeSet("./vendor_field[@index]", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_XML_ERROR, "%s",
+-                _("failed to evaluate <vendor_field> elements"));
++    if ((nfields = virXPathNodeSet("./vendor_field[@index]", ctxt, &nodes)) < 0)
+         return -1;
+-    }
++
+     for (i = 0; i < nfields; i++) {
+         g_autofree char *value = NULL;
+         g_autofree char *index = NULL;
+@@ -989,11 +987,9 @@ virNodeDeviceCapVPDParseCustomFields(xmlXPathContextPtr ctxt, virPCIVPDResource
+     VIR_FREE(nodes);
+ 
+     if (!readOnly) {
+-        if ((nfields = virXPathNodeSet("./system_field[@index]", ctxt, &nodes)) < 0) {
+-            virReportError(VIR_ERR_XML_ERROR, "%s",
+-                    _("failed to evaluate <system_field> elements"));
++        if ((nfields = virXPathNodeSet("./system_field[@index]", ctxt, &nodes)) < 0)
+             return -1;
+-        }
++
+         for (i = 0; i < nfields; i++) {
+             g_autofree char *value = NULL;
+             g_autofree char *index = NULL;
+@@ -1074,11 +1070,8 @@ virNodeDeviceCapVPDParseXML(xmlXPathContextPtr ctxt, virPCIVPDResource **res)
+         return -1;
+     }
+ 
+-    if ((nfields = virXPathNodeSet("./fields[@access]", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_XML_ERROR, "%s",
+-                _("no VPD <fields> elements with an access type attribute found"));
++    if ((nfields = virXPathNodeSet("./fields[@access]", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < nfields; i++) {
+         g_autofree char *access = NULL;
+diff --git a/src/conf/numa_conf.c b/src/conf/numa_conf.c
+index bcd7838e00..d8120de6d2 100644
+--- a/src/conf/numa_conf.c
++++ b/src/conf/numa_conf.c
+@@ -135,11 +135,8 @@ virDomainNumatuneNodeParseXML(virDomainNuma *numa,
+     size_t i = 0;
+     g_autofree xmlNodePtr *nodes = NULL;
+ 
+-    if ((n = virXPathNodeSet("./numatune/memnode", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("Cannot extract memnode nodes"));
++    if ((n = virXPathNodeSet("./numatune/memnode", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (!n)
+         return 0;
+@@ -700,7 +697,10 @@ virDomainNumaDefNodeDistanceParseXML(virDomainNuma *def,
+     if (!virXPathNode("./distances[1]", ctxt))
+         return 0;
+ 
+-    if ((sibling = virXPathNodeSet("./distances[1]/sibling", ctxt, &nodes)) <= 0) {
++    if ((sibling = virXPathNodeSet("./distances[1]/sibling", ctxt, &nodes)) < 0)
++        goto cleanup;
++
++    if (sibling == 0) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                        _("NUMA distances defined without siblings"));
+         goto cleanup;
+@@ -852,7 +852,10 @@ virDomainNumaDefParseXML(virDomainNuma *def,
+     if (!virXPathNode("./cpu/numa[1]", ctxt))
+         return 0;
+ 
+-    if ((n = virXPathNodeSet("./cpu/numa[1]/cell", ctxt, &cell)) <= 0) {
++    if ((n = virXPathNodeSet("./cpu/numa[1]/cell", ctxt, &cell)) < 0)
++        return -1;
++
++    if (n == 0) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                        _("NUMA topology defined without NUMA cells"));
+         return -1;
+diff --git a/src/cpu/cpu_ppc64.c b/src/cpu/cpu_ppc64.c
+index e13cdbdf6b..448a0a7d85 100644
+--- a/src/cpu/cpu_ppc64.c
++++ b/src/cpu/cpu_ppc64.c
+@@ -334,7 +334,10 @@ ppc64ModelParse(xmlXPathContextPtr ctxt,
+         }
+     }
+ 
+-    if ((n = virXPathNodeSet("./pvr", ctxt, &nodes)) <= 0) {
++    if ((n = virXPathNodeSet("./pvr", ctxt, &nodes)) < 0)
++        return -1;
++
++    if (n == 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("Missing PVR information for CPU model %1$s"),
+                        model->name);
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index e13df2b27d..10090e0986 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -4015,11 +4015,8 @@ virQEMUCapsLoadCPUModels(virArch arch,
+     int n;
+     xmlNodePtr node;
+ 
+-    if ((n = virXPathNodeSet(xpath, ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse qemu capabilities cpus"));
++    if ((n = virXPathNodeSet(xpath, ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (n == 0)
+         return 0;
+@@ -4057,11 +4054,8 @@ virQEMUCapsLoadCPUModels(virArch arch,
+         nblockers = virXPathNodeSet("./blocker", ctxt, &blockerNodes);
+         ctxt->node = node;
+ 
+-        if (nblockers < 0) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                           _("failed to parse CPU blockers in QEMU capabilities"));
++        if (nblockers < 0)
+             return -1;
+-        }
+ 
+         if (nblockers > 0) {
+             size_t j;
+@@ -4100,11 +4094,8 @@ virQEMUCapsLoadMachines(virQEMUCapsAccel *caps,
+     size_t i;
+     int n;
+ 
+-    if ((n = virXPathNodeSet(xpath, ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse qemu capabilities machines"));
++    if ((n = virXPathNodeSet(xpath, ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (n == 0)
+         return 0;
+@@ -4317,11 +4308,8 @@ virQEMUCapsParseSGXInfo(virQEMUCaps *qemuCaps,
+         ctxt->node = sgxSections;
+         nSgxSections = virXPathNodeSet("./section", ctxt, &sectionNodes);
+ 
+-        if (nSgxSections < 0) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                           _("failed to parse SGX sections in QEMU capabilities cache"));
++        if (nSgxSections < 0)
+             return -1;
+-        }
+ 
+         sgx->nSgxSections = nSgxSections;
+         sgx->sgxSections = g_new0(virSGXSection, nSgxSections);
+@@ -4404,11 +4392,8 @@ virQEMUCapsParseFlags(virQEMUCaps *qemuCaps, xmlXPathContextPtr ctxt)
+     size_t i;
+     int n;
+ 
+-    if ((n = virXPathNodeSet("./flag", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse qemu capabilities flags"));
++    if ((n = virXPathNodeSet("./flag", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     VIR_DEBUG("Got flags %d", n);
+     for (i = 0; i < n; i++) {
+@@ -4442,11 +4427,8 @@ virQEMUCapsParseGIC(virQEMUCaps *qemuCaps, xmlXPathContextPtr ctxt)
+     size_t i;
+     int n;
+ 
+-    if ((n = virXPathNodeSet("./gic", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse qemu capabilities gic"));
++    if ((n = virXPathNodeSet("./gic", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     if (n > 0) {
+         unsigned int uintValue;
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index e2a1bf2c13..97520bb49c 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -3155,11 +3155,8 @@ qemuDomainObjPrivateXMLParseSlirpFeatures(xmlNodePtr featuresNode,
+ 
+     ctxt->node = featuresNode;
+ 
+-    if ((n = virXPathNodeSet("./feature", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("failed to parse slirp-helper features"));
++    if ((n = virXPathNodeSet("./feature", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         g_autofree char *str = virXMLPropString(nodes[i], "name");
+@@ -3273,11 +3270,9 @@ qemuDomainObjPrivateXMLParse(xmlXPathContextPtr ctxt,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./qemuCaps/flag", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("failed to parse qemu capabilities flags"));
++    if ((n = virXPathNodeSet("./qemuCaps/flag", ctxt, &nodes)) < 0)
+         return -1;
+-    }
++
+     if (n > 0) {
+         qemuCaps = virQEMUCapsNew();
+ 
+@@ -3305,11 +3300,9 @@ qemuDomainObjPrivateXMLParse(xmlXPathContextPtr ctxt,
+ 
+     priv->fakeReboot = virXPathBoolean("boolean(./fakereboot)", ctxt) == 1;
+ 
+-    if ((n = virXPathNodeSet("./devices/device", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse qemu device list"));
++    if ((n = virXPathNodeSet("./devices/device", ctxt, &nodes)) < 0)
+         return -1;
+-    }
++
+     if (n > 0) {
+         /* NULL-terminated list */
+         priv->qemuDevices = g_new0(char *, n + 1);
+@@ -3325,11 +3318,9 @@ qemuDomainObjPrivateXMLParse(xmlXPathContextPtr ctxt,
+     }
+     VIR_FREE(nodes);
+ 
+-    if ((n = virXPathNodeSet("./slirp/helper", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse slirp helper list"));
++    if ((n = virXPathNodeSet("./slirp/helper", ctxt, &nodes)) < 0)
+         return -1;
+-    }
++
+     for (i = 0; i < n; i++) {
+         g_autofree char *alias = virXMLPropString(nodes[i], "alias");
+         g_autofree char *pid = virXMLPropString(nodes[i], "pid");
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 5505fdaf22..4361949cca 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -947,11 +947,8 @@ qemuMigrationCookieNetworkXMLParse(xmlXPathContextPtr ctxt)
+     g_autofree xmlNodePtr *interfaces = NULL;
+     VIR_XPATH_NODE_AUTORESTORE(ctxt)
+ 
+-    if ((n = virXPathNodeSet("./network/interface", ctxt, &interfaces)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR,
+-                       "%s", _("missing interface information"));
++    if ((n = virXPathNodeSet("./network/interface", ctxt, &interfaces)) < 0)
+         return NULL;
+-    }
+ 
+     optr->nnets = n;
+     optr->net = g_new0(qemuMigrationCookieNetData, optr->nnets);
+diff --git a/src/qemu/qemu_nbdkit.c b/src/qemu/qemu_nbdkit.c
+index 85e61be44c..3343241aaf 100644
+--- a/src/qemu/qemu_nbdkit.c
++++ b/src/qemu/qemu_nbdkit.c
+@@ -400,11 +400,8 @@ qemuNbdkitCapsParseFlags(qemuNbdkitCaps *nbdkitCaps,
+     size_t i;
+     int n;
+ 
+-    if ((n = virXPathNodeSet("./flag", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("failed to parse qemu capabilities flags"));
++    if ((n = virXPathNodeSet("./flag", ctxt, &nodes)) < 0)
+         return -1;
+-    }
+ 
+     VIR_DEBUG("Got flags %d", n);
+     for (i = 0; i < n; i++) {
+diff --git a/src/vz/vz_sdk.c b/src/vz/vz_sdk.c
+index 6a15d60577..ce4586a3f5 100644
+--- a/src/vz/vz_sdk.c
++++ b/src/vz/vz_sdk.c
+@@ -4612,11 +4612,8 @@ prlsdkParseSnapshotTree(const char *treexml)
+                             "ParallelsSavedStates", &ctxt, NULL, false)))
+         goto cleanup;
+ 
+-    if ((n = virXPathNodeSet("//SavedStateItem", ctxt, &nodes)) < 0) {
+-        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                       _("cannot extract snapshot nodes"));
++    if ((n = virXPathNodeSet("//SavedStateItem", ctxt, &nodes)) < 0)
+         goto cleanup;
+-    }
+ 
+     for (i = 0; i < n; i++) {
+         if (nodes[i]->parent == xmlDocGetRootElement(xml))
+-- 
+2.43.0

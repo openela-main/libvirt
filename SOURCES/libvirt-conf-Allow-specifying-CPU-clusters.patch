@@ -1,0 +1,976 @@
+From 413d6c8c6490caa5ec5479ab10aa493677cc45c0 Mon Sep 17 00:00:00 2001
+Message-ID: <413d6c8c6490caa5ec5479ab10aa493677cc45c0.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 5 Jan 2024 18:20:14 +0100
+Subject: [PATCH] conf: Allow specifying CPU clusters
+
+The default number of CPU clusters is 1, and values other than
+that one are currently rejected by all hypervisor drivers.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit ef5c397584b1d03a81c74c27074ec4b1a05d3339)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/bhyve/bhyve_command.c                        |  5 +++++
+ src/conf/cpu_conf.c                              | 16 +++++++++++++++-
+ src/conf/cpu_conf.h                              |  1 +
+ src/conf/domain_conf.c                           |  1 +
+ src/conf/schemas/cputypes.rng                    |  5 +++++
+ src/cpu/cpu.c                                    |  1 +
+ src/libxl/libxl_capabilities.c                   |  1 +
+ src/qemu/qemu_command.c                          |  5 +++++
+ src/vmx/vmx.c                                    |  7 +++++++
+ .../x86_64-host+guest,model486-result.xml        |  2 +-
+ .../x86_64-host+guest,models-result.xml          |  2 +-
+ tests/cputestdata/x86_64-host+guest-result.xml   |  2 +-
+ tests/cputestdata/x86_64-host+guest.xml          |  2 +-
+ .../x86_64-host+host-model-nofallback.xml        |  2 +-
+ ...host-Haswell-noTSX+Haswell,haswell-result.xml |  2 +-
+ ...aswell-noTSX+Haswell-noTSX,haswell-result.xml |  2 +-
+ ...4-host-Haswell-noTSX+Haswell-noTSX-result.xml |  2 +-
+ .../x86_64-host-worse+guest-result.xml           |  2 +-
+ .../ppc64-modern-bulk-result-conf.xml            |  2 +-
+ .../ppc64-modern-bulk-result-live.xml            |  2 +-
+ .../ppc64-modern-individual-result-conf.xml      |  2 +-
+ .../ppc64-modern-individual-result-live.xml      |  2 +-
+ .../x86-modern-bulk-result-conf.xml              |  2 +-
+ .../x86-modern-bulk-result-live.xml              |  2 +-
+ .../x86-modern-individual-add-result-conf.xml    |  2 +-
+ .../x86-modern-individual-add-result-live.xml    |  2 +-
+ ...e-timeout+graphics-spice-timeout-password.xml |  2 +-
+ .../qemuhotplug-graphics-spice-timeout.xml       |  2 +-
+ .../fd-memory-no-numa-topology.xml               |  2 +-
+ .../qemuxml2argvdata/fd-memory-numa-topology.xml |  2 +-
+ .../fd-memory-numa-topology2.xml                 |  2 +-
+ .../fd-memory-numa-topology3.xml                 |  2 +-
+ tests/qemuxml2argvdata/hugepages-nvdimm.xml      |  2 +-
+ .../memfd-memory-default-hugepage.xml            |  2 +-
+ tests/qemuxml2argvdata/memfd-memory-numa.xml     |  2 +-
+ .../memory-hotplug-nvdimm-access.xml             |  2 +-
+ .../memory-hotplug-nvdimm-align.xml              |  2 +-
+ .../memory-hotplug-nvdimm-label.xml              |  2 +-
+ .../memory-hotplug-nvdimm-pmem.xml               |  2 +-
+ .../memory-hotplug-nvdimm-readonly.xml           |  2 +-
+ tests/qemuxml2argvdata/memory-hotplug-nvdimm.xml |  2 +-
+ .../memory-hotplug-virtio-mem.xml                |  2 +-
+ .../memory-hotplug-virtio-pmem.xml               |  2 +-
+ .../cpu-numa-disjoint.x86_64-latest.xml          |  2 +-
+ .../cpu-numa-disordered.x86_64-latest.xml        |  2 +-
+ .../cpu-numa-memshared.x86_64-latest.xml         |  2 +-
+ .../cpu-numa-no-memory-element.x86_64-latest.xml |  2 +-
+ .../cpu-numa1.x86_64-latest.xml                  |  2 +-
+ .../cpu-numa2.x86_64-latest.xml                  |  2 +-
+ .../memory-hotplug-dimm-addr.x86_64-latest.xml   |  2 +-
+ .../memory-hotplug-dimm.x86_64-latest.xml        |  2 +-
+ .../memory-hotplug-multiple.x86_64-latest.xml    |  2 +-
+ ...plug-nvdimm-ppc64-abi-update.ppc64-latest.xml |  2 +-
+ .../memory-hotplug-nvdimm-ppc64.ppc64-latest.xml |  2 +-
+ .../memory-hotplug.x86_64-latest.xml             |  2 +-
+ ...mad-auto-memory-vcpu-cpuset.x86_64-latest.xml |  2 +-
+ ...cpu-no-cpuset-and-placement.x86_64-latest.xml |  2 +-
+ ...numad-auto-vcpu-no-numatune.x86_64-latest.xml |  2 +-
+ ...mad-static-vcpu-no-numatune.x86_64-latest.xml |  2 +-
+ .../pci-expander-bus.x86_64-latest.xml           |  2 +-
+ .../pcie-expander-bus.x86_64-latest.xml          |  2 +-
+ .../pseries-phb-numa-node.ppc64-latest.xml       |  2 +-
+ tests/vmx2xmldata/esx-in-the-wild-10.xml         |  2 +-
+ tests/vmx2xmldata/esx-in-the-wild-8.xml          |  2 +-
+ tests/vmx2xmldata/esx-in-the-wild-9.xml          |  2 +-
+ 65 files changed, 97 insertions(+), 57 deletions(-)
+
+diff --git a/src/bhyve/bhyve_command.c b/src/bhyve/bhyve_command.c
+index 5b388c7a8f..d05b01ae5d 100644
+--- a/src/bhyve/bhyve_command.c
++++ b/src/bhyve/bhyve_command.c
+@@ -672,6 +672,11 @@ virBhyveProcessBuildBhyveCmd(struct _bhyveConn *driver, virDomainDef *def,
+                            _("Only 1 die per socket is supported"));
+             return NULL;
+         }
++        if (def->cpu->clusters != 1) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("Only 1 cluster per die is supported"));
++            return NULL;
++        }
+         if (nvcpus != def->cpu->sockets * def->cpu->cores * def->cpu->threads) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                            _("Invalid CPU topology: total number of vCPUs must equal the product of sockets, cores, and threads"));
+diff --git a/src/conf/cpu_conf.c b/src/conf/cpu_conf.c
+index 7abe489733..6e6e1b9a89 100644
+--- a/src/conf/cpu_conf.c
++++ b/src/conf/cpu_conf.c
+@@ -241,6 +241,7 @@ virCPUDefCopyWithoutModel(const virCPUDef *cpu)
+     copy->fallback = cpu->fallback;
+     copy->sockets = cpu->sockets;
+     copy->dies = cpu->dies;
++    copy->clusters = cpu->clusters;
+     copy->cores = cpu->cores;
+     copy->threads = cpu->threads;
+     copy->arch = cpu->arch;
+@@ -572,6 +573,12 @@ virCPUDefParseXML(xmlXPathContextPtr ctxt,
+             return -1;
+         }
+ 
++        if (virXMLPropUIntDefault(topology, "clusters", 10,
++                                  VIR_XML_PROP_NONZERO,
++                                  &def->clusters, 1) < 0) {
++            return -1;
++        }
++
+         if (virXMLPropUInt(topology, "cores", 10,
+                            VIR_XML_PROP_REQUIRED | VIR_XML_PROP_NONZERO,
+                            &def->cores) < 0) {
+@@ -827,10 +834,11 @@ virCPUDefFormatBuf(virBuffer *buf,
+         virBufferAddLit(buf, "/>\n");
+     }
+ 
+-    if (def->sockets && def->dies && def->cores && def->threads) {
++    if (def->sockets && def->dies && def->clusters && def->cores && def->threads) {
+         virBufferAddLit(buf, "<topology");
+         virBufferAsprintf(buf, " sockets='%u'", def->sockets);
+         virBufferAsprintf(buf, " dies='%u'", def->dies);
++        virBufferAsprintf(buf, " clusters='%u'", def->clusters);
+         virBufferAsprintf(buf, " cores='%u'", def->cores);
+         virBufferAsprintf(buf, " threads='%u'", def->threads);
+         virBufferAddLit(buf, "/>\n");
+@@ -1106,6 +1114,12 @@ virCPUDefIsEqual(virCPUDef *src,
+         return false;
+     }
+ 
++    if (src->clusters != dst->clusters) {
++        MISMATCH(_("Target CPU clusters %1$d does not match source %2$d"),
++                 dst->clusters, src->clusters);
++        return false;
++    }
++
+     if (src->cores != dst->cores) {
+         MISMATCH(_("Target CPU cores %1$d does not match source %2$d"),
+                  dst->cores, src->cores);
+diff --git a/src/conf/cpu_conf.h b/src/conf/cpu_conf.h
+index 3e4c53675c..2694022fed 100644
+--- a/src/conf/cpu_conf.h
++++ b/src/conf/cpu_conf.h
+@@ -148,6 +148,7 @@ struct _virCPUDef {
+     unsigned int microcodeVersion;
+     unsigned int sockets;
+     unsigned int dies;
++    unsigned int clusters;
+     unsigned int cores;
+     unsigned int threads;
+     unsigned int sigFamily;
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 5d55d2acda..6211d2a51b 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2316,6 +2316,7 @@ virDomainDefGetVcpusTopology(const virDomainDef *def,
+ 
+     /* multiplication of 32bit numbers fits into a 64bit variable */
+     if ((tmp *= def->cpu->dies) > UINT_MAX ||
++        (tmp *= def->cpu->clusters) > UINT_MAX ||
+         (tmp *= def->cpu->cores) > UINT_MAX ||
+         (tmp *= def->cpu->threads) > UINT_MAX) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+diff --git a/src/conf/schemas/cputypes.rng b/src/conf/schemas/cputypes.rng
+index db1aa57158..3a8910e09f 100644
+--- a/src/conf/schemas/cputypes.rng
++++ b/src/conf/schemas/cputypes.rng
+@@ -92,6 +92,11 @@
+           <ref name="positiveInteger"/>
+         </attribute>
+       </optional>
++      <optional>
++        <attribute name="clusters">
++          <ref name="positiveInteger"/>
++        </attribute>
++      </optional>
+       <attribute name="cores">
+         <ref name="positiveInteger"/>
+       </attribute>
+diff --git a/src/cpu/cpu.c b/src/cpu/cpu.c
+index bc43aa4e93..4f048d0dad 100644
+--- a/src/cpu/cpu.c
++++ b/src/cpu/cpu.c
+@@ -435,6 +435,7 @@ virCPUGetHost(virArch arch,
+     if (nodeInfo) {
+         cpu->sockets = nodeInfo->sockets;
+         cpu->dies = 1;
++        cpu->clusters = 1;
+         cpu->cores = nodeInfo->cores;
+         cpu->threads = nodeInfo->threads;
+     }
+diff --git a/src/libxl/libxl_capabilities.c b/src/libxl/libxl_capabilities.c
+index dfb602ca2f..522256777d 100644
+--- a/src/libxl/libxl_capabilities.c
++++ b/src/libxl/libxl_capabilities.c
+@@ -152,6 +152,7 @@ libxlCapsInitCPU(virCaps *caps, libxl_physinfo *phy_info)
+     cpu->cores = phy_info->cores_per_socket;
+     cpu->threads = phy_info->threads_per_core;
+     cpu->dies = 1;
++    cpu->clusters = 1;
+     cpu->sockets = phy_info->nr_cpus / (cpu->cores * cpu->threads);
+ 
+     if (!(data = libxlCapsNodeData(cpu, phy_info->hw_cap)) ||
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 653817173b..71daa85e55 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -7226,6 +7226,11 @@ qemuBuildSmpCommandLine(virCommand *cmd,
+                            _("Only 1 die per socket is supported"));
+             return -1;
+         }
++        if (def->cpu->clusters != 1) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("Only 1 cluster per die is supported"));
++            return -1;
++        }
+         virBufferAsprintf(&buf, ",sockets=%u", def->cpu->sockets);
+         if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_SMP_DIES))
+             virBufferAsprintf(&buf, ",dies=%u", def->cpu->dies);
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index 26b89776e1..4ac2320251 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -1583,6 +1583,7 @@ virVMXParseConfig(virVMXContext *ctx,
+             goto cleanup;
+         }
+         cpu->dies = 1;
++        cpu->clusters = 1;
+         cpu->cores = coresPerSocket;
+         cpu->threads = 1;
+ 
+@@ -3377,6 +3378,12 @@ virVMXFormatConfig(virVMXContext *ctx, virDomainXMLOption *xmlopt, virDomainDef
+             goto cleanup;
+         }
+ 
++        if (def->cpu->clusters != 1) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("Only 1 cluster per die is supported"));
++            goto cleanup;
++        }
++
+         calculated_vcpus = def->cpu->sockets * def->cpu->cores;
+         if (calculated_vcpus != maxvcpus) {
+             virReportError(VIR_ERR_INTERNAL_ERROR,
+diff --git a/tests/cputestdata/x86_64-host+guest,model486-result.xml b/tests/cputestdata/x86_64-host+guest,model486-result.xml
+index ea8e2d3a48..b533f22b88 100644
+--- a/tests/cputestdata/x86_64-host+guest,model486-result.xml
++++ b/tests/cputestdata/x86_64-host+guest,model486-result.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>486</model>
+-  <topology sockets='2' dies='1' cores='4' threads='1'/>
++  <topology sockets='2' dies='1' clusters='1' cores='4' threads='1'/>
+   <feature policy='require' name='de'/>
+   <feature policy='require' name='tsc'/>
+   <feature policy='require' name='msr'/>
+diff --git a/tests/cputestdata/x86_64-host+guest,models-result.xml b/tests/cputestdata/x86_64-host+guest,models-result.xml
+index 42664a48b4..e975d9bc18 100644
+--- a/tests/cputestdata/x86_64-host+guest,models-result.xml
++++ b/tests/cputestdata/x86_64-host+guest,models-result.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>qemu64</model>
+-  <topology sockets='2' dies='1' cores='4' threads='1'/>
++  <topology sockets='2' dies='1' clusters='1' cores='4' threads='1'/>
+   <feature policy='force' name='pbe'/>
+   <feature policy='force' name='monitor'/>
+   <feature policy='require' name='ssse3'/>
+diff --git a/tests/cputestdata/x86_64-host+guest-result.xml b/tests/cputestdata/x86_64-host+guest-result.xml
+index 28e3152cbf..cf41b3f872 100644
+--- a/tests/cputestdata/x86_64-host+guest-result.xml
++++ b/tests/cputestdata/x86_64-host+guest-result.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>Penryn</model>
+-  <topology sockets='2' dies='1' cores='4' threads='1'/>
++  <topology sockets='2' dies='1' clusters='1' cores='4' threads='1'/>
+   <feature policy='require' name='dca'/>
+   <feature policy='require' name='xtpr'/>
+   <feature policy='disable' name='sse4.2'/>
+diff --git a/tests/cputestdata/x86_64-host+guest.xml b/tests/cputestdata/x86_64-host+guest.xml
+index 28e3152cbf..cf41b3f872 100644
+--- a/tests/cputestdata/x86_64-host+guest.xml
++++ b/tests/cputestdata/x86_64-host+guest.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>Penryn</model>
+-  <topology sockets='2' dies='1' cores='4' threads='1'/>
++  <topology sockets='2' dies='1' clusters='1' cores='4' threads='1'/>
+   <feature policy='require' name='dca'/>
+   <feature policy='require' name='xtpr'/>
+   <feature policy='disable' name='sse4.2'/>
+diff --git a/tests/cputestdata/x86_64-host+host-model-nofallback.xml b/tests/cputestdata/x86_64-host+host-model-nofallback.xml
+index 16d6e1daf2..881eea7bd0 100644
+--- a/tests/cputestdata/x86_64-host+host-model-nofallback.xml
++++ b/tests/cputestdata/x86_64-host+host-model-nofallback.xml
+@@ -1,7 +1,7 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='forbid'>Penryn</model>
+   <vendor>Intel</vendor>
+-  <topology sockets='1' dies='1' cores='2' threads='1'/>
++  <topology sockets='1' dies='1' clusters='1' cores='2' threads='1'/>
+   <feature policy='require' name='dca'/>
+   <feature policy='require' name='xtpr'/>
+   <feature policy='require' name='tm2'/>
+diff --git a/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell,haswell-result.xml b/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell,haswell-result.xml
+index 8eda6684a0..67994c62cc 100644
+--- a/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell,haswell-result.xml
++++ b/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell,haswell-result.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>Haswell</model>
+-  <topology sockets='1' dies='1' cores='2' threads='2'/>
++  <topology sockets='1' dies='1' clusters='1' cores='2' threads='2'/>
+   <feature policy='disable' name='rtm'/>
+   <feature policy='disable' name='hle'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX,haswell-result.xml b/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX,haswell-result.xml
+index cb02449d60..4804c0b818 100644
+--- a/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX,haswell-result.xml
++++ b/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX,haswell-result.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>Haswell</model>
+-  <topology sockets='1' dies='1' cores='2' threads='2'/>
++  <topology sockets='1' dies='1' clusters='1' cores='2' threads='2'/>
+   <feature policy='disable' name='hle'/>
+   <feature policy='disable' name='rtm'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX-result.xml b/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX-result.xml
+index 7ee926aba8..c21b331248 100644
+--- a/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX-result.xml
++++ b/tests/cputestdata/x86_64-host-Haswell-noTSX+Haswell-noTSX-result.xml
+@@ -1,4 +1,4 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>Haswell-noTSX</model>
+-  <topology sockets='1' dies='1' cores='2' threads='2'/>
++  <topology sockets='1' dies='1' clusters='1' cores='2' threads='2'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-host-worse+guest-result.xml b/tests/cputestdata/x86_64-host-worse+guest-result.xml
+index 9d54c66a8f..712c3ad341 100644
+--- a/tests/cputestdata/x86_64-host-worse+guest-result.xml
++++ b/tests/cputestdata/x86_64-host-worse+guest-result.xml
+@@ -1,6 +1,6 @@
+ <cpu mode='custom' match='exact'>
+   <model fallback='allow'>Penryn</model>
+-  <topology sockets='2' dies='1' cores='4' threads='1'/>
++  <topology sockets='2' dies='1' clusters='1' cores='4' threads='1'/>
+   <feature policy='disable' name='dca'/>
+   <feature policy='disable' name='xtpr'/>
+   <feature policy='disable' name='sse4.2'/>
+diff --git a/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-conf.xml b/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-conf.xml
+index ad11b2f8a6..1a0d28257e 100644
+--- a/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-conf.xml
++++ b/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-conf.xml
+@@ -44,7 +44,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='1' dies='1' cores='4' threads='8'/>
++    <topology sockets='1' dies='1' clusters='1' cores='4' threads='8'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-live.xml b/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-live.xml
+index 2a3b4a495f..b127883b36 100644
+--- a/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-live.xml
++++ b/tests/qemuhotplugtestcpus/ppc64-modern-bulk-result-live.xml
+@@ -44,7 +44,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='1' dies='1' cores='4' threads='8'/>
++    <topology sockets='1' dies='1' clusters='1' cores='4' threads='8'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-conf.xml b/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-conf.xml
+index 34aec9b965..29f1a5ac45 100644
+--- a/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-conf.xml
++++ b/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-conf.xml
+@@ -44,7 +44,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='1' dies='1' cores='4' threads='8'/>
++    <topology sockets='1' dies='1' clusters='1' cores='4' threads='8'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-live.xml b/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-live.xml
+index 5ce2cfd0b0..76a85ac9f0 100644
+--- a/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-live.xml
++++ b/tests/qemuhotplugtestcpus/ppc64-modern-individual-result-live.xml
+@@ -44,7 +44,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='1' dies='1' cores='4' threads='8'/>
++    <topology sockets='1' dies='1' clusters='1' cores='4' threads='8'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/x86-modern-bulk-result-conf.xml b/tests/qemuhotplugtestcpus/x86-modern-bulk-result-conf.xml
+index 8d52ffedb4..bec46987ff 100644
+--- a/tests/qemuhotplugtestcpus/x86-modern-bulk-result-conf.xml
++++ b/tests/qemuhotplugtestcpus/x86-modern-bulk-result-conf.xml
+@@ -20,7 +20,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='4' dies='1' cores='2' threads='1'/>
++    <topology sockets='4' dies='1' clusters='1' cores='2' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/x86-modern-bulk-result-live.xml b/tests/qemuhotplugtestcpus/x86-modern-bulk-result-live.xml
+index f416397e33..be9769c686 100644
+--- a/tests/qemuhotplugtestcpus/x86-modern-bulk-result-live.xml
++++ b/tests/qemuhotplugtestcpus/x86-modern-bulk-result-live.xml
+@@ -20,7 +20,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='4' dies='1' cores='2' threads='1'/>
++    <topology sockets='4' dies='1' clusters='1' cores='2' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-conf.xml b/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-conf.xml
+index 0bd2af8e43..539f607818 100644
+--- a/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-conf.xml
++++ b/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-conf.xml
+@@ -20,7 +20,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='4' dies='1' cores='2' threads='1'/>
++    <topology sockets='4' dies='1' clusters='1' cores='2' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-live.xml b/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-live.xml
+index b31e6ebe55..acbdd3cfd5 100644
+--- a/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-live.xml
++++ b/tests/qemuhotplugtestcpus/x86-modern-individual-add-result-live.xml
+@@ -20,7 +20,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='4' dies='1' cores='2' threads='1'/>
++    <topology sockets='4' dies='1' clusters='1' cores='2' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout+graphics-spice-timeout-password.xml b/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout+graphics-spice-timeout-password.xml
+index 03964ad01c..ee53339338 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout+graphics-spice-timeout-password.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout+graphics-spice-timeout-password.xml
+@@ -18,7 +18,7 @@
+   <cpu mode='custom' match='exact' check='partial'>
+     <model fallback='allow'>core2duo</model>
+     <vendor>Intel</vendor>
+-    <topology sockets='1' dies='1' cores='2' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='2' threads='1'/>
+     <feature policy='require' name='lahf_lm'/>
+     <feature policy='require' name='xtpr'/>
+     <feature policy='require' name='cx16'/>
+diff --git a/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout.xml b/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout.xml
+index e6b0cc833a..eb9b902fc5 100644
+--- a/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout.xml
++++ b/tests/qemuhotplugtestdomains/qemuhotplug-graphics-spice-timeout.xml
+@@ -18,7 +18,7 @@
+   <cpu mode='custom' match='exact' check='partial'>
+     <model fallback='allow'>core2duo</model>
+     <vendor>Intel</vendor>
+-    <topology sockets='1' dies='1' cores='2' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='2' threads='1'/>
+     <feature policy='require' name='lahf_lm'/>
+     <feature policy='require' name='xtpr'/>
+     <feature policy='require' name='cx16'/>
+diff --git a/tests/qemuxml2argvdata/fd-memory-no-numa-topology.xml b/tests/qemuxml2argvdata/fd-memory-no-numa-topology.xml
+index 2090bb8288..92f418fb88 100644
+--- a/tests/qemuxml2argvdata/fd-memory-no-numa-topology.xml
++++ b/tests/qemuxml2argvdata/fd-memory-no-numa-topology.xml
+@@ -15,7 +15,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='8' dies='1' cores='1' threads='1'/>
++    <topology sockets='8' dies='1' clusters='1' cores='1' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuxml2argvdata/fd-memory-numa-topology.xml b/tests/qemuxml2argvdata/fd-memory-numa-topology.xml
+index 2f94690656..543509d832 100644
+--- a/tests/qemuxml2argvdata/fd-memory-numa-topology.xml
++++ b/tests/qemuxml2argvdata/fd-memory-numa-topology.xml
+@@ -15,7 +15,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='1' dies='1' cores='8' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='8' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='14680064' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/fd-memory-numa-topology2.xml b/tests/qemuxml2argvdata/fd-memory-numa-topology2.xml
+index 3a4e9b478e..d3b98da3c6 100644
+--- a/tests/qemuxml2argvdata/fd-memory-numa-topology2.xml
++++ b/tests/qemuxml2argvdata/fd-memory-numa-topology2.xml
+@@ -15,7 +15,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='1' dies='1' cores='20' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='20' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-7,16-19' memory='14680064' unit='KiB'/>
+       <cell id='1' cpus='8-15' memory='14680064' unit='KiB' memAccess='shared'/>
+diff --git a/tests/qemuxml2argvdata/fd-memory-numa-topology3.xml b/tests/qemuxml2argvdata/fd-memory-numa-topology3.xml
+index 0f7f74283b..459d1b9d1d 100644
+--- a/tests/qemuxml2argvdata/fd-memory-numa-topology3.xml
++++ b/tests/qemuxml2argvdata/fd-memory-numa-topology3.xml
+@@ -15,7 +15,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='1' dies='1' cores='32' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='32' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1,6-31' memory='14680064' unit='KiB'/>
+       <cell id='1' cpus='2-3' memory='14680064' unit='KiB' memAccess='shared'/>
+diff --git a/tests/qemuxml2argvdata/hugepages-nvdimm.xml b/tests/qemuxml2argvdata/hugepages-nvdimm.xml
+index 1a1500895b..b786b0d3dd 100644
+--- a/tests/qemuxml2argvdata/hugepages-nvdimm.xml
++++ b/tests/qemuxml2argvdata/hugepages-nvdimm.xml
+@@ -17,7 +17,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='1048576' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memfd-memory-default-hugepage.xml b/tests/qemuxml2argvdata/memfd-memory-default-hugepage.xml
+index 238d4c6b52..a70bd53134 100644
+--- a/tests/qemuxml2argvdata/memfd-memory-default-hugepage.xml
++++ b/tests/qemuxml2argvdata/memfd-memory-default-hugepage.xml
+@@ -19,7 +19,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='1' dies='1' cores='8' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='8' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='14680064' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memfd-memory-numa.xml b/tests/qemuxml2argvdata/memfd-memory-numa.xml
+index 1ac87e3aef..0c5d7ba4ef 100644
+--- a/tests/qemuxml2argvdata/memfd-memory-numa.xml
++++ b/tests/qemuxml2argvdata/memfd-memory-numa.xml
+@@ -22,7 +22,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='1' dies='1' cores='8' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='8' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='14680064' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.xml b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.xml
+index bee0346aca..84baf82bf5 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-access.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.xml b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.xml
+index decf87db63..664418e805 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-align.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.xml b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.xml
+index 8a0dab3908..f998f7f276 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-label.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.xml b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.xml
+index a712adfe1e..d66481fd35 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-pmem.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.xml b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.xml
+index 57629ccb8c..56d6b7b712 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm-readonly.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-nvdimm.xml b/tests/qemuxml2argvdata/memory-hotplug-nvdimm.xml
+index 865ddcf0ea..ff6e3b7b0f 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-nvdimm.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-nvdimm.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='1048576' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml
+index c578209d8a..52fa6b14e9 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='2095104' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.xml b/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.xml
+index a8b22dd3c5..2786a739ad 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-virtio-pmem.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='2095104' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/cpu-numa-disjoint.x86_64-latest.xml b/tests/qemuxml2xmloutdata/cpu-numa-disjoint.x86_64-latest.xml
+index fa2ec31463..4f33094949 100644
+--- a/tests/qemuxml2xmloutdata/cpu-numa-disjoint.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/cpu-numa-disjoint.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-3,8-11' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='4-7,12-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/cpu-numa-disordered.x86_64-latest.xml b/tests/qemuxml2xmloutdata/cpu-numa-disordered.x86_64-latest.xml
+index 1b4d0bfa67..75dcb8c9e2 100644
+--- a/tests/qemuxml2xmloutdata/cpu-numa-disordered.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/cpu-numa-disordered.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-5' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='11-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/cpu-numa-memshared.x86_64-latest.xml b/tests/qemuxml2xmloutdata/cpu-numa-memshared.x86_64-latest.xml
+index 47ed9efd69..c45e295921 100644
+--- a/tests/qemuxml2xmloutdata/cpu-numa-memshared.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/cpu-numa-memshared.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='109550' unit='KiB' memAccess='shared'/>
+       <cell id='1' cpus='8-15' memory='109550' unit='KiB' memAccess='private'/>
+diff --git a/tests/qemuxml2xmloutdata/cpu-numa-no-memory-element.x86_64-latest.xml b/tests/qemuxml2xmloutdata/cpu-numa-no-memory-element.x86_64-latest.xml
+index 57bbacdff0..663d137ff5 100644
+--- a/tests/qemuxml2xmloutdata/cpu-numa-no-memory-element.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/cpu-numa-no-memory-element.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='8-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/cpu-numa1.x86_64-latest.xml b/tests/qemuxml2xmloutdata/cpu-numa1.x86_64-latest.xml
+index 57bbacdff0..663d137ff5 100644
+--- a/tests/qemuxml2xmloutdata/cpu-numa1.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/cpu-numa1.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='8-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/cpu-numa2.x86_64-latest.xml b/tests/qemuxml2xmloutdata/cpu-numa2.x86_64-latest.xml
+index 57bbacdff0..663d137ff5 100644
+--- a/tests/qemuxml2xmloutdata/cpu-numa2.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/cpu-numa2.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='8-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/memory-hotplug-dimm-addr.x86_64-latest.xml b/tests/qemuxml2xmloutdata/memory-hotplug-dimm-addr.x86_64-latest.xml
+index 0a32d5491a..38b41e6719 100644
+--- a/tests/qemuxml2xmloutdata/memory-hotplug-dimm-addr.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/memory-hotplug-dimm-addr.x86_64-latest.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/memory-hotplug-dimm.x86_64-latest.xml b/tests/qemuxml2xmloutdata/memory-hotplug-dimm.x86_64-latest.xml
+index 7c1b7b2c5d..7f0dc85c0e 100644
+--- a/tests/qemuxml2xmloutdata/memory-hotplug-dimm.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/memory-hotplug-dimm.x86_64-latest.xml
+@@ -15,7 +15,7 @@
+   </idmap>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/memory-hotplug-multiple.x86_64-latest.xml b/tests/qemuxml2xmloutdata/memory-hotplug-multiple.x86_64-latest.xml
+index 42b0f7b880..b3306fb569 100644
+--- a/tests/qemuxml2xmloutdata/memory-hotplug-multiple.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/memory-hotplug-multiple.x86_64-latest.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='2095104' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.xml b/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.xml
+index ae157c4849..4cc0c674df 100644
+--- a/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.xml
++++ b/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64-abi-update.ppc64-latest.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='1048576' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.xml b/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.xml
+index 3c1cbc731d..a5c26e3c5b 100644
+--- a/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.xml
++++ b/tests/qemuxml2xmloutdata/memory-hotplug-nvdimm-ppc64.ppc64-latest.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='1048576' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/memory-hotplug.x86_64-latest.xml b/tests/qemuxml2xmloutdata/memory-hotplug.x86_64-latest.xml
+index 083102e8d6..697819387f 100644
+--- a/tests/qemuxml2xmloutdata/memory-hotplug.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/memory-hotplug.x86_64-latest.xml
+@@ -11,7 +11,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+     <numa>
+       <cell id='0' cpus='0-1' memory='219136' unit='KiB'/>
+     </numa>
+diff --git a/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.xml b/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.xml
+index 2d04bc23c2..6068a76464 100644
+--- a/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-cpuset.x86_64-latest.xml
+@@ -13,7 +13,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.xml b/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.xml
+index 80f7284126..6c558526e9 100644
+--- a/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/numad-auto-memory-vcpu-no-cpuset-and-placement.x86_64-latest.xml
+@@ -13,7 +13,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuxml2xmloutdata/numad-auto-vcpu-no-numatune.x86_64-latest.xml b/tests/qemuxml2xmloutdata/numad-auto-vcpu-no-numatune.x86_64-latest.xml
+index 724209f6e3..6e1fecb488 100644
+--- a/tests/qemuxml2xmloutdata/numad-auto-vcpu-no-numatune.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/numad-auto-vcpu-no-numatune.x86_64-latest.xml
+@@ -13,7 +13,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuxml2xmloutdata/numad-static-vcpu-no-numatune.x86_64-latest.xml b/tests/qemuxml2xmloutdata/numad-static-vcpu-no-numatune.x86_64-latest.xml
+index 2a4ee0d496..c42d7066f9 100644
+--- a/tests/qemuxml2xmloutdata/numad-static-vcpu-no-numatune.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/numad-static-vcpu-no-numatune.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='1' threads='1'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/qemuxml2xmloutdata/pci-expander-bus.x86_64-latest.xml b/tests/qemuxml2xmloutdata/pci-expander-bus.x86_64-latest.xml
+index b63c8c145a..2a6c329a40 100644
+--- a/tests/qemuxml2xmloutdata/pci-expander-bus.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/pci-expander-bus.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='8-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/pcie-expander-bus.x86_64-latest.xml b/tests/qemuxml2xmloutdata/pcie-expander-bus.x86_64-latest.xml
+index a441be8ebe..99612740b2 100644
+--- a/tests/qemuxml2xmloutdata/pcie-expander-bus.x86_64-latest.xml
++++ b/tests/qemuxml2xmloutdata/pcie-expander-bus.x86_64-latest.xml
+@@ -10,7 +10,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+-    <topology sockets='2' dies='1' cores='4' threads='2'/>
++    <topology sockets='2' dies='1' clusters='1' cores='4' threads='2'/>
+     <numa>
+       <cell id='0' cpus='0-7' memory='109550' unit='KiB'/>
+       <cell id='1' cpus='8-15' memory='109550' unit='KiB'/>
+diff --git a/tests/qemuxml2xmloutdata/pseries-phb-numa-node.ppc64-latest.xml b/tests/qemuxml2xmloutdata/pseries-phb-numa-node.ppc64-latest.xml
+index 59015846fb..0a044f50b0 100644
+--- a/tests/qemuxml2xmloutdata/pseries-phb-numa-node.ppc64-latest.xml
++++ b/tests/qemuxml2xmloutdata/pseries-phb-numa-node.ppc64-latest.xml
+@@ -14,7 +14,7 @@
+   </os>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>POWER9</model>
+-    <topology sockets='2' dies='1' cores='1' threads='4'/>
++    <topology sockets='2' dies='1' clusters='1' cores='1' threads='4'/>
+     <numa>
+       <cell id='0' cpus='0-3' memory='1048576' unit='KiB'/>
+       <cell id='1' cpus='4-7' memory='1048576' unit='KiB'/>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-10.xml b/tests/vmx2xmldata/esx-in-the-wild-10.xml
+index 47ed637920..78129682bd 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-10.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-10.xml
+@@ -12,7 +12,7 @@
+     <type arch='x86_64'>hvm</type>
+   </os>
+   <cpu>
+-    <topology sockets='1' dies='1' cores='2' threads='1'/>
++    <topology sockets='1' dies='1' clusters='1' cores='2' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-8.xml b/tests/vmx2xmldata/esx-in-the-wild-8.xml
+index 0eea610709..47d22ced2a 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-8.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-8.xml
+@@ -11,7 +11,7 @@
+     <type arch='x86_64'>hvm</type>
+   </os>
+   <cpu>
+-    <topology sockets='4' dies='1' cores='2' threads='1'/>
++    <topology sockets='4' dies='1' clusters='1' cores='2' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-9.xml b/tests/vmx2xmldata/esx-in-the-wild-9.xml
+index 66eca400dd..ee6be2527f 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-9.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-9.xml
+@@ -12,7 +12,7 @@
+     <type arch='x86_64'>hvm</type>
+   </os>
+   <cpu>
+-    <topology sockets='4' dies='1' cores='4' threads='1'/>
++    <topology sockets='4' dies='1' clusters='1' cores='4' threads='1'/>
+   </cpu>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+-- 
+2.43.0

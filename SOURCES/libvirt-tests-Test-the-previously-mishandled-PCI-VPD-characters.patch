@@ -1,5 +1,5 @@
-From b7adc938ae381c321cff0306d9f1ad877831e876 Mon Sep 17 00:00:00 2001
-Message-ID: <b7adc938ae381c321cff0306d9f1ad877831e876.1708340442.git.jdenemar@redhat.com>
+From a7c145e58b5de35554004f5a779091cec7d03be1 Mon Sep 17 00:00:00 2001
+Message-ID: <a7c145e58b5de35554004f5a779091cec7d03be1.1707394627.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 23 Jan 2024 16:40:34 +0100
 Subject: [PATCH] tests: Test the previously mishandled PCI VPD characters
@@ -47,10 +47,10 @@ index 8b56e4f6b4..c9a2901381 100644
          <system_field index='0'>systemfield0</system_field>
        </fields>
 diff --git a/tests/virpcimock.c b/tests/virpcimock.c
-index b2111794e6..fbd6d49e33 100644
+index 13b37bb23d..2f98b0cf13 100644
 --- a/tests/virpcimock.c
 +++ b/tests/virpcimock.c
-@@ -957,9 +957,9 @@ init_env(void)
+@@ -966,9 +966,9 @@ init_env(void)
          't', 'e', 's', 't', 'n', 'a', 'm', 'e',
          PCI_VPD_LARGE_RESOURCE_FLAG | PCI_VPD_READ_ONLY_LARGE_RESOURCE_FLAG, 0x16, 0x00,
          'P', 'N', 0x02, '4', '2',
@@ -85,4 +85,4 @@ index b4dd68b7aa..ae5772d3f5 100644
  
      if (!res->rw->vendor_specific)
 -- 
-2.43.2
+2.43.0

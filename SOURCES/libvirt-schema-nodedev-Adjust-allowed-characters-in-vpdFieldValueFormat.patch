@@ -1,5 +1,5 @@
-From 095bc46a349055bcba6a95574d8693c22a17de26 Mon Sep 17 00:00:00 2001
-Message-ID: <095bc46a349055bcba6a95574d8693c22a17de26.1708340442.git.jdenemar@redhat.com>
+From 4c070fe8db9456a0cd33910d37e613a045a1ec77 Mon Sep 17 00:00:00 2001
+Message-ID: <4c070fe8db9456a0cd33910d37e613a045a1ec77.1707394627.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 29 Jan 2024 16:12:09 +0100
 Subject: [PATCH] schema: nodedev: Adjust allowed characters in
@@ -36,4 +36,4 @@ index fba4021754..ff07313968 100644
    </define>
  
 -- 
-2.43.2
+2.43.0

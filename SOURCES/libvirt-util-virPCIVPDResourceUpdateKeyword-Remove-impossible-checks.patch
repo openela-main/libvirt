@@ -1,0 +1,63 @@
+From 3c01b1ab89ad4c16862582a05394f056616925a2 Mon Sep 17 00:00:00 2001
+Message-ID: <3c01b1ab89ad4c16862582a05394f056616925a2.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Jan 2024 16:42:45 +0100
+Subject: [PATCH] util: virPCIVPDResourceUpdateKeyword: Remove impossible
+ checks
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+All callers satisfy these checks as they are just for programming
+errors.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit dd328cd48a469d81e91eaf56fad832aa8bd288d6)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c | 19 -------------------
+ 1 file changed, 19 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index f198faaf42..3beb405252 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -313,20 +313,7 @@ bool
+ virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res, const bool readOnly,
+                                const char *const keyword, const char *const value)
+ {
+-    if (!res) {
+-        VIR_INFO("Cannot update the resource: a NULL resource pointer has been provided.");
+-        return false;
+-    } else if (!keyword) {
+-        VIR_INFO("Cannot update the resource: a NULL keyword pointer has been provided.");
+-        return false;
+-    }
+-
+     if (readOnly) {
+-        if (!res->ro) {
+-            VIR_INFO("Cannot update the read-only keyword: RO section not initialized.");
+-            return false;
+-        }
+-
+         if (STREQ("EC", keyword) || STREQ("change_level", keyword)) {
+             g_free(res->ro->change_level);
+             res->ro->change_level = g_strdup(value);
+@@ -353,13 +340,7 @@ virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res, const bool readOnly,
+             /* The CP keyword is currently not supported and is skipped. */
+             return true;
+         }
+-
+     } else {
+-        if (!res->rw) {
+-            VIR_INFO("Cannot update the read-write keyword: read-write section not initialized.");
+-            return false;
+-        }
+-
+         if (STREQ("YA", keyword) || STREQ("asset_tag", keyword)) {
+             g_free(res->rw->asset_tag);
+             res->rw->asset_tag = g_strdup(value);
+-- 
+2.43.0

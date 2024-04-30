@@ -1,0 +1,83 @@
+From dffe71c5a042c9b5c856f24a681d4f1ee5910041 Mon Sep 17 00:00:00 2001
+Message-ID: <dffe71c5a042c9b5c856f24a681d4f1ee5910041.1710860841.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 7 Mar 2024 14:06:13 +0100
+Subject: [PATCH] Add vmx-* features to core{,2}duo
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Tim Wiederhake <twiederh@redhat.com>
+(cherry picked from commit 823c7005a3b0d5275b30ca811479995bfa5820e9)
+https://issues.redhat.com/browse/RHEL-25995
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/x86_core2duo.xml | 26 ++++++++++++++++++++++++++
+ src/cpu_map/x86_coreduo.xml  | 18 ++++++++++++++++++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/src/cpu_map/x86_core2duo.xml b/src/cpu_map/x86_core2duo.xml
+index 412039fe55..ea23a6c662 100644
+--- a/src/cpu_map/x86_core2duo.xml
++++ b/src/cpu_map/x86_core2duo.xml
+@@ -30,5 +30,31 @@
+     <feature name='syscall'/>
+     <feature name='tsc'/>
+     <feature name='vme'/>
++    <feature name='vmx-activity-hlt' added='yes'/>
++    <feature name='vmx-apicv-xapic' added='yes'/>
++    <feature name='vmx-cr8-load-exit' added='yes'/>
++    <feature name='vmx-cr8-store-exit' added='yes'/>
++    <feature name='vmx-entry-ia32e-mode' added='yes'/>
++    <feature name='vmx-exit-ack-intr' added='yes'/>
++    <feature name='vmx-flexpriority' added='yes'/>
++    <feature name='vmx-hlt-exit' added='yes'/>
++    <feature name='vmx-ins-outs' added='yes'/>
++    <feature name='vmx-intr-exit' added='yes'/>
++    <feature name='vmx-invlpg-exit' added='yes'/>
++    <feature name='vmx-io-bitmap' added='yes'/>
++    <feature name='vmx-io-exit' added='yes'/>
++    <feature name='vmx-monitor-exit' added='yes'/>
++    <feature name='vmx-movdr-exit' added='yes'/>
++    <feature name='vmx-msr-bitmap' added='yes'/>
++    <feature name='vmx-mwait-exit' added='yes'/>
++    <feature name='vmx-nmi-exit' added='yes'/>
++    <feature name='vmx-pause-exit' added='yes'/>
++    <feature name='vmx-rdpmc-exit' added='yes'/>
++    <feature name='vmx-rdtsc-exit' added='yes'/>
++    <feature name='vmx-secondary-ctls' added='yes'/>
++    <feature name='vmx-tsc-offset' added='yes'/>
++    <feature name='vmx-vintr-pending' added='yes'/>
++    <feature name='vmx-vnmi' added='yes'/>
++    <feature name='vmx-vnmi-pending' added='yes'/>
+   </model>
+ </cpus>
+diff --git a/src/cpu_map/x86_coreduo.xml b/src/cpu_map/x86_coreduo.xml
+index e2fda9a1d4..24900e637f 100644
+--- a/src/cpu_map/x86_coreduo.xml
++++ b/src/cpu_map/x86_coreduo.xml
+@@ -26,5 +26,23 @@
+     <feature name='sse2'/>
+     <feature name='tsc'/>
+     <feature name='vme'/>
++    <feature name='vmx-activity-hlt' added='yes'/>
++    <feature name='vmx-entry-ia32e-mode' added='yes'/>
++    <feature name='vmx-exit-ack-intr' added='yes'/>
++    <feature name='vmx-hlt-exit' added='yes'/>
++    <feature name='vmx-intr-exit' added='yes'/>
++    <feature name='vmx-invlpg-exit' added='yes'/>
++    <feature name='vmx-io-bitmap' added='yes'/>
++    <feature name='vmx-io-exit' added='yes'/>
++    <feature name='vmx-monitor-exit' added='yes'/>
++    <feature name='vmx-movdr-exit' added='yes'/>
++    <feature name='vmx-msr-bitmap' added='yes'/>
++    <feature name='vmx-mwait-exit' added='yes'/>
++    <feature name='vmx-nmi-exit' added='yes'/>
++    <feature name='vmx-pause-exit' added='yes'/>
++    <feature name='vmx-rdpmc-exit' added='yes'/>
++    <feature name='vmx-rdtsc-exit' added='yes'/>
++    <feature name='vmx-tsc-offset' added='yes'/>
++    <feature name='vmx-vintr-pending' added='yes'/>
+   </model>
+ </cpus>
+-- 
+2.44.0

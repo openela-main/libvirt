@@ -1,0 +1,208 @@
+From 8fbc827a89ef1163b64d39a2ff9b1c067ea82b63 Mon Sep 17 00:00:00 2001
+Message-ID: <8fbc827a89ef1163b64d39a2ff9b1c067ea82b63.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 5 Jan 2024 18:42:13 +0100
+Subject: [PATCH] qemu: Introduce QEMU_CAPS_SMP_CLUSTERS
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit beb27dc61ed4bfe60ca32ec2cbbc937215f9e139)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                         | 2 ++
+ src/qemu/qemu_capabilities.h                         | 1 +
+ tests/qemucapabilitiesdata/caps_7.1.0_ppc64.xml      | 1 +
+ tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_7.2.0_ppc.xml        | 1 +
+ tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml | 1 +
+ tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_8.0.0_riscv64.xml    | 1 +
+ tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml      | 1 +
+ tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml    | 1 +
+ tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml     | 1 +
+ 14 files changed, 15 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 3d35333f09..a4d42b40ed 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -699,6 +699,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "run-with.async-teardown", /* QEMU_CAPS_RUN_WITH_ASYNC_TEARDOWN */
+               "virtio-blk-vhost-vdpa", /* QEMU_CAPS_DEVICE_VIRTIO_BLK_VHOST_VDPA */
+               "virtio-blk.iothread-mapping", /* QEMU_CAPS_VIRTIO_BLK_IOTHREAD_MAPPING */
++              "smp-clusters", /* QEMU_CAPS_SMP_CLUSTERS */
+     );
+ 
+ 
+@@ -1552,6 +1553,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+     { "query-display-options/ret-type/+sdl", QEMU_CAPS_SDL },
+     { "query-display-options/ret-type/+egl-headless", QEMU_CAPS_EGL_HEADLESS },
+     { "query-hotpluggable-cpus/ret-type/props/die-id", QEMU_CAPS_SMP_DIES },
++    { "query-hotpluggable-cpus/ret-type/props/cluster-id", QEMU_CAPS_SMP_CLUSTERS },
+     { "query-named-block-nodes/arg-type/flat", QEMU_CAPS_QMP_QUERY_NAMED_BLOCK_NODES_FLAT },
+     { "screendump/arg-type/device", QEMU_CAPS_SCREENDUMP_DEVICE },
+     { "set-numa-node/arg-type/+hmat-lb", QEMU_CAPS_NUMA_HMAT },
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 279e9a8273..a353750670 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -678,6 +678,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_RUN_WITH_ASYNC_TEARDOWN, /* asynchronous teardown -run-with async-teardown=on|off */
+     QEMU_CAPS_DEVICE_VIRTIO_BLK_VHOST_VDPA, /* virtio-blk-vhost-vdpa block driver */
+     QEMU_CAPS_VIRTIO_BLK_IOTHREAD_MAPPING, /* virtio-blk supports per-virtqueue iothread mapping */
++    QEMU_CAPS_SMP_CLUSTERS, /* -smp clusters= */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_7.1.0_ppc64.xml b/tests/qemucapabilitiesdata/caps_7.1.0_ppc64.xml
+index 4315241d1d..536524cf18 100644
+--- a/tests/qemucapabilitiesdata/caps_7.1.0_ppc64.xml
++++ b/tests/qemucapabilitiesdata/caps_7.1.0_ppc64.xml
+@@ -154,6 +154,7 @@
+   <flag name='virtio-crypto'/>
+   <flag name='pvpanic-pci'/>
+   <flag name='virtio-gpu.blob'/>
++  <flag name='smp-clusters'/>
+   <version>7001000</version>
+   <microcodeVersion>42900244</microcodeVersion>
+   <package>v7.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml
+index bd84750dc5..58e1111982 100644
+--- a/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml
+@@ -188,6 +188,7 @@
+   <flag name='virtio-crypto'/>
+   <flag name='pvpanic-pci'/>
+   <flag name='virtio-gpu.blob'/>
++  <flag name='smp-clusters'/>
+   <version>7001000</version>
+   <microcodeVersion>43100244</microcodeVersion>
+   <package>v7.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.2.0_ppc.xml b/tests/qemucapabilitiesdata/caps_7.2.0_ppc.xml
+index a1fc441412..127b8ee4c2 100644
+--- a/tests/qemucapabilitiesdata/caps_7.2.0_ppc.xml
++++ b/tests/qemucapabilitiesdata/caps_7.2.0_ppc.xml
+@@ -149,6 +149,7 @@
+   <flag name='virtio-crypto'/>
+   <flag name='pvpanic-pci'/>
+   <flag name='virtio-gpu.blob'/>
++  <flag name='smp-clusters'/>
+   <version>7002000</version>
+   <microcodeVersion>0</microcodeVersion>
+   <package>qemu-7.2.0-6.fc37</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml
+index 06a01a2c4c..a30ec3c164 100644
+--- a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml
++++ b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml
+@@ -192,6 +192,7 @@
+   <flag name='cryptodev-backend-lkcf'/>
+   <flag name='pvpanic-pci'/>
+   <flag name='virtio-gpu.blob'/>
++  <flag name='smp-clusters'/>
+   <version>7002000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v7.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml
+index 8ac1529c30..24ac7b8f6e 100644
+--- a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml
+@@ -192,6 +192,7 @@
+   <flag name='cryptodev-backend-lkcf'/>
+   <flag name='pvpanic-pci'/>
+   <flag name='virtio-gpu.blob'/>
++  <flag name='smp-clusters'/>
+   <version>7002000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v7.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.0.0_riscv64.xml b/tests/qemucapabilitiesdata/caps_8.0.0_riscv64.xml
+index 31300d3d31..3f2acb5018 100644
+--- a/tests/qemucapabilitiesdata/caps_8.0.0_riscv64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.0.0_riscv64.xml
+@@ -138,6 +138,7 @@
+   <flag name='virtio-crypto'/>
+   <flag name='pvpanic-pci'/>
+   <flag name='virtio-gpu.blob'/>
++  <flag name='smp-clusters'/>
+   <version>7002050</version>
+   <microcodeVersion>0</microcodeVersion>
+   <package>v7.2.0-333-g222059a0fc</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml
+index c2fa8eb028..85869f6b5d 100644
+--- a/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml
+@@ -196,6 +196,7 @@
+   <flag name='virtio-gpu.blob'/>
+   <flag name='rbd-encryption-layering'/>
+   <flag name='rbd-encryption-luks-any'/>
++  <flag name='smp-clusters'/>
+   <version>8000000</version>
+   <microcodeVersion>43100244</microcodeVersion>
+   <package>v8.0.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml b/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml
+index 427ee9d5c7..19422f08fa 100644
+--- a/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_8.1.0_s390x.xml
+@@ -112,6 +112,7 @@
+   <flag name='rbd-encryption-layering'/>
+   <flag name='rbd-encryption-luks-any'/>
+   <flag name='run-with.async-teardown'/>
++  <flag name='smp-clusters'/>
+   <version>8000050</version>
+   <microcodeVersion>39100245</microcodeVersion>
+   <package>v8.0.0-1270-g1c12355b</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
+index d266dd0f31..0caee53550 100644
+--- a/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
+@@ -198,6 +198,7 @@
+   <flag name='qcow2-discard-no-unref'/>
+   <flag name='run-with.async-teardown'/>
+   <flag name='virtio-blk-vhost-vdpa'/>
++  <flag name='smp-clusters'/>
+   <version>8001000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v8.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml b/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml
+index 40d490c1c0..54fd349365 100644
+--- a/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml
+@@ -162,6 +162,7 @@
+   <flag name='rbd-encryption-luks-any'/>
+   <flag name='qcow2-discard-no-unref'/>
+   <flag name='run-with.async-teardown'/>
++  <flag name='smp-clusters'/>
+   <version>8002000</version>
+   <microcodeVersion>61700246</microcodeVersion>
+   <package>v8.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
+index ee52952702..8a6527810a 100644
+--- a/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
+@@ -199,6 +199,7 @@
+   <flag name='qcow2-discard-no-unref'/>
+   <flag name='run-with.async-teardown'/>
+   <flag name='virtio-blk-vhost-vdpa'/>
++  <flag name='smp-clusters'/>
+   <version>8002000</version>
+   <microcodeVersion>43100246</microcodeVersion>
+   <package>v8.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
+index 65d86f7016..b4c3b1bae3 100644
+--- a/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
+@@ -200,6 +200,7 @@
+   <flag name='run-with.async-teardown'/>
+   <flag name='virtio-blk-vhost-vdpa'/>
+   <flag name='virtio-blk.iothread-mapping'/>
++  <flag name='smp-clusters'/>
+   <version>8002050</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v8.2.0-196-g7425b6277f</package>
+-- 
+2.43.0

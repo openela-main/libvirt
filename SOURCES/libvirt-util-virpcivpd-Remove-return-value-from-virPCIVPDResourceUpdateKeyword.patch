@@ -1,0 +1,206 @@
+From 1fe79c11dab8f390efd2035ba20c194987ba4dee Mon Sep 17 00:00:00 2001
+Message-ID: <1fe79c11dab8f390efd2035ba20c194987ba4dee.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Jan 2024 17:15:10 +0100
+Subject: [PATCH] util: virpcivpd: Remove return value from
+ virPCIVPDResourceUpdateKeyword
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function always succeeded and after the removal of programing error
+checks doesn't even have a 'return false' case. Additionally one of the
+tests in 'virpcivpdtest' tested that this function never failed on wrong
+data. Embrace this logic and remove the return value and adjust logging
+to VIR_DEBUG level to avoid spamming logs.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 9aa303a948a3eb98b727a333e2571d19ae0a81ce)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c  | 31 +++++++++++--------------------
+ src/util/virpcivpd.h  |  8 +++++---
+ tests/virpcivpdtest.c | 38 ++++++++++++++++++--------------------
+ 3 files changed, 34 insertions(+), 43 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index 3beb405252..0021a88f2d 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -307,54 +307,48 @@ virPCIVPDResourceCustomUpsertValue(GPtrArray *arr, char index, const char *const
+  * used in XML elements. For vendor-specific and system-specific keywords only V%s and Y%s
+  * (except "YA" which is an asset tag) formatted values are accepted.
+  *
+- * Returns: true if a keyword has been updated successfully, false otherwise.
++ * Unknown or malformed values are ignored.
+  */
+-bool
+-virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res, const bool readOnly,
+-                               const char *const keyword, const char *const value)
++void
++virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res,
++                               const bool readOnly,
++                               const char *const keyword,
++                               const char *const value)
+ {
+     if (readOnly) {
+         if (STREQ("EC", keyword) || STREQ("change_level", keyword)) {
+             g_free(res->ro->change_level);
+             res->ro->change_level = g_strdup(value);
+-            return true;
+         } else if (STREQ("MN", keyword) || STREQ("manufacture_id", keyword)) {
+             g_free(res->ro->manufacture_id);
+             res->ro->manufacture_id = g_strdup(value);
+-            return true;
+         } else if (STREQ("PN", keyword) || STREQ("part_number", keyword)) {
+             g_free(res->ro->part_number);
+             res->ro->part_number = g_strdup(value);
+-            return true;
+         } else if (STREQ("SN", keyword) || STREQ("serial_number", keyword)) {
+             g_free(res->ro->serial_number);
+             res->ro->serial_number = g_strdup(value);
+-            return true;
+         } else if (virPCIVPDResourceIsVendorKeyword(keyword)) {
+             virPCIVPDResourceCustomUpsertValue(res->ro->vendor_specific, keyword[1], value);
+-            return true;
+         } else if (STREQ("FG", keyword) || STREQ("LC", keyword) || STREQ("PG", keyword)) {
+             /* Legacy PICMIG keywords are skipped on purpose. */
+-            return true;
+         } else if (STREQ("CP", keyword)) {
+             /* The CP keyword is currently not supported and is skipped. */
+-            return true;
++        } else {
++            VIR_DEBUG("unhandled PCI VPD r/o keyword '%s'(val='%s')", keyword, value);
+         }
+     } else {
+         if (STREQ("YA", keyword) || STREQ("asset_tag", keyword)) {
+             g_free(res->rw->asset_tag);
+             res->rw->asset_tag = g_strdup(value);
+-            return true;
+         } else if (virPCIVPDResourceIsVendorKeyword(keyword)) {
+             virPCIVPDResourceCustomUpsertValue(res->rw->vendor_specific, keyword[1], value);
+-            return true;
+         } else if (virPCIVPDResourceIsSystemKeyword(keyword)) {
+             virPCIVPDResourceCustomUpsertValue(res->rw->system_specific, keyword[1], value);
+-            return true;
++        } else {
++            VIR_DEBUG("unhandled PCI VPD r/w keyword '%s'(val='%s')", keyword, value);
+         }
+     }
+-    VIR_WARN("Tried to update an unsupported keyword %s: skipping.", keyword);
+-    return true;
+ }
+ 
+ #ifdef __linux__
+@@ -527,10 +521,7 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+                 res->rw = virPCIVPDResourceRWNew();
+         }
+         /* The field format, keyword and value are determined. Attempt to update the resource. */
+-        if (!virPCIVPDResourceUpdateKeyword(res, readOnly, fieldKeyword, fieldValue)) {
+-            VIR_INFO("Could not update the VPD resource keyword: %s", fieldKeyword);
+-            return false;
+-        }
++        virPCIVPDResourceUpdateKeyword(res, readOnly, fieldKeyword, fieldValue);
+     }
+ 
+     /* May have exited the loop prematurely in case RV or RW were encountered and
+diff --git a/src/util/virpcivpd.h b/src/util/virpcivpd.h
+index 9bfec43e03..d8d3dd3075 100644
+--- a/src/util/virpcivpd.h
++++ b/src/util/virpcivpd.h
+@@ -67,9 +67,11 @@ void virPCIVPDResourceRWFree(virPCIVPDResourceRW *rw);
+ 
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(virPCIVPDResourceRW, virPCIVPDResourceRWFree);
+ 
+-bool
+-virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res, const bool readOnly,
+-                               const char *const keyword, const char *const value);
++void
++virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res,
++                               const bool readOnly,
++                               const char *const keyword,
++                               const char *const value);
+ 
+ void virPCIVPDResourceCustomFree(virPCIVPDResourceCustom *custom);
+ 
+diff --git a/tests/virpcivpdtest.c b/tests/virpcivpdtest.c
+index 20545759d5..a6311bfe76 100644
+--- a/tests/virpcivpdtest.c
++++ b/tests/virpcivpdtest.c
+@@ -84,17 +84,15 @@ testPCIVPDResourceBasic(const void *data G_GNUC_UNUSED)
+ 
+     /* Update keywords one by one and compare actual values with the expected ones. */
+     for (i = 0; i < numROCases; ++i) {
+-        if (!virPCIVPDResourceUpdateKeyword(res, true,
+-                                            readOnlyCases[i].keyword,
+-                                            readOnlyCases[i].value))
+-            return -1;
++        virPCIVPDResourceUpdateKeyword(res, true,
++                                       readOnlyCases[i].keyword,
++                                       readOnlyCases[i].value);
+         if (STRNEQ(readOnlyCases[i].value, *readOnlyCases[i].actual))
+             return -1;
+     }
+ 
+     /* Do a basic vendor field check. */
+-    if (!virPCIVPDResourceUpdateKeyword(res, true, "V0", "vendor0"))
+-        return -1;
++    virPCIVPDResourceUpdateKeyword(res, true, "V0", "vendor0");
+ 
+     if (res->ro->vendor_specific->len != 1)
+         return -1;
+@@ -105,25 +103,23 @@ testPCIVPDResourceBasic(const void *data G_GNUC_UNUSED)
+ 
+     /* Make sure unsupported RO keyword updates are not fatal. */
+     for (i = 0; i < numUnsupportedCases; ++i) {
+-        if (!virPCIVPDResourceUpdateKeyword(res, true,
+-                                            unsupportedFieldCases[i].keyword,
+-                                            unsupportedFieldCases[i].value))
+-            return -1;
++        virPCIVPDResourceUpdateKeyword(res, true,
++                                       unsupportedFieldCases[i].keyword,
++                                       unsupportedFieldCases[i].value);
+     }
+ 
+     /* Initialize RW */
+     res->rw = g_steal_pointer(&rw);
+-    if (!virPCIVPDResourceUpdateKeyword(res, false, "YA", "tag1")
+-        || STRNEQ(res->rw->asset_tag, "tag1"))
++    virPCIVPDResourceUpdateKeyword(res, false, "YA", "tag1");
++    if (STRNEQ(res->rw->asset_tag, "tag1"))
+         return -1;
+ 
+-    if (!virPCIVPDResourceUpdateKeyword(res, false, "asset_tag", "tag2")
+-        || STRNEQ(res->rw->asset_tag, "tag2"))
++    virPCIVPDResourceUpdateKeyword(res, false, "asset_tag", "tag2");
++    if (STRNEQ(res->rw->asset_tag, "tag2"))
+         return -1;
+ 
+     /* Do a basic system field check. */
+-    if (!virPCIVPDResourceUpdateKeyword(res, false, "Y0", "system0"))
+-        return -1;
++    virPCIVPDResourceUpdateKeyword(res, false, "Y0", "system0");
+ 
+     if (res->rw->system_specific->len != 1)
+         return -1;
+@@ -134,10 +130,12 @@ testPCIVPDResourceBasic(const void *data G_GNUC_UNUSED)
+ 
+     /* Make sure unsupported RW keyword updates are not fatal. */
+     for (i = 0; i < numUnsupportedCases; ++i) {
+-        if (!virPCIVPDResourceUpdateKeyword(res, false,
+-                                            unsupportedFieldCases[i].keyword,
+-                                            unsupportedFieldCases[i].value))
+-            return -1;
++        /* This test is deliberately left in despite
++         * virPCIVPDResourceUpdateKeyword always succeeding to prevent
++         * possible regressions if the function is ever rewritten */
++        virPCIVPDResourceUpdateKeyword(res, false,
++                                       unsupportedFieldCases[i].keyword,
++                                       unsupportedFieldCases[i].value);
+     }
+ 
+ 
+-- 
+2.43.0

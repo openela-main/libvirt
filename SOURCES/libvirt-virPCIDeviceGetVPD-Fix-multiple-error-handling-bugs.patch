@@ -1,0 +1,69 @@
+From b025fc09fc5eff84bacea27f99837a013f810d60 Mon Sep 17 00:00:00 2001
+Message-ID: <b025fc09fc5eff84bacea27f99837a013f810d60.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 16:59:20 +0100
+Subject: [PATCH] virPCIDeviceGetVPD: Fix multiple error handling bugs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- fix passing of 'errno' to 'virReportSystemError'
+
+ The 'open' syscall returns '-1' and sets 'errno' on failure. The code
+ passed '-fd' as 'errno' rather than errno itself, thus always reporting
+ EPERM.
+
+- don't overwrite errors when closing FD
+
+ Use VIR_AUTOCLOSE to avoid overwriting the errors from virPCIVPDParse.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit bac86dd36e2c8c56e3d5678a94fc69f8e41a7d35)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpci.c | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index 99e6e6cbb1..780b4f9eec 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -3103,28 +3103,21 @@ virPCIDeviceHasVPD(virPCIDevice *dev)
+ virPCIVPDResource *
+ virPCIDeviceGetVPD(virPCIDevice *dev)
+ {
+-    g_autofree char *vpdPath = NULL;
+-    int fd;
+-    g_autoptr(virPCIVPDResource) res = NULL;
++    g_autofree char *vpdPath = virPCIFile(dev->name, "vpd");
++    VIR_AUTOCLOSE fd = -1;
+ 
+-    vpdPath = virPCIFile(dev->name, "vpd");
+     if (!virPCIDeviceHasVPD(dev)) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, _("Device %1$s does not have a VPD"),
+-                virPCIDeviceGetName(dev));
+-        return NULL;
+-    }
+-    if ((fd = open(vpdPath, O_RDONLY)) < 0) {
+-        virReportSystemError(-fd, _("Failed to open a VPD file '%1$s'"), vpdPath);
++                       virPCIDeviceGetName(dev));
+         return NULL;
+     }
+-    res = virPCIVPDParse(fd);
+ 
+-    if (VIR_CLOSE(fd) < 0) {
+-        virReportSystemError(errno, _("Unable to close the VPD file, fd: %1$d"), fd);
++    if ((fd = open(vpdPath, O_RDONLY)) < 0) {
++        virReportSystemError(errno, _("Failed to open a VPD file '%1$s'"), vpdPath);
+         return NULL;
+     }
+ 
+-    return g_steal_pointer(&res);
++    return virPCIVPDParse(fd);
+ }
+ 
+ #else
+-- 
+2.43.0

@@ -1,0 +1,156 @@
+From 93036f97d3b6da59fadc2aab57401e42e9fc148f Mon Sep 17 00:00:00 2001
+Message-ID: <93036f97d3b6da59fadc2aab57401e42e9fc148f.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 23:33:07 +0100
+Subject: [PATCH] virPCIVPDReadVPDBytes: Refactor error handling
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Each caller was checking that the function read as many bytes as it
+expected. Move the check inside virPCIVPDReadVPDBytes and make it report
+a proper error rather than just a combination of VIR_DEBUG inside the
+function and a random VIR_INFO in the caller.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit c15a495902bab43454341361174c8ba3dadfcdd5)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c | 73 +++++++++++++++++++++++---------------------
+ 1 file changed, 38 insertions(+), 35 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index 0021a88f2d..10cabff0b9 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -361,34 +361,40 @@ virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res,
+  * @offset: The offset at which bytes need to be read.
+  * @csum: A pointer to a byte containing the current checksum value. Mutated by this function.
+  *
+- * Returns: the number of VPD bytes read from the specified file descriptor. The csum value is
++ * Returns 0 if exactly @count bytes were read from @vpdFileFd. The csum value is
+  * also modified as bytes are read. If an error occurs while reading data from the VPD file
+- * descriptor, it is reported and -1 is returned to the caller. If EOF is occurred, 0 is returned
+- * to the caller.
++ * descriptor, it is reported and -1 is returned to the caller.
+  */
+-static size_t
+-virPCIVPDReadVPDBytes(int vpdFileFd, uint8_t *buf, size_t count, off_t offset, uint8_t *csum)
++static int
++virPCIVPDReadVPDBytes(int vpdFileFd,
++                      uint8_t *buf,
++                      size_t count,
++                      off_t offset,
++                      uint8_t *csum)
+ {
+     ssize_t numRead = pread(vpdFileFd, buf, count, offset);
+ 
+-    if (numRead == -1) {
+-        VIR_DEBUG("Unable to read %zu bytes at offset %zd from fd: %d",
+-                  count, (ssize_t)offset, vpdFileFd);
+-    } else if (numRead) {
+-        /*
+-         * Update the checksum for every byte read. Per the PCI(e) specs
+-         * the checksum is correct if the sum of all bytes in VPD from
+-         * VPD address 0 up to and including the VPD-R RV field's first
+-         * data byte is zero.
+-         */
+-        while (count--) {
+-            *csum += *buf;
+-            buf++;
+-        }
++    if (numRead != count) {
++        virReportError(VIR_ERR_OPERATION_FAILED, "%s",
++                       _("failed to read the PCI VPD data"));
++        return -1;
++    }
++
++    /*
++     * Update the checksum for every byte read. Per the PCI(e) specs
++     * the checksum is correct if the sum of all bytes in VPD from
++     * VPD address 0 up to and including the VPD-R RV field's first
++     * data byte is zero.
++     */
++    while (count--) {
++        *csum += *buf;
++        buf++;
+     }
+-    return numRead;
++
++    return 0;
+ }
+ 
++
+ /**
+  * virPCIVPDParseVPDLargeResourceFields:
+  * @vpdFileFd: A file descriptor associated with a file containing PCI device VPD.
+@@ -423,12 +429,9 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+         g_autofree char *fieldValue = NULL;
+ 
+         /* Keyword resources consist of keywords (2 ASCII bytes per the spec) and 1-byte length. */
+-        if (virPCIVPDReadVPDBytes(vpdFileFd, buf, 3, fieldPos, csum) != 3) {
+-            /* Invalid field encountered which means the resource itself is invalid too. Report
+-             * That VPD has invalid format and bail. */
+-            VIR_INFO("Could not read a resource field header - VPD has invalid format");
++        if (virPCIVPDReadVPDBytes(vpdFileFd, buf, 3, fieldPos, csum) < 0)
+             return false;
+-        }
++
+         fieldDataLen = buf[2];
+         /* Change the position to the field's data portion skipping the keyword and length bytes. */
+         fieldPos += 3;
+@@ -474,10 +477,10 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+             VIR_INFO("A field data length violates the resource length boundary.");
+             return false;
+         }
+-        if (virPCIVPDReadVPDBytes(vpdFileFd, buf, bytesToRead, fieldPos, csum) != bytesToRead) {
+-            VIR_INFO("Could not parse a resource field data - VPD has invalid format");
++
++        if (virPCIVPDReadVPDBytes(vpdFileFd, buf, bytesToRead, fieldPos, csum) < 0)
+             return false;
+-        }
++
+         /* Advance the position to the first byte of the next field. */
+         fieldPos += fieldDataLen;
+ 
+@@ -566,10 +569,9 @@ virPCIVPDParseVPDLargeResourceString(int vpdFileFd, uint16_t resPos,
+     /* The resource value is not NULL-terminated so add one more byte. */
+     g_autofree char *buf = g_malloc0(resDataLen + 1);
+ 
+-    if (virPCIVPDReadVPDBytes(vpdFileFd, (uint8_t *)buf, resDataLen, resPos, csum) != resDataLen) {
+-        VIR_INFO("Could not read a part of a resource - VPD has invalid format");
++    if (virPCIVPDReadVPDBytes(vpdFileFd, (uint8_t *)buf, resDataLen, resPos, csum) < 0)
+         return false;
+-    }
++
+     resValue = g_strdup(g_strstrip(buf));
+     if (!virPCIVPDResourceIsValidTextValue(resValue)) {
+         VIR_INFO("The string resource has invalid characters in its value");
+@@ -610,8 +612,8 @@ virPCIVPDParse(int vpdFileFd)
+ 
+     while (resPos <= PCI_VPD_ADDR_MASK) {
+         /* Read the resource data type tag. */
+-        if (virPCIVPDReadVPDBytes(vpdFileFd, &tag, 1, resPos, &csum) != 1)
+-            break;
++        if (virPCIVPDReadVPDBytes(vpdFileFd, &tag, 1, resPos, &csum) < 0)
++            return NULL;
+ 
+         /* 0x80 == 0b10000000 - the large resource data type flag. */
+         if (tag & PCI_VPD_LARGE_RESOURCE_FLAG) {
+@@ -620,9 +622,10 @@ virPCIVPDParse(int vpdFileFd)
+                  * where the end tag should be. */
+                 break;
+             }
++
+             /* Read the two length bytes of the large resource record. */
+-            if (virPCIVPDReadVPDBytes(vpdFileFd, headerBuf, 2, resPos + 1, &csum) != 2)
+-                break;
++            if (virPCIVPDReadVPDBytes(vpdFileFd, headerBuf, 2, resPos + 1, &csum) < 0)
++                return NULL;
+ 
+             resDataLen = headerBuf[0] + (headerBuf[1] << 8);
+             /* Change the position to the byte following the tag and length bytes. */
+-- 
+2.43.0

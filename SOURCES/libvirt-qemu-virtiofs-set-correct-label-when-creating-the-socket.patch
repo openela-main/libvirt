@@ -1,0 +1,39 @@
+From 1be4ebe8c9e67ed4086d9ef4bce9ae6a63c753d9 Mon Sep 17 00:00:00 2001
+Message-ID: <1be4ebe8c9e67ed4086d9ef4bce9ae6a63c753d9.1711034741.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Wed, 6 Mar 2024 17:26:40 +0100
+Subject: [PATCH] qemu: virtiofs: set correct label when creating the socket
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Use svirt_t instead of virtd_t, since virtd_t is not available in the
+session mode and qemu with svirt_t won't be able to talk to unconfined_t
+socket.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 4c5b2e1e0d0d0cbbf8c6ed28ce77d055d5974f7f)
+
+https://issues.redhat.com/browse/RHEL-7386
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_virtiofs.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_virtiofs.c b/src/qemu/qemu_virtiofs.c
+index 15dea3bb57..d80cddd3ba 100644
+--- a/src/qemu/qemu_virtiofs.c
++++ b/src/qemu/qemu_virtiofs.c
+@@ -102,7 +102,7 @@ qemuVirtioFSOpenChardev(virQEMUDriver *driver,
+     chrdev->data.nix.listen = true;
+     chrdev->data.nix.path = g_strdup(socket_path);
+ 
+-    if (qemuSecuritySetDaemonSocketLabel(driver->securityManager, vm->def) < 0)
++    if (qemuSecuritySetSocketLabel(driver->securityManager, vm->def) < 0)
+         goto cleanup;
+     fd = qemuOpenChrChardevUNIXSocket(chrdev);
+     if (fd < 0) {
+-- 
+2.44.0

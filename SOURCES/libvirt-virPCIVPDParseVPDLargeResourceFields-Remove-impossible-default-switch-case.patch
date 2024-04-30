@@ -1,0 +1,38 @@
+From deaf496dc41a0108a77aca108d6365021e9c5ad0 Mon Sep 17 00:00:00 2001
+Message-ID: <deaf496dc41a0108a77aca108d6365021e9c5ad0.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 30 Jan 2024 15:05:20 +0100
+Subject: [PATCH] virPCIVPDParseVPDLargeResourceFields: Remove impossible
+ 'default' switch case
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The 'fieldFormat' variable is guaranteed to have only the proper enum
+values by virPCIVPDResourceGetFieldValueFormat.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit f1deac9635352f39fdf26e5d6bc2051f787149c9)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index ba05014e40..25c4c2c5ec 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -470,9 +470,6 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+                 VIR_DEBUG("Could not determine a field value format for keyword: %s", fieldKeyword);
+                 bytesToRead = fieldDataLen;
+                 break;
+-            default:
+-                VIR_INFO("Unexpected field value format encountered.");
+-                return false;
+         }
+ 
+         if (resPos + resDataLen < fieldPos + fieldDataLen) {
+-- 
+2.43.0

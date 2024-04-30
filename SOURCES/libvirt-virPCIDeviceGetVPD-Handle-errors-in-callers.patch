@@ -1,0 +1,52 @@
+From 1af80ce930b188e4410f66bdfee71ca91e38d5a3 Mon Sep 17 00:00:00 2001
+Message-ID: <1af80ce930b188e4410f66bdfee71ca91e38d5a3.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 29 Jan 2024 22:32:33 +0100
+Subject: [PATCH] virPCIDeviceGetVPD: Handle errors in callers
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Until now 'virPCIDeviceGetVPD' couldn't reallistically raise an error,
+but that will change. Handle the errors by either resetting it if we'd
+be ignoring it or forward it.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit e1dc851e7cbc4a525b095b0dd4fdc779a882b19c)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/conf/node_device_conf.c | 2 ++
+ tests/virpcitest.c          | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index c68ac3af78..b8c91d6ecd 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -3052,6 +3052,8 @@ virNodeDeviceGetPCIVPDDynamicCap(virNodeDevCapPCIDev *devCapPCIDev)
+         if ((res = virPCIDeviceGetVPD(pciDev))) {
+             devCapPCIDev->flags |= VIR_NODE_DEV_CAP_FLAG_PCI_VPD;
+             devCapPCIDev->vpd = g_steal_pointer(&res);
++        } else {
++            virResetLastError();
+         }
+     }
+     return 0;
+diff --git a/tests/virpcitest.c b/tests/virpcitest.c
+index d69a1b5118..017c283a44 100644
+--- a/tests/virpcitest.c
++++ b/tests/virpcitest.c
+@@ -344,7 +344,8 @@ testVirPCIDeviceGetVPD(const void *opaque)
+     if (!dev)
+         return -1;
+ 
+-    res = virPCIDeviceGetVPD(dev);
++    if (!(res = virPCIDeviceGetVPD(dev)))
++        return -1;
+ 
+     /* Only basic checks - full parser validation is done elsewhere. */
+     if (res->ro == NULL)
+-- 
+2.43.0

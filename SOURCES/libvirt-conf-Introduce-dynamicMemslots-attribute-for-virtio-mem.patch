@@ -1,0 +1,152 @@
+From de94232ffb9eef84bb72631979f59bbadfc3cb9e Mon Sep 17 00:00:00 2001
+Message-ID: <de94232ffb9eef84bb72631979f59bbadfc3cb9e.1707394626.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 4 Jan 2024 10:03:36 +0100
+Subject: [PATCH] conf: Introduce dynamicMemslots attribute for virtio-mem
+
+Introduced in v8.2.0-rc0~74^2~2, QEMU now allows setting
+.dynamic-memslots attribute for virtio-mem-pci devices. When
+turned on, it allows memory exposed to guest to be split into
+multiple memslots and thus smaller memory footprint (see the
+original commit for detailed explanation).
+
+Therefore, introduce new <target/> attribute which will control
+that QEMU knob.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 53258205854e649bc82310542373df004a4734ab)
+Resolves: https://issues.redhat.com/browse/RHEL-15316
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/formatdomain.rst                          | 13 +++++++++++++
+ src/conf/domain_conf.c                         | 18 +++++++++++++++++-
+ src/conf/domain_conf.h                         |  1 +
+ src/conf/schemas/domaincommon.rng              |  5 +++++
+ .../memory-hotplug-virtio-mem.xml              |  2 +-
+ 5 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 298ad46a45..34b2564909 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -8437,6 +8437,19 @@ Example: usage of the memory devices
+    The ``node`` subelement configures the guest NUMA node to attach the memory
+    to. The element shall be used only if the guest has NUMA nodes configured.
+ 
++   For ``virtio-mem`` optional attribute ``dynamicMemslots`` can be specified
++   (accepted values "yes"/"no") which allows hypervisor to spread memory into
++   multiple memory slots (allocate them dynamically based on the amount of
++   memory exposed to the guest), resulting in smaller memory footprint. But be
++   aware this may affect vhost-user devices. When enabled, older vhost-user
++   device implementations (such as virtiofs) may refuse to initialize resulting
++   in failed domain startup or device hotplug. When only modern vhost-user
++   based devices will be used or when no vhost-user devices are expected to be
++   used it's beneficial to enable this feature. The current default is
++   hypervisor dependant (for QEMU is "no"). If the default changes and you are
++   having difficulties with vhost-user devices, try toggling this to "no".
++   :since:`Since 10.1.0 and QEMU 8.2.0`
++
+    The following optional elements may be used:
+ 
+    ``label``
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 6211d2a51b..ac06fa39f6 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -13543,6 +13543,10 @@ virDomainMemoryTargetDefParseXML(xmlNodePtr node,
+                                  &def->target.virtio_mem.requestedsize, false, false) < 0)
+             return -1;
+ 
++        if (virXMLPropTristateBool(node, "dynamicMemslots", VIR_XML_PROP_NONE,
++                                   &def->target.virtio_mem.dynamicMemslots) < 0)
++            return -1;
++
+         addrNode = virXPathNode("./address", ctxt);
+         addr = &def->target.virtio_mem.address;
+         break;
+@@ -21217,6 +21221,12 @@ virDomainMemoryDefCheckABIStability(virDomainMemoryDef *src,
+                            src->target.virtio_mem.address);
+             return false;
+         }
++
++        if (src->target.virtio_mem.dynamicMemslots != dst->target.virtio_mem.dynamicMemslots) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("Target memory device 'dynamicMemslots' property doesn't match source memory device"));
++            return false;
++        }
+         break;
+ 
+     case VIR_DOMAIN_MEMORY_MODEL_DIMM:
+@@ -25432,6 +25442,7 @@ virDomainMemoryTargetDefFormat(virBuffer *buf,
+                                unsigned int flags)
+ {
+     g_auto(virBuffer) childBuf = VIR_BUFFER_INIT_CHILD(buf);
++    g_auto(virBuffer) attrBuf = VIR_BUFFER_INITIALIZER;
+ 
+     virBufferAsprintf(&childBuf, "<size unit='KiB'>%llu</size>\n", def->size);
+     if (def->targetNode >= 0)
+@@ -25471,6 +25482,11 @@ virDomainMemoryTargetDefFormat(virBuffer *buf,
+         if (def->target.virtio_mem.address)
+             virBufferAsprintf(&childBuf, "<address base='0x%llx'/>\n",
+                               def->target.virtio_mem.address);
++
++        if (def->target.virtio_mem.dynamicMemslots) {
++            virBufferAsprintf(&attrBuf, " dynamicMemslots='%s'",
++                              virTristateBoolTypeToString(def->target.virtio_mem.dynamicMemslots));
++        }
+         break;
+ 
+     case VIR_DOMAIN_MEMORY_MODEL_SGX_EPC:
+@@ -25480,7 +25496,7 @@ virDomainMemoryTargetDefFormat(virBuffer *buf,
+         break;
+     }
+ 
+-    virXMLFormatElement(buf, "target", NULL, &childBuf);
++    virXMLFormatElement(buf, "target", &attrBuf, &childBuf);
+ }
+ 
+ static int
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index d176bda5f8..bd283d42df 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2676,6 +2676,7 @@ struct _virDomainMemoryDef {
+             unsigned long long currentsize; /* kibibytes, valid for an active
+                                                domain only and parsed */
+             unsigned long long address; /* address where memory is mapped */
++            virTristateBool dynamicMemslots;
+         } virtio_mem;
+         struct {
+         } sgx_epc;
+diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
+index a34427c330..df44cd9857 100644
+--- a/src/conf/schemas/domaincommon.rng
++++ b/src/conf/schemas/domaincommon.rng
+@@ -7268,6 +7268,11 @@
+ 
+   <define name="memorydev-target">
+     <element name="target">
++      <optional>
++        <attribute name="dynamicMemslots">
++          <ref name="virYesNo"/>
++        </attribute>
++      </optional>
+       <interleave>
+         <element name="size">
+           <ref name="scaledInteger"/>
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml
+index 52fa6b14e9..20282a131b 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml
++++ b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.xml
+@@ -60,7 +60,7 @@
+         <nodemask>1-3</nodemask>
+         <pagesize unit='KiB'>2048</pagesize>
+       </source>
+-      <target>
++      <target dynamicMemslots='yes'>
+         <size unit='KiB'>2097152</size>
+         <node>0</node>
+         <block unit='KiB'>2048</block>
+-- 
+2.43.0

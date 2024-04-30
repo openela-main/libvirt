@@ -1,5 +1,5 @@
-From 477517a5b1872e7edbd974e0542eaef573efdb7c Mon Sep 17 00:00:00 2001
-Message-ID: <477517a5b1872e7edbd974e0542eaef573efdb7c.1708340442.git.jdenemar@redhat.com>
+From b28e30bd2b1b40fb3bec3064e883cc9f3abff7c5 Mon Sep 17 00:00:00 2001
+Message-ID: <b28e30bd2b1b40fb3bec3064e883cc9f3abff7c5.1707394627.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 24 Jan 2024 15:53:39 +0100
 Subject: [PATCH] util: pcivpd: Refactor virPCIVPDResourceIsValidTextValue
@@ -59,4 +59,4 @@ index 248a9b2790..81c7c317b3 100644
  
  void
 -- 
-2.43.2
+2.43.0

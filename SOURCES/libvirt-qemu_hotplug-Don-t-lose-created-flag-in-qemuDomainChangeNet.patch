@@ -1,0 +1,67 @@
+From 7a7c3f71744b2211bdf50332918495d3042e3236 Mon Sep 17 00:00:00 2001
+Message-ID: <7a7c3f71744b2211bdf50332918495d3042e3236.1706524416.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 24 Jan 2024 18:43:21 +0100
+Subject: [PATCH] qemu_hotplug: Don't lose 'created' flag in
+ qemuDomainChangeNet()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+After v9.1.0-rc1~116 we track whether it's us who created a
+macvtap or not. But when updating a vNIC its definition might be
+replaced with a new one (though, ifname is not allowed to
+change), e.g. to reflect new QoS, link state, etc.
+
+Now, the fact whether we created macvtap for given vNIC is stored
+in net->privateData->created. And replacing definition is done by
+simply freeing the old definition and making the pointer point to
+the new one. But this does not preserve the 'created' flag, which
+in turn means when a domain is shutting off, the macvtap is not
+removed (see loop inside of qemuProcessStop()).
+
+Copy this flag into new definition and leave a note in
+_qemuDomainNetworkPrivate struct.
+
+Fixes: 61d1b9e6592660121aeda66bf7adbcd39de06aa8
+Resolves: https://issues.redhat.com/browse/RHEL-22714
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit ccfc5c1e1637d20e479fafde7aa3ea4c6fb29e21)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_domain.h  | 2 ++
+ src/qemu/qemu_hotplug.c | 5 +++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index fa566dded6..0b5af5d014 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -420,6 +420,8 @@ typedef struct _qemuDomainNetworkPrivate qemuDomainNetworkPrivate;
+ struct _qemuDomainNetworkPrivate {
+     virObject parent;
+ 
++    /* Don't forget to possibly copy these members in qemuDomainChangeNet(). */
++
+     /* True if the device was created by us. Otherwise we should
+      * avoid removing it. Currently only used for
+      * VIR_DOMAIN_NET_TYPE_DIRECT. */
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 0e45bd53e1..31b00e05ca 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -4166,6 +4166,11 @@ qemuDomainChangeNet(virQEMUDriver *driver,
+             else
+                 VIR_WARN("Unable to release network device '%s'", NULLSTR(olddev->ifname));
+         }
++
++        /* Carry over fact whether we created the device or not. */
++        QEMU_DOMAIN_NETWORK_PRIVATE(newdev)->created =
++            QEMU_DOMAIN_NETWORK_PRIVATE(olddev)->created;
++
+         virDomainNetDefFree(olddev);
+         /* move newdev into the nets list, and NULL it out from the
+          * virDomainDeviceDef that we were given so that the caller
+-- 
+2.43.0

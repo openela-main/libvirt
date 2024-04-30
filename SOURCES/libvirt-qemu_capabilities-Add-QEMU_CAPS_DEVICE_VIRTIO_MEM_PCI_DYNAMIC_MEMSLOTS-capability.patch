@@ -1,0 +1,94 @@
+From 7dd85500450b1889a81d574337331e080b218c9f Mon Sep 17 00:00:00 2001
+Message-ID: <7dd85500450b1889a81d574337331e080b218c9f.1707394626.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 4 Jan 2024 10:57:12 +0100
+Subject: [PATCH] qemu_capabilities: Add
+ QEMU_CAPS_DEVICE_VIRTIO_MEM_PCI_DYNAMIC_MEMSLOTS capability
+
+Starting from v8.2.0-rc0~74^2~2 QEMU has .dynamic-memslots
+attribute for virtio-mem-pci device. Introduce a capability which
+reflects that.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 497cab753b801c7a66e2a480482e5144665ecbf4)
+Resolves: https://issues.redhat.com/browse/RHEL-15316
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                      | 2 ++
+ src/qemu/qemu_capabilities.h                      | 1 +
+ tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml  | 1 +
+ tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml  | 1 +
+ 5 files changed, 6 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index a4d42b40ed..e13df2b27d 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -700,6 +700,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "virtio-blk-vhost-vdpa", /* QEMU_CAPS_DEVICE_VIRTIO_BLK_VHOST_VDPA */
+               "virtio-blk.iothread-mapping", /* QEMU_CAPS_VIRTIO_BLK_IOTHREAD_MAPPING */
+               "smp-clusters", /* QEMU_CAPS_SMP_CLUSTERS */
++              "virtio-mem-pci.dynamic-memslots", /* QEMU_CAPS_DEVICE_VIRTIO_MEM_PCI_DYNAMIC_MEMSLOTS */
+     );
+ 
+ 
+@@ -1519,6 +1520,7 @@ static struct virQEMUCapsDevicePropsFlags virQEMUCapsDevicePropsVhostUserFS[] =
+ 
+ static struct virQEMUCapsDevicePropsFlags virQEMUCapsDevicePropsVirtioMemPCI[] = {
+     { "prealloc", QEMU_CAPS_DEVICE_VIRTIO_MEM_PCI_PREALLOC, NULL },
++    { "dynamic-memslots", QEMU_CAPS_DEVICE_VIRTIO_MEM_PCI_DYNAMIC_MEMSLOTS, NULL },
+ };
+ 
+ static struct virQEMUCapsDevicePropsFlags virQEMUCapsDevicePropsVirtioIOMMU[] = {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index a353750670..82ae4b738b 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -679,6 +679,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_DEVICE_VIRTIO_BLK_VHOST_VDPA, /* virtio-blk-vhost-vdpa block driver */
+     QEMU_CAPS_VIRTIO_BLK_IOTHREAD_MAPPING, /* virtio-blk supports per-virtqueue iothread mapping */
+     QEMU_CAPS_SMP_CLUSTERS, /* -smp clusters= */
++    QEMU_CAPS_DEVICE_VIRTIO_MEM_PCI_DYNAMIC_MEMSLOTS, /* -device virtio-mem-pci.dynamic-memslots= */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml b/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml
+index 54fd349365..03c9343da5 100644
+--- a/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.2.0_aarch64.xml
+@@ -163,6 +163,7 @@
+   <flag name='qcow2-discard-no-unref'/>
+   <flag name='run-with.async-teardown'/>
+   <flag name='smp-clusters'/>
++  <flag name='virtio-mem-pci.dynamic-memslots'/>
+   <version>8002000</version>
+   <microcodeVersion>61700246</microcodeVersion>
+   <package>v8.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
+index 8a6527810a..d16cd88720 100644
+--- a/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
+@@ -200,6 +200,7 @@
+   <flag name='run-with.async-teardown'/>
+   <flag name='virtio-blk-vhost-vdpa'/>
+   <flag name='smp-clusters'/>
++  <flag name='virtio-mem-pci.dynamic-memslots'/>
+   <version>8002000</version>
+   <microcodeVersion>43100246</microcodeVersion>
+   <package>v8.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
+index b4c3b1bae3..65eaa08cd4 100644
+--- a/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
+@@ -201,6 +201,7 @@
+   <flag name='virtio-blk-vhost-vdpa'/>
+   <flag name='virtio-blk.iothread-mapping'/>
+   <flag name='smp-clusters'/>
++  <flag name='virtio-mem-pci.dynamic-memslots'/>
+   <version>8002050</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v8.2.0-196-g7425b6277f</package>
+-- 
+2.43.0

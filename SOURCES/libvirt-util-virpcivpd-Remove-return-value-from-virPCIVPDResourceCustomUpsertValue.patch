@@ -1,0 +1,143 @@
+From 509e56de7e817de1edbd76da806eb79dca6d45e3 Mon Sep 17 00:00:00 2001
+Message-ID: <509e56de7e817de1edbd76da806eb79dca6d45e3.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Jan 2024 16:11:24 +0100
+Subject: [PATCH] util: virpcivpd: Remove return value from
+ virPCIVPDResourceCustomUpsertValue
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+None of the callers pass NULL, so the NULL check is pointless. Remove it
+an remove the return value.
+
+The function is exported only for use in 'virpcivpdtest' thus marking
+the arguments as NONNULL is unnecessary.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit d36da8ea4a107d129bdc701f95b1b131bc3df01d)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c     | 18 ++++--------------
+ src/util/virpcivpdpriv.h |  2 +-
+ tests/virpcivpdtest.c    | 12 ++++--------
+ 3 files changed, 9 insertions(+), 23 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index 67065dec46..f198faaf42 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -270,7 +270,7 @@ virPCIVPDResourceCustomCompareIndex(virPCIVPDResourceCustom *a, virPCIVPDResourc
+  *
+  * Returns: true if a value has been updated successfully, false otherwise.
+  */
+-bool
++void
+ virPCIVPDResourceCustomUpsertValue(GPtrArray *arr, char index, const char *const value)
+ {
+     g_autoptr(virPCIVPDResourceCustom) custom = NULL;
+@@ -278,9 +278,6 @@ virPCIVPDResourceCustomUpsertValue(GPtrArray *arr, char index, const char *const
+     guint pos = 0;
+     bool found = false;
+ 
+-    if (arr == NULL || value == NULL)
+-        return false;
+-
+     custom = g_new0(virPCIVPDResourceCustom, 1);
+     custom->idx = index;
+     custom->value = g_strdup(value);
+@@ -294,7 +291,6 @@ virPCIVPDResourceCustomUpsertValue(GPtrArray *arr, char index, const char *const
+     } else {
+         g_ptr_array_add(arr, g_steal_pointer(&custom));
+     }
+-    return true;
+ }
+ 
+ /**
+@@ -348,9 +344,7 @@ virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res, const bool readOnly,
+             res->ro->serial_number = g_strdup(value);
+             return true;
+         } else if (virPCIVPDResourceIsVendorKeyword(keyword)) {
+-            if (!virPCIVPDResourceCustomUpsertValue(res->ro->vendor_specific, keyword[1], value)) {
+-                return false;
+-            }
++            virPCIVPDResourceCustomUpsertValue(res->ro->vendor_specific, keyword[1], value);
+             return true;
+         } else if (STREQ("FG", keyword) || STREQ("LC", keyword) || STREQ("PG", keyword)) {
+             /* Legacy PICMIG keywords are skipped on purpose. */
+@@ -371,14 +365,10 @@ virPCIVPDResourceUpdateKeyword(virPCIVPDResource *res, const bool readOnly,
+             res->rw->asset_tag = g_strdup(value);
+             return true;
+         } else if (virPCIVPDResourceIsVendorKeyword(keyword)) {
+-            if (!virPCIVPDResourceCustomUpsertValue(res->rw->vendor_specific, keyword[1], value)) {
+-                return false;
+-            }
++            virPCIVPDResourceCustomUpsertValue(res->rw->vendor_specific, keyword[1], value);
+             return true;
+         } else if (virPCIVPDResourceIsSystemKeyword(keyword)) {
+-            if (!virPCIVPDResourceCustomUpsertValue(res->rw->system_specific, keyword[1], value)) {
+-                return false;
+-            }
++            virPCIVPDResourceCustomUpsertValue(res->rw->system_specific, keyword[1], value);
+             return true;
+         }
+     }
+diff --git a/src/util/virpcivpdpriv.h b/src/util/virpcivpdpriv.h
+index 617991930b..f26b64139d 100644
+--- a/src/util/virpcivpdpriv.h
++++ b/src/util/virpcivpdpriv.h
+@@ -66,5 +66,5 @@ bool virPCIVPDResourceIsValidTextValue(const char *value);
+ gboolean
+ virPCIVPDResourceCustomCompareIndex(virPCIVPDResourceCustom *a, virPCIVPDResourceCustom *b);
+ 
+-bool
++void
+ virPCIVPDResourceCustomUpsertValue(GPtrArray *arr, char index, const char *const value);
+diff --git a/tests/virpcivpdtest.c b/tests/virpcivpdtest.c
+index fddb42f52c..8a2f337e85 100644
+--- a/tests/virpcivpdtest.c
++++ b/tests/virpcivpdtest.c
+@@ -244,8 +244,7 @@ testPCIVPDResourceCustomUpsertValue(const void *data G_GNUC_UNUSED)
+ {
+     g_autoptr(GPtrArray) arr = g_ptr_array_new_full(0, (GDestroyNotify)virPCIVPDResourceCustomFree);
+     virPCIVPDResourceCustom *custom = NULL;
+-    if (!virPCIVPDResourceCustomUpsertValue(arr, 'A', "testval"))
+-        return -1;
++    virPCIVPDResourceCustomUpsertValue(arr, 'A', "testval");
+ 
+     if (arr->len != 1)
+         return -1;
+@@ -255,8 +254,7 @@ testPCIVPDResourceCustomUpsertValue(const void *data G_GNUC_UNUSED)
+         return -1;
+ 
+     /* Idempotency */
+-    if (!virPCIVPDResourceCustomUpsertValue(arr, 'A', "testval"))
+-        return -1;
++    virPCIVPDResourceCustomUpsertValue(arr, 'A', "testval");
+ 
+     if (arr->len != 1)
+         return -1;
+@@ -266,8 +264,7 @@ testPCIVPDResourceCustomUpsertValue(const void *data G_GNUC_UNUSED)
+         return -1;
+ 
+     /* Existing value updates. */
+-    if (!virPCIVPDResourceCustomUpsertValue(arr, 'A', "testvalnew"))
+-        return -1;
++    virPCIVPDResourceCustomUpsertValue(arr, 'A', "testvalnew");
+ 
+     if (arr->len != 1)
+         return -1;
+@@ -277,8 +274,7 @@ testPCIVPDResourceCustomUpsertValue(const void *data G_GNUC_UNUSED)
+         return -1;
+ 
+     /* Inserting multiple values */
+-    if (!virPCIVPDResourceCustomUpsertValue(arr, '1', "42"))
+-        return -1;
++    virPCIVPDResourceCustomUpsertValue(arr, '1', "42");
+ 
+     if (arr->len != 2)
+         return -1;
+-- 
+2.43.0

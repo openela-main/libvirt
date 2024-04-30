@@ -1,0 +1,64 @@
+From 9f199b64bd22f4f740441bb690d9bd9231e8efc0 Mon Sep 17 00:00:00 2001
+Message-ID: <9f199b64bd22f4f740441bb690d9bd9231e8efc0.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 16 Jan 2024 15:10:55 +0100
+Subject: [PATCH] util: virtportallocator: Add VIR_DEBUG statements for port
+ allocations and release
+
+Add a few debug statements to be able to trace lifetime of a
+reserved/allocated port.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 19eaa854386cc5bfc0f9ed15ac2a0937cb3a4421)
+https://issues.redhat.com/browse/RHEL-21543
+---
+ src/util/virportallocator.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/util/virportallocator.c b/src/util/virportallocator.c
+index 6d6f99778e..70393d87ee 100644
+--- a/src/util/virportallocator.c
++++ b/src/util/virportallocator.c
+@@ -29,9 +29,12 @@
+ #include "virthread.h"
+ #include "virerror.h"
+ #include "virutil.h"
++#include "virlog.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_NONE
+ 
++VIR_LOG_INIT("util.virportallocator");
++
+ #define VIR_PORT_ALLOCATOR_NUM_PORTS 65536
+ 
+ typedef struct _virPortAllocator virPortAllocator;
+@@ -228,6 +231,8 @@ virPortAllocatorAcquire(const virPortAllocatorRange *range,
+                     return -1;
+                 }
+                 *port = i;
++                VIR_DEBUG("port='%u'", *port);
++
+                 return 0;
+             }
+         }
+@@ -247,6 +252,8 @@ virPortAllocatorRelease(unsigned short port)
+     if (!pa)
+         return -1;
+ 
++    VIR_DEBUG("port='%u'", port);
++
+     if (!port)
+         return 0;
+ 
+@@ -265,6 +272,8 @@ virPortAllocatorSetUsed(unsigned short port)
+     if (!pa)
+         return -1;
+ 
++    VIR_DEBUG("port='%u'", port);
++
+     if (!port)
+         return 0;
+ 
+-- 
+2.43.0

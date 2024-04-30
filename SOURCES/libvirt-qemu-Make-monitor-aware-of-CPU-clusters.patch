@@ -1,0 +1,117 @@
+From 66312c8fea7d122acfd833e495e6b81642baff33 Mon Sep 17 00:00:00 2001
+Message-ID: <66312c8fea7d122acfd833e495e6b81642baff33.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 5 Jan 2024 18:51:29 +0100
+Subject: [PATCH] qemu: Make monitor aware of CPU clusters
+
+This makes it so libvirt can obtain accurate information about
+guest CPUs from QEMU, and should make it possible to correctly
+perform operations such as CPU hotplug.
+
+Of course this is mostly moot at the moment: only aarch64 can use
+CPU clusters, and CPU hotplug is not yet implemented on that
+architecture.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 763381df53d5a67804f828cb8db661f694d35296)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_domain.c       | 3 ++-
+ src/qemu/qemu_monitor.c      | 2 ++
+ src/qemu/qemu_monitor.h      | 2 ++
+ src/qemu/qemu_monitor_json.c | 5 +++++
+ 4 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 3a00fb689e..e2a1bf2c13 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -9900,11 +9900,12 @@ qemuDomainRefreshVcpuInfo(virDomainObj *vm,
+ 
+         if (validTIDs)
+             VIR_DEBUG("vCPU[%zu] PID %llu is valid "
+-                      "(node=%d socket=%d die=%d core=%d thread=%d)",
++                      "(node=%d socket=%d die=%d cluster=%d core=%d thread=%d)",
+                       i, (unsigned long long)info[i].tid,
+                       info[i].node_id,
+                       info[i].socket_id,
+                       info[i].die_id,
++                      info[i].cluster_id,
+                       info[i].core_id,
+                       info[i].thread_id);
+     }
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index dfad4ee1ea..a1773d86d4 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1501,6 +1501,7 @@ qemuMonitorCPUInfoClear(qemuMonitorCPUInfo *cpus,
+         cpus[i].qemu_id = -1;
+         cpus[i].socket_id = -1;
+         cpus[i].die_id = -1;
++        cpus[i].cluster_id = -1;
+         cpus[i].core_id = -1;
+         cpus[i].thread_id = -1;
+         cpus[i].node_id = -1;
+@@ -1658,6 +1659,7 @@ qemuMonitorGetCPUInfoHotplug(struct qemuMonitorQueryHotpluggableCpusEntry *hotpl
+                                          !vcpus[mainvcpu].online;
+         vcpus[mainvcpu].socket_id = hotplugvcpus[i].socket_id;
+         vcpus[mainvcpu].die_id = hotplugvcpus[i].die_id;
++        vcpus[mainvcpu].cluster_id = hotplugvcpus[i].cluster_id;
+         vcpus[mainvcpu].core_id = hotplugvcpus[i].core_id;
+         vcpus[mainvcpu].thread_id = hotplugvcpus[i].thread_id;
+         vcpus[mainvcpu].node_id = hotplugvcpus[i].node_id;
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index c4af9b407d..981c609e9f 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -590,6 +590,7 @@ struct qemuMonitorQueryHotpluggableCpusEntry {
+     int node_id;
+     int socket_id;
+     int die_id;
++    int cluster_id;
+     int core_id;
+     int thread_id;
+ 
+@@ -613,6 +614,7 @@ struct _qemuMonitorCPUInfo {
+      * all entries are -1 */
+     int socket_id;
+     int die_id;
++    int cluster_id;
+     int core_id;
+     int thread_id;
+     int node_id;
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 9cb0f3d1d8..e114b6bfb1 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -7579,12 +7579,14 @@ qemuMonitorJSONProcessHotpluggableCpusReply(virJSONValue *vcpu,
+     entry->node_id = -1;
+     entry->socket_id = -1;
+     entry->die_id = -1;
++    entry->cluster_id = -1;
+     entry->core_id = -1;
+     entry->thread_id = -1;
+ 
+     ignore_value(virJSONValueObjectGetNumberInt(props, "node-id", &entry->node_id));
+     ignore_value(virJSONValueObjectGetNumberInt(props, "socket-id", &entry->socket_id));
+     ignore_value(virJSONValueObjectGetNumberInt(props, "die-id", &entry->die_id));
++    ignore_value(virJSONValueObjectGetNumberInt(props, "cluster-id", &entry->cluster_id));
+     ignore_value(virJSONValueObjectGetNumberInt(props, "core-id", &entry->core_id));
+     ignore_value(virJSONValueObjectGetNumberInt(props, "thread-id", &entry->thread_id));
+ 
+@@ -7622,6 +7624,9 @@ qemuMonitorQueryHotpluggableCpusEntrySort(const void *p1,
+     if (a->die_id != b->die_id)
+         return a->die_id - b->die_id;
+ 
++    if (a->cluster_id != b->cluster_id)
++        return a->cluster_id - b->cluster_id;
++
+     if (a->core_id != b->core_id)
+         return a->core_id - b->core_id;
+ 
+-- 
+2.43.0

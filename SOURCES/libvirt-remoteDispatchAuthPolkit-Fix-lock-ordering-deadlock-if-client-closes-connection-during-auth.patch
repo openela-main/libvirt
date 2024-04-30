@@ -1,0 +1,142 @@
+From 1b87b9821afe39c2af5c1893b11cb7f452c61014 Mon Sep 17 00:00:00 2001
+Message-ID: <1b87b9821afe39c2af5c1893b11cb7f452c61014.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 17 Jan 2024 15:55:35 +0100
+Subject: [PATCH] remoteDispatchAuthPolkit: Fix lock ordering deadlock if
+ client closes connection during auth
+
+Locks in following text:
+A: virNetServer
+B: virNetServerClient
+C: daemonClientPrivate
+
+'virNetServerSetClientAuthenticated' locks A then B
+
+'remoteDispatchAuthPolkit' calls 'virNetServerSetClientAuthenticated'
+while holding C.
+
+If a client closes its connection 'virNetServerProcessClients' with the
+lock A and B locked will call 'virNetServerClientCloseLocked' which will
+try to dispose of the 'client' private data by:
+
+  ref(b);
+  unlock(b);
+  remoteClientFreePrivateCallbacks();
+  lock(b);
+  unref(b);
+
+Unfortunately remoteClientFreePrivateCallbacks() tries lock C.
+
+Thus the locks are held in the following order:
+
+ polkit auth: C -> A
+ connection close: A -> C
+
+causing a textbook-example deadlock. To resolve it we can simply drop
+lock 'C' before calling 'virNetServerSetClientAuthenticated' as the lock
+is not needed any more.
+
+Resolves: https://issues.redhat.com/browse/RHEL-20337
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit c697aff8a1b5542d51c0b4a10046ad37089d12d5)
+---
+ src/remote/remote_daemon_dispatch.c | 76 +++++++++++++++--------------
+ 1 file changed, 39 insertions(+), 37 deletions(-)
+
+diff --git a/src/remote/remote_daemon_dispatch.c b/src/remote/remote_daemon_dispatch.c
+index 7daf503b51..aaabd1e56c 100644
+--- a/src/remote/remote_daemon_dispatch.c
++++ b/src/remote/remote_daemon_dispatch.c
+@@ -3979,50 +3979,52 @@ remoteDispatchAuthPolkit(virNetServer *server,
+     struct daemonClientPrivate *priv =
+         virNetServerClientGetPrivateData(client);
+     int rv;
+-    VIR_LOCK_GUARD lock = virLockGuardLock(&priv->lock);
+-
+-    action = virNetServerClientGetReadonly(client) ?
+-        "org.libvirt.unix.monitor" :
+-        "org.libvirt.unix.manage";
+ 
+-    VIR_DEBUG("Start PolicyKit auth %d", virNetServerClientGetFD(client));
+-    if (virNetServerClientGetAuth(client) != VIR_NET_SERVER_SERVICE_AUTH_POLKIT) {
+-        VIR_ERROR(_("client tried invalid PolicyKit init request"));
+-        goto authfail;
+-    }
++    VIR_WITH_MUTEX_LOCK_GUARD(&priv->lock) {
++        action = virNetServerClientGetReadonly(client) ?
++            "org.libvirt.unix.monitor" :
++            "org.libvirt.unix.manage";
+ 
+-    if (virNetServerClientGetUNIXIdentity(client, &callerUid, &callerGid,
+-                                          &callerPid, &timestamp) < 0) {
+-        goto authfail;
+-    }
++        VIR_DEBUG("Start PolicyKit auth %d", virNetServerClientGetFD(client));
++        if (virNetServerClientGetAuth(client) != VIR_NET_SERVER_SERVICE_AUTH_POLKIT) {
++            VIR_ERROR(_("client tried invalid PolicyKit init request"));
++            goto authfail;
++        }
+ 
+-    if (timestamp == 0) {
+-        VIR_WARN("Failing polkit auth due to missing client (pid=%lld) start time",
+-                 (long long)callerPid);
+-        goto authfail;
+-    }
++        if (virNetServerClientGetUNIXIdentity(client, &callerUid, &callerGid,
++                                              &callerPid, &timestamp) < 0) {
++            goto authfail;
++        }
+ 
+-    VIR_INFO("Checking PID %lld running as %d",
+-             (long long) callerPid, callerUid);
++        if (timestamp == 0) {
++            VIR_WARN("Failing polkit auth due to missing client (pid=%lld) start time",
++                     (long long)callerPid);
++            goto authfail;
++        }
+ 
+-    rv = virPolkitCheckAuth(action,
+-                            callerPid,
+-                            timestamp,
+-                            callerUid,
+-                            NULL,
+-                            true);
+-    if (rv == -1)
+-        goto authfail;
+-    else if (rv == -2)
+-        goto authdeny;
++        VIR_INFO("Checking PID %lld running as %d",
++                 (long long) callerPid, callerUid);
+ 
+-    PROBE(RPC_SERVER_CLIENT_AUTH_ALLOW,
+-          "client=%p auth=%d identity=%s",
+-          client, REMOTE_AUTH_POLKIT, ident);
+-    VIR_INFO("Policy allowed action %s from pid %lld, uid %d",
+-             action, (long long) callerPid, callerUid);
+-    ret->complete = 1;
++        rv = virPolkitCheckAuth(action,
++                                callerPid,
++                                timestamp,
++                                callerUid,
++                                NULL,
++                                true);
++        if (rv == -1)
++            goto authfail;
++        else if (rv == -2)
++            goto authdeny;
++
++        PROBE(RPC_SERVER_CLIENT_AUTH_ALLOW,
++              "client=%p auth=%d identity=%s",
++              client, REMOTE_AUTH_POLKIT, ident);
++        VIR_INFO("Policy allowed action %s from pid %lld, uid %d",
++                 action, (long long) callerPid, callerUid);
++        ret->complete = 1;
++    }
+ 
++    /* this must be called with the private data mutex unlocked */
+     virNetServerSetClientAuthenticated(server, client);
+     return 0;
+ 
+-- 
+2.43.0

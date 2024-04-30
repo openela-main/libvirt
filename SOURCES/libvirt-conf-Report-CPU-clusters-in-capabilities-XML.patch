@@ -1,0 +1,684 @@
+From 130768f856aef1a4fa09a4654fd5ddcaad985795 Mon Sep 17 00:00:00 2001
+Message-ID: <130768f856aef1a4fa09a4654fd5ddcaad985795.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 5 Jan 2024 16:03:54 +0100
+Subject: [PATCH] conf: Report CPU clusters in capabilities XML
+
+For machines that don't expose useful information through sysfs,
+the dummy ID 0 is used.
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 5fc56aefb67a085a2f0fd3d2a157c7c029d2ef60)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/conf/capabilities.c                       |  5 +-
+ src/conf/capabilities.h                       |  1 +
+ src/conf/schemas/capability.rng               |  3 ++
+ src/libvirt_linux.syms                        |  1 +
+ src/util/virhostcpu.c                         | 22 +++++++++
+ src/util/virhostcpu.h                         |  1 +
+ tests/capabilityschemadata/caps-qemu-kvm.xml  | 32 ++++++-------
+ .../vircaps-aarch64-basic-clusters.xml        | 16 +++----
+ .../vircaps2xmldata/vircaps-aarch64-basic.xml | 32 ++++++-------
+ .../vircaps-x86_64-basic-dies.xml             | 24 +++++-----
+ .../vircaps2xmldata/vircaps-x86_64-basic.xml  | 32 ++++++-------
+ .../vircaps2xmldata/vircaps-x86_64-caches.xml | 16 +++----
+ tests/vircaps2xmldata/vircaps-x86_64-hmat.xml | 48 +++++++++----------
+ .../vircaps-x86_64-resctrl-cdp.xml            | 24 +++++-----
+ .../vircaps-x86_64-resctrl-cmt.xml            | 24 +++++-----
+ .../vircaps-x86_64-resctrl-fake-feature.xml   | 24 +++++-----
+ .../vircaps-x86_64-resctrl-skx-twocaches.xml  |  2 +-
+ .../vircaps-x86_64-resctrl-skx.xml            |  2 +-
+ .../vircaps-x86_64-resctrl.xml                | 24 +++++-----
+ 19 files changed, 182 insertions(+), 151 deletions(-)
+
+diff --git a/src/conf/capabilities.c b/src/conf/capabilities.c
+index 32badee7b3..02298e40a3 100644
+--- a/src/conf/capabilities.c
++++ b/src/conf/capabilities.c
+@@ -811,9 +811,10 @@ virCapsHostNUMACellCPUFormat(virBuffer *buf,
+                 return -1;
+ 
+             virBufferAsprintf(&childBuf,
+-                              " socket_id='%d' die_id='%d' core_id='%d' siblings='%s'",
++                              " socket_id='%d' die_id='%d' cluster_id='%d' core_id='%d' siblings='%s'",
+                               cpus[j].socket_id,
+                               cpus[j].die_id,
++                              cpus[j].cluster_id,
+                               cpus[j].core_id,
+                               siblings);
+         }
+@@ -1453,6 +1454,7 @@ virCapabilitiesFillCPUInfo(int cpu_id G_GNUC_UNUSED,
+ 
+     if (virHostCPUGetSocket(cpu_id, &cpu->socket_id) < 0 ||
+         virHostCPUGetDie(cpu_id, &cpu->die_id) < 0 ||
++        virHostCPUGetCluster(cpu_id, &cpu->cluster_id) < 0 ||
+         virHostCPUGetCore(cpu_id, &cpu->core_id) < 0)
+         return -1;
+ 
+@@ -1712,6 +1714,7 @@ virCapabilitiesHostNUMAInitFake(virCapsHostNUMA *caps)
+                     if (tmp) {
+                         cpus[cid].id = id;
+                         cpus[cid].die_id = 0;
++                        cpus[cid].cluster_id = 0;
+                         cpus[cid].socket_id = s;
+                         cpus[cid].core_id = c;
+                         cpus[cid].siblings = virBitmapNewCopy(siblings);
+diff --git a/src/conf/capabilities.h b/src/conf/capabilities.h
+index 9eaf6e2807..52e395de14 100644
+--- a/src/conf/capabilities.h
++++ b/src/conf/capabilities.h
+@@ -89,6 +89,7 @@ struct _virCapsHostNUMACellCPU {
+     unsigned int id;
+     unsigned int socket_id;
+     unsigned int die_id;
++    unsigned int cluster_id;
+     unsigned int core_id;
+     virBitmap *siblings;
+ };
+diff --git a/src/conf/schemas/capability.rng b/src/conf/schemas/capability.rng
+index b1968df258..a1606941e7 100644
+--- a/src/conf/schemas/capability.rng
++++ b/src/conf/schemas/capability.rng
+@@ -201,6 +201,9 @@
+         <attribute name="die_id">
+           <ref name="unsignedInt"/>
+         </attribute>
++        <attribute name="cluster_id">
++          <ref name="unsignedInt"/>
++        </attribute>
+         <attribute name="core_id">
+           <ref name="unsignedInt"/>
+         </attribute>
+diff --git a/src/libvirt_linux.syms b/src/libvirt_linux.syms
+index 55649ae39c..004cbfee97 100644
+--- a/src/libvirt_linux.syms
++++ b/src/libvirt_linux.syms
+@@ -3,6 +3,7 @@
+ #
+ 
+ # util/virhostcpu.h
++virHostCPUGetCluster;
+ virHostCPUGetCore;
+ virHostCPUGetDie;
+ virHostCPUGetInfoPopulateLinux;
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index 4027547e1e..a3781ca870 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -232,6 +232,28 @@ virHostCPUGetDie(unsigned int cpu, unsigned int *die)
+     return 0;
+ }
+ 
++int
++virHostCPUGetCluster(unsigned int cpu, unsigned int *cluster)
++{
++    int cluster_id;
++    int ret = virFileReadValueInt(&cluster_id,
++                                  "%s/cpu/cpu%u/topology/cluster_id",
++                                  SYSFS_SYSTEM_PATH, cpu);
++
++    if (ret == -1)
++        return -1;
++
++    /* If the file doesn't exists (old kernel) or the value contained
++     * in it is -1 (architecture without CPU clusters), report 0 to
++     * indicate the lack of information */
++    if (ret == -2 || cluster_id < 0)
++        cluster_id = 0;
++
++    *cluster = cluster_id;
++
++    return 0;
++}
++
+ int
+ virHostCPUGetCore(unsigned int cpu, unsigned int *core)
+ {
+diff --git a/src/util/virhostcpu.h b/src/util/virhostcpu.h
+index 5f0d43e069..d7e09bff22 100644
+--- a/src/util/virhostcpu.h
++++ b/src/util/virhostcpu.h
+@@ -68,6 +68,7 @@ int virHostCPUStatsAssign(virNodeCPUStatsPtr param,
+ #ifdef __linux__
+ int virHostCPUGetSocket(unsigned int cpu, unsigned int *socket);
+ int virHostCPUGetDie(unsigned int cpu, unsigned int *die);
++int virHostCPUGetCluster(unsigned int cpu, unsigned int *cluster);
+ int virHostCPUGetCore(unsigned int cpu, unsigned int *core);
+ 
+ virBitmap *virHostCPUGetSiblingsList(unsigned int cpu);
+diff --git a/tests/capabilityschemadata/caps-qemu-kvm.xml b/tests/capabilityschemadata/caps-qemu-kvm.xml
+index acdbb362cc..317fa0885f 100644
+--- a/tests/capabilityschemadata/caps-qemu-kvm.xml
++++ b/tests/capabilityschemadata/caps-qemu-kvm.xml
+@@ -64,14 +64,14 @@
+             <sibling id='1' value='21'/>
+           </distances>
+           <cpus num='8'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='1' siblings='2'/>
+-            <cpu id='4' socket_id='0' die_id='0' core_id='2' siblings='4'/>
+-            <cpu id='6' socket_id='0' die_id='0' core_id='3' siblings='6'/>
+-            <cpu id='8' socket_id='0' die_id='0' core_id='4' siblings='8'/>
+-            <cpu id='10' socket_id='0' die_id='0' core_id='5' siblings='10'/>
+-            <cpu id='12' socket_id='0' die_id='0' core_id='6' siblings='12'/>
+-            <cpu id='14' socket_id='0' die_id='0' core_id='7' siblings='14'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='2'/>
++            <cpu id='4' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='4'/>
++            <cpu id='6' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='6'/>
++            <cpu id='8' socket_id='0' die_id='0' cluster_id='0' core_id='4' siblings='8'/>
++            <cpu id='10' socket_id='0' die_id='0' cluster_id='0' core_id='5' siblings='10'/>
++            <cpu id='12' socket_id='0' die_id='0' cluster_id='0' core_id='6' siblings='12'/>
++            <cpu id='14' socket_id='0' die_id='0' cluster_id='0' core_id='7' siblings='14'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -84,14 +84,14 @@
+             <sibling id='1' value='10'/>
+           </distances>
+           <cpus num='8'>
+-            <cpu id='1' socket_id='1' die_id='0' core_id='0' siblings='1'/>
+-            <cpu id='3' socket_id='1' die_id='0' core_id='1' siblings='3'/>
+-            <cpu id='5' socket_id='1' die_id='0' core_id='2' siblings='5'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='3' siblings='7'/>
+-            <cpu id='9' socket_id='1' die_id='0' core_id='4' siblings='9'/>
+-            <cpu id='11' socket_id='1' die_id='0' core_id='5' siblings='11'/>
+-            <cpu id='13' socket_id='1' die_id='0' core_id='6' siblings='13'/>
+-            <cpu id='15' socket_id='1' die_id='0' core_id='7' siblings='15'/>
++            <cpu id='1' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='1'/>
++            <cpu id='3' socket_id='1' die_id='0' cluster_id='0' core_id='1' siblings='3'/>
++            <cpu id='5' socket_id='1' die_id='0' cluster_id='0' core_id='2' siblings='5'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='3' siblings='7'/>
++            <cpu id='9' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='9'/>
++            <cpu id='11' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='11'/>
++            <cpu id='13' socket_id='1' die_id='0' cluster_id='0' core_id='6' siblings='13'/>
++            <cpu id='15' socket_id='1' die_id='0' cluster_id='0' core_id='7' siblings='15'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml b/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml
+index fe61fc42cc..b37c8e7a20 100644
+--- a/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml
++++ b/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml
+@@ -14,10 +14,10 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='4'>
+-            <cpu id='0' socket_id='36' die_id='0' core_id='0' siblings='0-1'/>
+-            <cpu id='1' socket_id='36' die_id='0' core_id='0' siblings='0-1'/>
+-            <cpu id='2' socket_id='36' die_id='0' core_id='1' siblings='2-3'/>
+-            <cpu id='3' socket_id='36' die_id='0' core_id='1' siblings='2-3'/>
++            <cpu id='0' socket_id='36' die_id='0' cluster_id='0' core_id='0' siblings='0-1'/>
++            <cpu id='1' socket_id='36' die_id='0' cluster_id='0' core_id='0' siblings='0-1'/>
++            <cpu id='2' socket_id='36' die_id='0' cluster_id='1' core_id='1' siblings='2-3'/>
++            <cpu id='3' socket_id='36' die_id='0' cluster_id='1' core_id='1' siblings='2-3'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -26,10 +26,10 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='4'>
+-            <cpu id='4' socket_id='3180' die_id='0' core_id='256' siblings='4-5'/>
+-            <cpu id='5' socket_id='3180' die_id='0' core_id='256' siblings='4-5'/>
+-            <cpu id='6' socket_id='3180' die_id='0' core_id='257' siblings='6-7'/>
+-            <cpu id='7' socket_id='3180' die_id='0' core_id='257' siblings='6-7'/>
++            <cpu id='4' socket_id='3180' die_id='0' cluster_id='256' core_id='256' siblings='4-5'/>
++            <cpu id='5' socket_id='3180' die_id='0' cluster_id='256' core_id='256' siblings='4-5'/>
++            <cpu id='6' socket_id='3180' die_id='0' cluster_id='257' core_id='257' siblings='6-7'/>
++            <cpu id='7' socket_id='3180' die_id='0' cluster_id='257' core_id='257' siblings='6-7'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-aarch64-basic.xml b/tests/vircaps2xmldata/vircaps-aarch64-basic.xml
+index 0a04052c40..5533ae0586 100644
+--- a/tests/vircaps2xmldata/vircaps-aarch64-basic.xml
++++ b/tests/vircaps2xmldata/vircaps-aarch64-basic.xml
+@@ -16,10 +16,10 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='4'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -28,10 +28,10 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='4'>
+-            <cpu id='4' socket_id='1' die_id='0' core_id='4' siblings='4'/>
+-            <cpu id='5' socket_id='1' die_id='0' core_id='5' siblings='5'/>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='6' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='7' siblings='7'/>
++            <cpu id='4' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='4'/>
++            <cpu id='5' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='5'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='6' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='7' siblings='7'/>
+           </cpus>
+         </cell>
+         <cell id='2'>
+@@ -40,10 +40,10 @@
+           <pages unit='KiB' size='2048'>8192</pages>
+           <pages unit='KiB' size='1048576'>10240</pages>
+           <cpus num='4'>
+-            <cpu id='8' socket_id='2' die_id='0' core_id='8' siblings='8'/>
+-            <cpu id='9' socket_id='2' die_id='0' core_id='9' siblings='9'/>
+-            <cpu id='10' socket_id='2' die_id='0' core_id='10' siblings='10'/>
+-            <cpu id='11' socket_id='2' die_id='0' core_id='11' siblings='11'/>
++            <cpu id='8' socket_id='2' die_id='0' cluster_id='0' core_id='8' siblings='8'/>
++            <cpu id='9' socket_id='2' die_id='0' cluster_id='0' core_id='9' siblings='9'/>
++            <cpu id='10' socket_id='2' die_id='0' cluster_id='0' core_id='10' siblings='10'/>
++            <cpu id='11' socket_id='2' die_id='0' cluster_id='0' core_id='11' siblings='11'/>
+           </cpus>
+         </cell>
+         <cell id='3'>
+@@ -52,10 +52,10 @@
+           <pages unit='KiB' size='2048'>10240</pages>
+           <pages unit='KiB' size='1048576'>12288</pages>
+           <cpus num='4'>
+-            <cpu id='12' socket_id='3' die_id='0' core_id='12' siblings='12'/>
+-            <cpu id='13' socket_id='3' die_id='0' core_id='13' siblings='13'/>
+-            <cpu id='14' socket_id='3' die_id='0' core_id='14' siblings='14'/>
+-            <cpu id='15' socket_id='3' die_id='0' core_id='15' siblings='15'/>
++            <cpu id='12' socket_id='3' die_id='0' cluster_id='0' core_id='12' siblings='12'/>
++            <cpu id='13' socket_id='3' die_id='0' cluster_id='0' core_id='13' siblings='13'/>
++            <cpu id='14' socket_id='3' die_id='0' cluster_id='0' core_id='14' siblings='14'/>
++            <cpu id='15' socket_id='3' die_id='0' cluster_id='0' core_id='15' siblings='15'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-basic-dies.xml b/tests/vircaps2xmldata/vircaps-x86_64-basic-dies.xml
+index 8a3ca2d13c..c86dc4defc 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-basic-dies.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-basic-dies.xml
+@@ -14,18 +14,18 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='12'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='1' core_id='0' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='1' core_id='1' siblings='3'/>
+-            <cpu id='4' socket_id='0' die_id='2' core_id='0' siblings='4'/>
+-            <cpu id='5' socket_id='0' die_id='2' core_id='1' siblings='5'/>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='0' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='1' siblings='7'/>
+-            <cpu id='8' socket_id='1' die_id='1' core_id='0' siblings='8'/>
+-            <cpu id='9' socket_id='1' die_id='1' core_id='1' siblings='9'/>
+-            <cpu id='10' socket_id='1' die_id='2' core_id='0' siblings='10'/>
+-            <cpu id='11' socket_id='1' die_id='2' core_id='1' siblings='11'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='1' cluster_id='0' core_id='0' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='1' cluster_id='0' core_id='1' siblings='3'/>
++            <cpu id='4' socket_id='0' die_id='2' cluster_id='0' core_id='0' siblings='4'/>
++            <cpu id='5' socket_id='0' die_id='2' cluster_id='0' core_id='1' siblings='5'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='1' siblings='7'/>
++            <cpu id='8' socket_id='1' die_id='1' cluster_id='0' core_id='0' siblings='8'/>
++            <cpu id='9' socket_id='1' die_id='1' cluster_id='0' core_id='1' siblings='9'/>
++            <cpu id='10' socket_id='1' die_id='2' cluster_id='0' core_id='0' siblings='10'/>
++            <cpu id='11' socket_id='1' die_id='2' cluster_id='0' core_id='1' siblings='11'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-basic.xml b/tests/vircaps2xmldata/vircaps-x86_64-basic.xml
+index 4da09f889c..9ae155d571 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-basic.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-basic.xml
+@@ -14,10 +14,10 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='4'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -26,10 +26,10 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='4'>
+-            <cpu id='4' socket_id='1' die_id='0' core_id='4' siblings='4'/>
+-            <cpu id='5' socket_id='1' die_id='0' core_id='5' siblings='5'/>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='6' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='7' siblings='7'/>
++            <cpu id='4' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='4'/>
++            <cpu id='5' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='5'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='6' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='7' siblings='7'/>
+           </cpus>
+         </cell>
+         <cell id='2'>
+@@ -38,10 +38,10 @@
+           <pages unit='KiB' size='2048'>8192</pages>
+           <pages unit='KiB' size='1048576'>10240</pages>
+           <cpus num='4'>
+-            <cpu id='8' socket_id='2' die_id='0' core_id='8' siblings='8'/>
+-            <cpu id='9' socket_id='2' die_id='0' core_id='9' siblings='9'/>
+-            <cpu id='10' socket_id='2' die_id='0' core_id='10' siblings='10'/>
+-            <cpu id='11' socket_id='2' die_id='0' core_id='11' siblings='11'/>
++            <cpu id='8' socket_id='2' die_id='0' cluster_id='0' core_id='8' siblings='8'/>
++            <cpu id='9' socket_id='2' die_id='0' cluster_id='0' core_id='9' siblings='9'/>
++            <cpu id='10' socket_id='2' die_id='0' cluster_id='0' core_id='10' siblings='10'/>
++            <cpu id='11' socket_id='2' die_id='0' cluster_id='0' core_id='11' siblings='11'/>
+           </cpus>
+         </cell>
+         <cell id='3'>
+@@ -50,10 +50,10 @@
+           <pages unit='KiB' size='2048'>10240</pages>
+           <pages unit='KiB' size='1048576'>12288</pages>
+           <cpus num='4'>
+-            <cpu id='12' socket_id='3' die_id='0' core_id='12' siblings='12'/>
+-            <cpu id='13' socket_id='3' die_id='0' core_id='13' siblings='13'/>
+-            <cpu id='14' socket_id='3' die_id='0' core_id='14' siblings='14'/>
+-            <cpu id='15' socket_id='3' die_id='0' core_id='15' siblings='15'/>
++            <cpu id='12' socket_id='3' die_id='0' cluster_id='0' core_id='12' siblings='12'/>
++            <cpu id='13' socket_id='3' die_id='0' cluster_id='0' core_id='13' siblings='13'/>
++            <cpu id='14' socket_id='3' die_id='0' cluster_id='0' core_id='14' siblings='14'/>
++            <cpu id='15' socket_id='3' die_id='0' cluster_id='0' core_id='15' siblings='15'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-caches.xml b/tests/vircaps2xmldata/vircaps-x86_64-caches.xml
+index 28f00c0a90..05b33147b7 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-caches.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-caches.xml
+@@ -17,14 +17,14 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='8'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0,4'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1,5'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2,6'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3,7'/>
+-            <cpu id='4' socket_id='0' die_id='0' core_id='0' siblings='0,4'/>
+-            <cpu id='5' socket_id='0' die_id='0' core_id='1' siblings='1,5'/>
+-            <cpu id='6' socket_id='0' die_id='0' core_id='2' siblings='2,6'/>
+-            <cpu id='7' socket_id='0' die_id='0' core_id='3' siblings='3,7'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0,4'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1,5'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2,6'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3,7'/>
++            <cpu id='4' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0,4'/>
++            <cpu id='5' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1,5'/>
++            <cpu id='6' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2,6'/>
++            <cpu id='7' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3,7'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-hmat.xml b/tests/vircaps2xmldata/vircaps-x86_64-hmat.xml
+index 6fe5751666..2b97354bf3 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-hmat.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-hmat.xml
+@@ -25,30 +25,30 @@
+             <line value='16' unit='B'/>
+           </cache>
+           <cpus num='24'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='1' die_id='0' core_id='0' siblings='1'/>
+-            <cpu id='2' socket_id='2' die_id='0' core_id='0' siblings='2'/>
+-            <cpu id='3' socket_id='3' die_id='0' core_id='0' siblings='3'/>
+-            <cpu id='4' socket_id='4' die_id='0' core_id='0' siblings='4'/>
+-            <cpu id='5' socket_id='5' die_id='0' core_id='0' siblings='5'/>
+-            <cpu id='6' socket_id='6' die_id='0' core_id='0' siblings='6'/>
+-            <cpu id='7' socket_id='7' die_id='0' core_id='0' siblings='7'/>
+-            <cpu id='8' socket_id='8' die_id='0' core_id='0' siblings='8'/>
+-            <cpu id='9' socket_id='9' die_id='0' core_id='0' siblings='9'/>
+-            <cpu id='10' socket_id='10' die_id='0' core_id='0' siblings='10'/>
+-            <cpu id='11' socket_id='11' die_id='0' core_id='0' siblings='11'/>
+-            <cpu id='12' socket_id='12' die_id='0' core_id='0' siblings='12'/>
+-            <cpu id='13' socket_id='13' die_id='0' core_id='0' siblings='13'/>
+-            <cpu id='14' socket_id='14' die_id='0' core_id='0' siblings='14'/>
+-            <cpu id='15' socket_id='15' die_id='0' core_id='0' siblings='15'/>
+-            <cpu id='16' socket_id='16' die_id='0' core_id='0' siblings='16'/>
+-            <cpu id='17' socket_id='17' die_id='0' core_id='0' siblings='17'/>
+-            <cpu id='18' socket_id='18' die_id='0' core_id='0' siblings='18'/>
+-            <cpu id='19' socket_id='19' die_id='0' core_id='0' siblings='19'/>
+-            <cpu id='20' socket_id='20' die_id='0' core_id='0' siblings='20'/>
+-            <cpu id='21' socket_id='21' die_id='0' core_id='0' siblings='21'/>
+-            <cpu id='22' socket_id='22' die_id='0' core_id='0' siblings='22'/>
+-            <cpu id='23' socket_id='23' die_id='0' core_id='0' siblings='23'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='1'/>
++            <cpu id='2' socket_id='2' die_id='0' cluster_id='0' core_id='0' siblings='2'/>
++            <cpu id='3' socket_id='3' die_id='0' cluster_id='0' core_id='0' siblings='3'/>
++            <cpu id='4' socket_id='4' die_id='0' cluster_id='0' core_id='0' siblings='4'/>
++            <cpu id='5' socket_id='5' die_id='0' cluster_id='0' core_id='0' siblings='5'/>
++            <cpu id='6' socket_id='6' die_id='0' cluster_id='0' core_id='0' siblings='6'/>
++            <cpu id='7' socket_id='7' die_id='0' cluster_id='0' core_id='0' siblings='7'/>
++            <cpu id='8' socket_id='8' die_id='0' cluster_id='0' core_id='0' siblings='8'/>
++            <cpu id='9' socket_id='9' die_id='0' cluster_id='0' core_id='0' siblings='9'/>
++            <cpu id='10' socket_id='10' die_id='0' cluster_id='0' core_id='0' siblings='10'/>
++            <cpu id='11' socket_id='11' die_id='0' cluster_id='0' core_id='0' siblings='11'/>
++            <cpu id='12' socket_id='12' die_id='0' cluster_id='0' core_id='0' siblings='12'/>
++            <cpu id='13' socket_id='13' die_id='0' cluster_id='0' core_id='0' siblings='13'/>
++            <cpu id='14' socket_id='14' die_id='0' cluster_id='0' core_id='0' siblings='14'/>
++            <cpu id='15' socket_id='15' die_id='0' cluster_id='0' core_id='0' siblings='15'/>
++            <cpu id='16' socket_id='16' die_id='0' cluster_id='0' core_id='0' siblings='16'/>
++            <cpu id='17' socket_id='17' die_id='0' cluster_id='0' core_id='0' siblings='17'/>
++            <cpu id='18' socket_id='18' die_id='0' cluster_id='0' core_id='0' siblings='18'/>
++            <cpu id='19' socket_id='19' die_id='0' cluster_id='0' core_id='0' siblings='19'/>
++            <cpu id='20' socket_id='20' die_id='0' cluster_id='0' core_id='0' siblings='20'/>
++            <cpu id='21' socket_id='21' die_id='0' cluster_id='0' core_id='0' siblings='21'/>
++            <cpu id='22' socket_id='22' die_id='0' cluster_id='0' core_id='0' siblings='22'/>
++            <cpu id='23' socket_id='23' die_id='0' cluster_id='0' core_id='0' siblings='23'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cdp.xml b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cdp.xml
+index ee26fe9464..167b217d8e 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cdp.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cdp.xml
+@@ -17,12 +17,12 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='6'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3'/>
+-            <cpu id='4' socket_id='0' die_id='0' core_id='4' siblings='4'/>
+-            <cpu id='5' socket_id='0' die_id='0' core_id='5' siblings='5'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3'/>
++            <cpu id='4' socket_id='0' die_id='0' cluster_id='0' core_id='4' siblings='4'/>
++            <cpu id='5' socket_id='0' die_id='0' cluster_id='0' core_id='5' siblings='5'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -31,12 +31,12 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='6'>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='0' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='1' siblings='7'/>
+-            <cpu id='8' socket_id='1' die_id='0' core_id='2' siblings='8'/>
+-            <cpu id='9' socket_id='1' die_id='0' core_id='3' siblings='9'/>
+-            <cpu id='10' socket_id='1' die_id='0' core_id='4' siblings='10'/>
+-            <cpu id='11' socket_id='1' die_id='0' core_id='5' siblings='11'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='1' siblings='7'/>
++            <cpu id='8' socket_id='1' die_id='0' cluster_id='0' core_id='2' siblings='8'/>
++            <cpu id='9' socket_id='1' die_id='0' cluster_id='0' core_id='3' siblings='9'/>
++            <cpu id='10' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='10'/>
++            <cpu id='11' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='11'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cmt.xml b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cmt.xml
+index acdd97ec58..311bb58e6a 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cmt.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-cmt.xml
+@@ -17,12 +17,12 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='6'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3'/>
+-            <cpu id='4' socket_id='0' die_id='0' core_id='4' siblings='4'/>
+-            <cpu id='5' socket_id='0' die_id='0' core_id='5' siblings='5'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3'/>
++            <cpu id='4' socket_id='0' die_id='0' cluster_id='0' core_id='4' siblings='4'/>
++            <cpu id='5' socket_id='0' die_id='0' cluster_id='0' core_id='5' siblings='5'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -31,12 +31,12 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='6'>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='0' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='1' siblings='7'/>
+-            <cpu id='8' socket_id='1' die_id='0' core_id='2' siblings='8'/>
+-            <cpu id='9' socket_id='1' die_id='0' core_id='3' siblings='9'/>
+-            <cpu id='10' socket_id='1' die_id='0' core_id='4' siblings='10'/>
+-            <cpu id='11' socket_id='1' die_id='0' core_id='5' siblings='11'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='1' siblings='7'/>
++            <cpu id='8' socket_id='1' die_id='0' cluster_id='0' core_id='2' siblings='8'/>
++            <cpu id='9' socket_id='1' die_id='0' cluster_id='0' core_id='3' siblings='9'/>
++            <cpu id='10' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='10'/>
++            <cpu id='11' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='11'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-fake-feature.xml b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-fake-feature.xml
+index 1327d85c98..d85407f0b1 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-fake-feature.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-fake-feature.xml
+@@ -17,12 +17,12 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='6'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3'/>
+-            <cpu id='4' socket_id='0' die_id='0' core_id='4' siblings='4'/>
+-            <cpu id='5' socket_id='0' die_id='0' core_id='5' siblings='5'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3'/>
++            <cpu id='4' socket_id='0' die_id='0' cluster_id='0' core_id='4' siblings='4'/>
++            <cpu id='5' socket_id='0' die_id='0' cluster_id='0' core_id='5' siblings='5'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -31,12 +31,12 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='6'>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='0' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='1' siblings='7'/>
+-            <cpu id='8' socket_id='1' die_id='0' core_id='2' siblings='8'/>
+-            <cpu id='9' socket_id='1' die_id='0' core_id='3' siblings='9'/>
+-            <cpu id='10' socket_id='1' die_id='0' core_id='4' siblings='10'/>
+-            <cpu id='11' socket_id='1' die_id='0' core_id='5' siblings='11'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='1' siblings='7'/>
++            <cpu id='8' socket_id='1' die_id='0' cluster_id='0' core_id='2' siblings='8'/>
++            <cpu id='9' socket_id='1' die_id='0' cluster_id='0' core_id='3' siblings='9'/>
++            <cpu id='10' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='10'/>
++            <cpu id='11' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='11'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx-twocaches.xml b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx-twocaches.xml
+index 6769bd0591..eb53eb2142 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx-twocaches.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx-twocaches.xml
+@@ -17,7 +17,7 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='1'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx.xml b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx.xml
+index bc52480905..38ea0bdc27 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-resctrl-skx.xml
+@@ -17,7 +17,7 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='1'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
+           </cpus>
+         </cell>
+       </cells>
+diff --git a/tests/vircaps2xmldata/vircaps-x86_64-resctrl.xml b/tests/vircaps2xmldata/vircaps-x86_64-resctrl.xml
+index b638bbd1c9..fd854ee91e 100644
+--- a/tests/vircaps2xmldata/vircaps-x86_64-resctrl.xml
++++ b/tests/vircaps2xmldata/vircaps-x86_64-resctrl.xml
+@@ -17,12 +17,12 @@
+           <pages unit='KiB' size='2048'>4096</pages>
+           <pages unit='KiB' size='1048576'>6144</pages>
+           <cpus num='6'>
+-            <cpu id='0' socket_id='0' die_id='0' core_id='0' siblings='0'/>
+-            <cpu id='1' socket_id='0' die_id='0' core_id='1' siblings='1'/>
+-            <cpu id='2' socket_id='0' die_id='0' core_id='2' siblings='2'/>
+-            <cpu id='3' socket_id='0' die_id='0' core_id='3' siblings='3'/>
+-            <cpu id='4' socket_id='0' die_id='0' core_id='4' siblings='4'/>
+-            <cpu id='5' socket_id='0' die_id='0' core_id='5' siblings='5'/>
++            <cpu id='0' socket_id='0' die_id='0' cluster_id='0' core_id='0' siblings='0'/>
++            <cpu id='1' socket_id='0' die_id='0' cluster_id='0' core_id='1' siblings='1'/>
++            <cpu id='2' socket_id='0' die_id='0' cluster_id='0' core_id='2' siblings='2'/>
++            <cpu id='3' socket_id='0' die_id='0' cluster_id='0' core_id='3' siblings='3'/>
++            <cpu id='4' socket_id='0' die_id='0' cluster_id='0' core_id='4' siblings='4'/>
++            <cpu id='5' socket_id='0' die_id='0' cluster_id='0' core_id='5' siblings='5'/>
+           </cpus>
+         </cell>
+         <cell id='1'>
+@@ -31,12 +31,12 @@
+           <pages unit='KiB' size='2048'>6144</pages>
+           <pages unit='KiB' size='1048576'>8192</pages>
+           <cpus num='6'>
+-            <cpu id='6' socket_id='1' die_id='0' core_id='0' siblings='6'/>
+-            <cpu id='7' socket_id='1' die_id='0' core_id='1' siblings='7'/>
+-            <cpu id='8' socket_id='1' die_id='0' core_id='2' siblings='8'/>
+-            <cpu id='9' socket_id='1' die_id='0' core_id='3' siblings='9'/>
+-            <cpu id='10' socket_id='1' die_id='0' core_id='4' siblings='10'/>
+-            <cpu id='11' socket_id='1' die_id='0' core_id='5' siblings='11'/>
++            <cpu id='6' socket_id='1' die_id='0' cluster_id='0' core_id='0' siblings='6'/>
++            <cpu id='7' socket_id='1' die_id='0' cluster_id='0' core_id='1' siblings='7'/>
++            <cpu id='8' socket_id='1' die_id='0' cluster_id='0' core_id='2' siblings='8'/>
++            <cpu id='9' socket_id='1' die_id='0' cluster_id='0' core_id='3' siblings='9'/>
++            <cpu id='10' socket_id='1' die_id='0' cluster_id='0' core_id='4' siblings='10'/>
++            <cpu id='11' socket_id='1' die_id='0' cluster_id='0' core_id='5' siblings='11'/>
+           </cpus>
+         </cell>
+       </cells>
+-- 
+2.43.0

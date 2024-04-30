@@ -1,0 +1,108 @@
+From 3c987a4fb4a4e96bd4a9af04e43862d96169767e Mon Sep 17 00:00:00 2001
+Message-ID: <3c987a4fb4a4e96bd4a9af04e43862d96169767e.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 30 Jan 2024 15:14:49 +0100
+Subject: [PATCH] virPCIVPDParseVPDLargeResourceFields: Refactor processing of
+ read data
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Use a 'switch' statement instead of a bunch of if/elseif statements.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 378b82dac2f7bb7f20e32c4f0f8db49ff5f36851)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c | 66 +++++++++++++++++++++++++-------------------
+ 1 file changed, 37 insertions(+), 29 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index 25c4c2c5ec..60e520c46f 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -485,36 +485,43 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+         /* Advance the position to the first byte of the next field. */
+         fieldPos += fieldDataLen;
+ 
+-        if (fieldFormat == VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_TEXT) {
+-            /* Trim whitespace around a retrieved value and set it to be a field's value. Cases
+-             * where unnecessary whitespace was present around a field value have been encountered
+-             * in the wild.
+-             */
+-            fieldValue = g_strstrip(g_strndup((char *)buf, fieldDataLen));
+-            if (!virPCIVPDResourceIsValidTextValue(fieldValue)) {
+-                /* Skip fields with invalid values - this is safe assuming field length is
+-                 * correctly specified. */
+-                VIR_DEBUG("A value for field %s contains invalid characters", fieldKeyword);
++        switch (fieldFormat) {
++            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_TEXT:
++                /* Trim whitespace around a retrieved value and set it to be a field's value. Cases
++                 * where unnecessary whitespace was present around a field value have been encountered
++                 * in the wild.
++                 */
++                fieldValue = g_strstrip(g_strndup((char *)buf, fieldDataLen));
++                if (!virPCIVPDResourceIsValidTextValue(fieldValue)) {
++                    /* Skip fields with invalid values - this is safe assuming field length is
++                     * correctly specified. */
++                    VIR_DEBUG("A value for field %s contains invalid characters", fieldKeyword);
++                    continue;
++                }
++                break;
++
++            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_BINARY:
++                fieldValue = g_malloc(fieldDataLen);
++                memcpy(fieldValue, buf, fieldDataLen);
++                break;
++
++            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RDWR:
++                /* Skip the read-write space since it is used for indication only. */
++                hasRW = true;
++                goto done;
++
++            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RESVD:
++                if (*csum) {
++                    /* All bytes up to and including the checksum byte should add up to 0. */
++                    VIR_INFO("Checksum validation has failed");
++                    return false;
++                }
++                hasChecksum = true;
++                goto done;
++
++            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_LAST:
++                /* Skip unknown fields */
+                 continue;
+-            }
+-        } else if (fieldFormat == VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RESVD) {
+-            if (*csum) {
+-                /* All bytes up to and including the checksum byte should add up to 0. */
+-                VIR_INFO("Checksum validation has failed");
+-                return false;
+-            }
+-            hasChecksum = true;
+-            break;
+-        } else if (fieldFormat == VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RDWR) {
+-            /* Skip the read-write space since it is used for indication only. */
+-            hasRW = true;
+-            break;
+-        } else if (fieldFormat == VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_LAST) {
+-            /* Skip unknown fields */
+-            continue;
+-        } else {
+-            fieldValue = g_malloc(fieldDataLen);
+-            memcpy(fieldValue, buf, fieldDataLen);
+         }
+ 
+         if (readOnly) {
+@@ -528,6 +535,7 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+         virPCIVPDResourceUpdateKeyword(res, readOnly, fieldKeyword, fieldValue);
+     }
+ 
++ done:
+     /* May have exited the loop prematurely in case RV or RW were encountered and
+      * they were not the last fields in the section. */
+     endReached = (fieldPos >= resPos + resDataLen);
+-- 
+2.43.0

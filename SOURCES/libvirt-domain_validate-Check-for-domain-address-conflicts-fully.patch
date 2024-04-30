@@ -1,0 +1,53 @@
+From d3593c911c3e02cf5c9c876cddf2fc8ba2eede06 Mon Sep 17 00:00:00 2001
+Message-ID: <d3593c911c3e02cf5c9c876cddf2fc8ba2eede06.1706524416.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 19 Jan 2024 08:22:13 +0100
+Subject: [PATCH] domain_validate: Check for domain address conflicts fully
+
+Current implementation of virDomainMemoryDefCheckConflict() does
+only a one way comparison, i.e. if there's a memory device within
+def->mems[] which address falls in [mem->address, mem->address +
+mem->size] range (mem is basically an iterator within
+def->mems[]). And for static XML this works just fine. Problem is
+with hot/cold plugging of a memory device. Then mem points to
+freshly parsed memory device and these half checks are
+insufficient. Not only we must check whether an existing memory
+device doesn't clash with freshly parsed memory device, but also
+whether freshly parsed memory device does not fall into range of
+already existing memory device.
+
+Resolves: https://issues.redhat.com/browse/RHEL-4452
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 91f9a9fb4fc0d34ed8d7a869de3d9f87687c3618)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/conf/domain_validate.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index d485ec4fb1..46479f10f2 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -2264,6 +2264,7 @@ virDomainMemoryDefCheckConflict(const virDomainMemoryDef *mem,
+     for (i = 0; i < def->nmems; i++) {
+         const virDomainMemoryDef *other = def->mems[i];
+         unsigned long long otherStart = 0;
++        unsigned long long otherEnd = 0;
+ 
+         if (other == mem)
+             continue;
+@@ -2315,7 +2316,10 @@ virDomainMemoryDefCheckConflict(const virDomainMemoryDef *mem,
+         if (thisStart == 0 || otherStart == 0)
+             continue;
+ 
+-        if (thisStart <= otherStart && thisEnd > otherStart) {
++        otherEnd = otherStart + other->size * 1024;
++
++        if ((thisStart <= otherStart && thisEnd > otherStart) ||
++            (otherStart <= thisStart && otherEnd > thisStart)) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                            _("memory device address [0x%1$llx:0x%2$llx] overlaps with other memory device (0x%3$llx)"),
+                            thisStart, thisEnd, otherStart);
+-- 
+2.43.0

@@ -1,0 +1,47 @@
+From 15145b5ecb2e9186e42bbb295e1d44f93ff25cfb Mon Sep 17 00:00:00 2001
+Message-ID: <15145b5ecb2e9186e42bbb295e1d44f93ff25cfb.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Jan 2024 16:27:35 +0100
+Subject: [PATCH] conf: virNodeDeviceCapVPDParse*: Remove pointless NULL checks
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function are never called with NULL argument so the checks can be
+removed.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit fb69acf5c255f6baedefe2a2535325af8088ced5)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/conf/node_device_conf.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index dd174d3020..d7e1a23034 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -1023,9 +1023,6 @@ virNodeDeviceCapVPDParseReadOnlyFields(xmlXPathContextPtr ctxt, virPCIVPDResourc
+                               "serial_number", "part_number", NULL};
+     size_t i = 0;
+ 
+-    if (res == NULL)
+-        return -1;
+-
+     res->ro = virPCIVPDResourceRONew();
+ 
+     while (keywords[i]) {
+@@ -1061,9 +1058,6 @@ virNodeDeviceCapVPDParseXML(xmlXPathContextPtr ctxt, virPCIVPDResource **res)
+     size_t i = 0;
+     g_autoptr(virPCIVPDResource) newres = g_new0(virPCIVPDResource, 1);
+ 
+-    if (res == NULL)
+-        return -1;
+-
+     if (!(newres->name = virXPathString("string(./name)", ctxt))) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                 _("Could not read a device name from the <name> element"));
+-- 
+2.43.0

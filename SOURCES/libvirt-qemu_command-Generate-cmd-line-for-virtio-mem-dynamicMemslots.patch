@@ -1,0 +1,62 @@
+From 866ec16d8264b3ef2533b276d161e6dc1db470a0 Mon Sep 17 00:00:00 2001
+Message-ID: <866ec16d8264b3ef2533b276d161e6dc1db470a0.1707394627.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 4 Jan 2024 10:49:06 +0100
+Subject: [PATCH] qemu_command: Generate cmd line for virtio-mem
+ dynamicMemslots
+
+This is pretty straightforward.
+
+Resolves: https://issues.redhat.com/browse/RHEL-15316
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit dab99eedcd15d135e287185ce03eb05338ce225d)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c                                        | 3 +++
+ .../memory-hotplug-virtio-mem.x86_64-latest.args               | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 712feb7b81..4d5a202c7d 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3653,6 +3653,7 @@ qemuBuildMemoryDeviceProps(virQEMUDriverConfig *cfg,
+     unsigned long long requestedsize = 0;
+     unsigned long long address = 0;
+     bool prealloc = false;
++    virTristateBool dynamicMemslots = VIR_TRISTATE_BOOL_ABSENT;
+ 
+     if (!mem->info.alias) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+@@ -3694,6 +3695,7 @@ qemuBuildMemoryDeviceProps(virQEMUDriverConfig *cfg,
+         blocksize = mem->target.virtio_mem.blocksize;
+         requestedsize = mem->target.virtio_mem.requestedsize;
+         address = mem->target.virtio_mem.address;
++        dynamicMemslots = mem->target.virtio_mem.dynamicMemslots;
+         break;
+ 
+     case VIR_DOMAIN_MEMORY_MODEL_SGX_EPC:
+@@ -3716,6 +3718,7 @@ qemuBuildMemoryDeviceProps(virQEMUDriverConfig *cfg,
+                               "s:memdev", memdev,
+                               "B:prealloc", prealloc,
+                               "P:memaddr", address,
++                              "T:dynamic-memslots", dynamicMemslots,
+                               "s:id", mem->info.alias,
+                               NULL) < 0)
+         return NULL;
+diff --git a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args
+index dbe96ae21d..36cff6ec13 100644
+--- a/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args
++++ b/tests/qemuxml2argvdata/memory-hotplug-virtio-mem.x86_64-latest.args
+@@ -32,7 +32,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"memory-backend-ram","id":"memvirtiomem0","reserve":false,"size":1073741824}' \
+ -device '{"driver":"virtio-mem-pci","node":0,"block-size":2097152,"requested-size":536870912,"memdev":"memvirtiomem0","id":"virtiomem0","bus":"pci.0","addr":"0x2"}' \
+ -object '{"qom-type":"memory-backend-file","id":"memvirtiomem1","mem-path":"/dev/hugepages2M/libvirt/qemu/-1-QEMUGuest1","reserve":false,"size":2147483648,"host-nodes":[1,2,3],"policy":"bind"}' \
+--device '{"driver":"virtio-mem-pci","node":0,"block-size":2097152,"requested-size":1073741824,"memdev":"memvirtiomem1","prealloc":true,"memaddr":5637144576,"id":"virtiomem1","bus":"pci.1","addr":"0x1"}' \
++-device '{"driver":"virtio-mem-pci","node":0,"block-size":2097152,"requested-size":1073741824,"memdev":"memvirtiomem1","prealloc":true,"memaddr":5637144576,"dynamic-memslots":true,"id":"virtiomem1","bus":"pci.1","addr":"0x1"}' \
+ -blockdev '{"driver":"host_device","filename":"/dev/HostVG/QEMUGuest1","node-name":"libvirt-1-storage","auto-read-only":true,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-1-format","read-only":false,"driver":"raw","file":"libvirt-1-storage"}' \
+ -device '{"driver":"ide-hd","bus":"ide.0","unit":0,"drive":"libvirt-1-format","id":"ide0-0-0","bootindex":1}' \
+-- 
+2.43.0

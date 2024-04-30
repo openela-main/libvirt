@@ -1,0 +1,919 @@
+From 87b424cacef5bbbe7e01c69ade8a8a6707cd779c Mon Sep 17 00:00:00 2001
+Message-ID: <87b424cacef5bbbe7e01c69ade8a8a6707cd779c.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Fri, 5 Jan 2024 15:07:06 +0100
+Subject: [PATCH] tests: Add hostcpudata for machine with CPU clusters
+
+The data is taken from an HPE Apollo 70 machine, which uses
+aarch64 CPUs. It is interesting for us because non-dummy
+information about CPU clusters is exposed through sysfs.
+
+In order to keep things reasonable, the data was manually
+modified so that only 8 of the original 224 CPUs are included.
+Care has been taken to ensure that the topology is otherwise
+unaltered.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit fb81a56f321019685be80b14e3be3046e46412ad)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ .../linux-basic-clusters/system/cpu           |  1 +
+ .../linux-basic-clusters/system/node          |  1 +
+ .../vircaps-aarch64-basic-clusters.xml        | 39 ++++++++++
+ tests/vircaps2xmltest.c                       |  1 +
+ .../linux-aarch64-with-clusters.cpuinfo       | 72 +++++++++++++++++++
+ .../linux-aarch64-with-clusters.expected      |  1 +
+ .../cpu/cpu0/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu0/topology/cluster_id              |  1 +
+ .../cpu/cpu0/topology/core_cpus_list          |  1 +
+ .../cpu/cpu0/topology/core_id                 |  1 +
+ .../cpu/cpu0/topology/core_siblings_list      |  1 +
+ .../cpu/cpu0/topology/package_cpus_list       |  1 +
+ .../cpu/cpu0/topology/physical_package_id     |  1 +
+ .../cpu/cpu0/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu1/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu1/topology/cluster_id              |  1 +
+ .../cpu/cpu1/topology/core_cpus_list          |  1 +
+ .../cpu/cpu1/topology/core_id                 |  1 +
+ .../cpu/cpu1/topology/core_siblings_list      |  1 +
+ .../cpu/cpu1/topology/package_cpus_list       |  1 +
+ .../cpu/cpu1/topology/physical_package_id     |  1 +
+ .../cpu/cpu1/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu2/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu2/topology/cluster_id              |  1 +
+ .../cpu/cpu2/topology/core_cpus_list          |  1 +
+ .../cpu/cpu2/topology/core_id                 |  1 +
+ .../cpu/cpu2/topology/core_siblings_list      |  1 +
+ .../cpu/cpu2/topology/package_cpus_list       |  1 +
+ .../cpu/cpu2/topology/physical_package_id     |  1 +
+ .../cpu/cpu2/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu3/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu3/topology/cluster_id              |  1 +
+ .../cpu/cpu3/topology/core_cpus_list          |  1 +
+ .../cpu/cpu3/topology/core_id                 |  1 +
+ .../cpu/cpu3/topology/core_siblings_list      |  1 +
+ .../cpu/cpu3/topology/package_cpus_list       |  1 +
+ .../cpu/cpu3/topology/physical_package_id     |  1 +
+ .../cpu/cpu3/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu4/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu4/topology/cluster_id              |  1 +
+ .../cpu/cpu4/topology/core_cpus_list          |  1 +
+ .../cpu/cpu4/topology/core_id                 |  1 +
+ .../cpu/cpu4/topology/core_siblings_list      |  1 +
+ .../cpu/cpu4/topology/package_cpus_list       |  1 +
+ .../cpu/cpu4/topology/physical_package_id     |  1 +
+ .../cpu/cpu4/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu5/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu5/topology/cluster_id              |  1 +
+ .../cpu/cpu5/topology/core_cpus_list          |  1 +
+ .../cpu/cpu5/topology/core_id                 |  1 +
+ .../cpu/cpu5/topology/core_siblings_list      |  1 +
+ .../cpu/cpu5/topology/package_cpus_list       |  1 +
+ .../cpu/cpu5/topology/physical_package_id     |  1 +
+ .../cpu/cpu5/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu6/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu6/topology/cluster_id              |  1 +
+ .../cpu/cpu6/topology/core_cpus_list          |  1 +
+ .../cpu/cpu6/topology/core_id                 |  1 +
+ .../cpu/cpu6/topology/core_siblings_list      |  1 +
+ .../cpu/cpu6/topology/package_cpus_list       |  1 +
+ .../cpu/cpu6/topology/physical_package_id     |  1 +
+ .../cpu/cpu6/topology/thread_siblings_list    |  1 +
+ .../cpu/cpu7/topology/cluster_cpus_list       |  1 +
+ .../cpu/cpu7/topology/cluster_id              |  1 +
+ .../cpu/cpu7/topology/core_cpus_list          |  1 +
+ .../cpu/cpu7/topology/core_id                 |  1 +
+ .../cpu/cpu7/topology/core_siblings_list      |  1 +
+ .../cpu/cpu7/topology/package_cpus_list       |  1 +
+ .../cpu/cpu7/topology/physical_package_id     |  1 +
+ .../cpu/cpu7/topology/thread_siblings_list    |  1 +
+ .../linux-with-clusters/cpu/online            |  1 +
+ .../linux-with-clusters/cpu/present           |  1 +
+ .../linux-with-clusters/node/node0/cpu0       |  1 +
+ .../linux-with-clusters/node/node0/cpu1       |  1 +
+ .../linux-with-clusters/node/node0/cpu2       |  1 +
+ .../linux-with-clusters/node/node0/cpu3       |  1 +
+ .../linux-with-clusters/node/node0/cpulist    |  1 +
+ .../linux-with-clusters/node/node1/cpu4       |  1 +
+ .../linux-with-clusters/node/node1/cpu5       |  1 +
+ .../linux-with-clusters/node/node1/cpu6       |  1 +
+ .../linux-with-clusters/node/node1/cpu7       |  1 +
+ .../linux-with-clusters/node/node1/cpulist    |  1 +
+ .../linux-with-clusters/node/online           |  1 +
+ .../linux-with-clusters/node/possible         |  1 +
+ tests/virhostcputest.c                        |  1 +
+ 85 files changed, 194 insertions(+)
+ create mode 120000 tests/vircaps2xmldata/linux-basic-clusters/system/cpu
+ create mode 120000 tests/vircaps2xmldata/linux-basic-clusters/system/node
+ create mode 100644 tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml
+ create mode 100644 tests/virhostcpudata/linux-aarch64-with-clusters.cpuinfo
+ create mode 100644 tests/virhostcpudata/linux-aarch64-with-clusters.expected
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/package_cpus_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/physical_package_id
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/thread_siblings_list
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/online
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/cpu/present
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node0/cpu0
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node0/cpu1
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node0/cpu2
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node0/cpu3
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/node/node0/cpulist
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node1/cpu4
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node1/cpu5
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node1/cpu6
+ create mode 120000 tests/virhostcpudata/linux-with-clusters/node/node1/cpu7
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/node/node1/cpulist
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/node/online
+ create mode 100644 tests/virhostcpudata/linux-with-clusters/node/possible
+
+diff --git a/tests/vircaps2xmldata/linux-basic-clusters/system/cpu b/tests/vircaps2xmldata/linux-basic-clusters/system/cpu
+new file mode 120000
+index 0000000000..f7354e3525
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic-clusters/system/cpu
+@@ -0,0 +1 @@
++../../../virhostcpudata/linux-with-clusters/cpu
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/linux-basic-clusters/system/node b/tests/vircaps2xmldata/linux-basic-clusters/system/node
+new file mode 120000
+index 0000000000..57b972ce90
+--- /dev/null
++++ b/tests/vircaps2xmldata/linux-basic-clusters/system/node
+@@ -0,0 +1 @@
++../../../virhostcpudata/linux-with-clusters/node
+\ No newline at end of file
+diff --git a/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml b/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml
+new file mode 100644
+index 0000000000..fe61fc42cc
+--- /dev/null
++++ b/tests/vircaps2xmldata/vircaps-aarch64-basic-clusters.xml
+@@ -0,0 +1,39 @@
++<capabilities>
++
++  <host>
++    <cpu>
++      <arch>aarch64</arch>
++    </cpu>
++    <power_management/>
++    <iommu support='no'/>
++    <topology>
++      <cells num='2'>
++        <cell id='0'>
++          <memory unit='KiB'>1048576</memory>
++          <pages unit='KiB' size='4'>2048</pages>
++          <pages unit='KiB' size='2048'>4096</pages>
++          <pages unit='KiB' size='1048576'>6144</pages>
++          <cpus num='4'>
++            <cpu id='0' socket_id='36' die_id='0' core_id='0' siblings='0-1'/>
++            <cpu id='1' socket_id='36' die_id='0' core_id='0' siblings='0-1'/>
++            <cpu id='2' socket_id='36' die_id='0' core_id='1' siblings='2-3'/>
++            <cpu id='3' socket_id='36' die_id='0' core_id='1' siblings='2-3'/>
++          </cpus>
++        </cell>
++        <cell id='1'>
++          <memory unit='KiB'>2097152</memory>
++          <pages unit='KiB' size='4'>4096</pages>
++          <pages unit='KiB' size='2048'>6144</pages>
++          <pages unit='KiB' size='1048576'>8192</pages>
++          <cpus num='4'>
++            <cpu id='4' socket_id='3180' die_id='0' core_id='256' siblings='4-5'/>
++            <cpu id='5' socket_id='3180' die_id='0' core_id='256' siblings='4-5'/>
++            <cpu id='6' socket_id='3180' die_id='0' core_id='257' siblings='6-7'/>
++            <cpu id='7' socket_id='3180' die_id='0' core_id='257' siblings='6-7'/>
++          </cpus>
++        </cell>
++      </cells>
++    </topology>
++  </host>
++
++</capabilities>
+diff --git a/tests/vircaps2xmltest.c b/tests/vircaps2xmltest.c
+index 26a512e87f..2fdf694640 100644
+--- a/tests/vircaps2xmltest.c
++++ b/tests/vircaps2xmltest.c
+@@ -93,6 +93,7 @@ mymain(void)
+     DO_TEST_FULL("basic", VIR_ARCH_X86_64, false, false);
+     DO_TEST_FULL("basic", VIR_ARCH_AARCH64, true, false);
+     DO_TEST_FULL("basic-dies", VIR_ARCH_X86_64, false, false);
++    DO_TEST_FULL("basic-clusters", VIR_ARCH_AARCH64, false, false);
+ 
+     DO_TEST_FULL("caches", VIR_ARCH_X86_64, true, true);
+ 
+diff --git a/tests/virhostcpudata/linux-aarch64-with-clusters.cpuinfo b/tests/virhostcpudata/linux-aarch64-with-clusters.cpuinfo
+new file mode 100644
+index 0000000000..94030201d2
+--- /dev/null
++++ b/tests/virhostcpudata/linux-aarch64-with-clusters.cpuinfo
+@@ -0,0 +1,72 @@
++processor	: 0
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 1
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 2
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 3
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 4
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 5
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 6
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
++processor	: 7
++BogoMIPS	: 400.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
++CPU implementer	: 0x43
++CPU architecture: 8
++CPU variant	: 0x1
++CPU part	: 0x0af
++CPU revision	: 1
++
+diff --git a/tests/virhostcpudata/linux-aarch64-with-clusters.expected b/tests/virhostcpudata/linux-aarch64-with-clusters.expected
+new file mode 100644
+index 0000000000..bf350bd40b
+--- /dev/null
++++ b/tests/virhostcpudata/linux-aarch64-with-clusters.expected
+@@ -0,0 +1 @@
++CPUs: 8/8, MHz: 0, Nodes: 2, Sockets: 1, Cores: 2, Threads: 2
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_id
+new file mode 100644
+index 0000000000..573541ac97
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/cluster_id
+@@ -0,0 +1 @@
++0
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_cpus_list
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_cpus_list
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_id
+new file mode 100644
+index 0000000000..573541ac97
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_id
+@@ -0,0 +1 @@
++0
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_siblings_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/core_siblings_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/package_cpus_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/package_cpus_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/physical_package_id
+new file mode 100644
+index 0000000000..7facc89938
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/physical_package_id
+@@ -0,0 +1 @@
++36
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu0/topology/thread_siblings_list
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_id
+new file mode 100644
+index 0000000000..573541ac97
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/cluster_id
+@@ -0,0 +1 @@
++0
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_cpus_list
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_cpus_list
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_id
+new file mode 100644
+index 0000000000..573541ac97
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_id
+@@ -0,0 +1 @@
++0
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_siblings_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/core_siblings_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/package_cpus_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/package_cpus_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/physical_package_id
+new file mode 100644
+index 0000000000..7facc89938
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/physical_package_id
+@@ -0,0 +1 @@
++36
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu1/topology/thread_siblings_list
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..7a9857542a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++2-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_id
+new file mode 100644
+index 0000000000..d00491fd7e
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/cluster_id
+@@ -0,0 +1 @@
++1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_cpus_list
+new file mode 100644
+index 0000000000..7a9857542a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_cpus_list
+@@ -0,0 +1 @@
++2-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_id
+new file mode 100644
+index 0000000000..d00491fd7e
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_id
+@@ -0,0 +1 @@
++1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_siblings_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/core_siblings_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/package_cpus_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/package_cpus_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/physical_package_id
+new file mode 100644
+index 0000000000..7facc89938
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/physical_package_id
+@@ -0,0 +1 @@
++36
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..7a9857542a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu2/topology/thread_siblings_list
+@@ -0,0 +1 @@
++2-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..7a9857542a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++2-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_id
+new file mode 100644
+index 0000000000..d00491fd7e
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/cluster_id
+@@ -0,0 +1 @@
++1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_cpus_list
+new file mode 100644
+index 0000000000..7a9857542a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_cpus_list
+@@ -0,0 +1 @@
++2-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_id
+new file mode 100644
+index 0000000000..d00491fd7e
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_id
+@@ -0,0 +1 @@
++1
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_siblings_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/core_siblings_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/package_cpus_list
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/package_cpus_list
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/physical_package_id
+new file mode 100644
+index 0000000000..7facc89938
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/physical_package_id
+@@ -0,0 +1 @@
++36
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..7a9857542a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu3/topology/thread_siblings_list
+@@ -0,0 +1 @@
++2-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..e66d883ade
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++4-5
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_id
+new file mode 100644
+index 0000000000..9183bf03fc
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/cluster_id
+@@ -0,0 +1 @@
++256
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_cpus_list
+new file mode 100644
+index 0000000000..e66d883ade
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_cpus_list
+@@ -0,0 +1 @@
++4-5
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_id
+new file mode 100644
+index 0000000000..9183bf03fc
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_id
+@@ -0,0 +1 @@
++256
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_siblings_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/core_siblings_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/package_cpus_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/package_cpus_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/physical_package_id
+new file mode 100644
+index 0000000000..58cecca290
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/physical_package_id
+@@ -0,0 +1 @@
++3180
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..e66d883ade
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu4/topology/thread_siblings_list
+@@ -0,0 +1 @@
++4-5
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..e66d883ade
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++4-5
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_id
+new file mode 100644
+index 0000000000..9183bf03fc
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/cluster_id
+@@ -0,0 +1 @@
++256
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_cpus_list
+new file mode 100644
+index 0000000000..e66d883ade
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_cpus_list
+@@ -0,0 +1 @@
++4-5
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_id
+new file mode 100644
+index 0000000000..9183bf03fc
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_id
+@@ -0,0 +1 @@
++256
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_siblings_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/core_siblings_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/package_cpus_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/package_cpus_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/physical_package_id
+new file mode 100644
+index 0000000000..58cecca290
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/physical_package_id
+@@ -0,0 +1 @@
++3180
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..e66d883ade
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu5/topology/thread_siblings_list
+@@ -0,0 +1 @@
++4-5
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..fdd9f37517
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++6-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_id
+new file mode 100644
+index 0000000000..a700e79997
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/cluster_id
+@@ -0,0 +1 @@
++257
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_cpus_list
+new file mode 100644
+index 0000000000..fdd9f37517
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_cpus_list
+@@ -0,0 +1 @@
++6-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_id
+new file mode 100644
+index 0000000000..a700e79997
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_id
+@@ -0,0 +1 @@
++257
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_siblings_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/core_siblings_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/package_cpus_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/package_cpus_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/physical_package_id
+new file mode 100644
+index 0000000000..58cecca290
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/physical_package_id
+@@ -0,0 +1 @@
++3180
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..fdd9f37517
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu6/topology/thread_siblings_list
+@@ -0,0 +1 @@
++6-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_cpus_list
+new file mode 100644
+index 0000000000..fdd9f37517
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_cpus_list
+@@ -0,0 +1 @@
++6-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_id
+new file mode 100644
+index 0000000000..a700e79997
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/cluster_id
+@@ -0,0 +1 @@
++257
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_cpus_list
+new file mode 100644
+index 0000000000..fdd9f37517
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_cpus_list
+@@ -0,0 +1 @@
++6-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_id
+new file mode 100644
+index 0000000000..a700e79997
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_id
+@@ -0,0 +1 @@
++257
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_siblings_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/core_siblings_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/package_cpus_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/package_cpus_list
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/package_cpus_list
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/physical_package_id b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/physical_package_id
+new file mode 100644
+index 0000000000..58cecca290
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/physical_package_id
+@@ -0,0 +1 @@
++3180
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/thread_siblings_list b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/thread_siblings_list
+new file mode 100644
+index 0000000000..fdd9f37517
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/cpu7/topology/thread_siblings_list
+@@ -0,0 +1 @@
++6-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/online b/tests/virhostcpudata/linux-with-clusters/cpu/online
+new file mode 100644
+index 0000000000..5f4593c34a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/online
+@@ -0,0 +1 @@
++0-223
+diff --git a/tests/virhostcpudata/linux-with-clusters/cpu/present b/tests/virhostcpudata/linux-with-clusters/cpu/present
+new file mode 100644
+index 0000000000..5f4593c34a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/cpu/present
+@@ -0,0 +1 @@
++0-223
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node0/cpu0 b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu0
+new file mode 120000
+index 0000000000..c841bea28b
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu0
+@@ -0,0 +1 @@
++../../cpu/cpu0
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node0/cpu1 b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu1
+new file mode 120000
+index 0000000000..5f4536279e
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu1
+@@ -0,0 +1 @@
++../../cpu/cpu1
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node0/cpu2 b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu2
+new file mode 120000
+index 0000000000..2dcca332ce
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu2
+@@ -0,0 +1 @@
++../../cpu/cpu2
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node0/cpu3 b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu3
+new file mode 120000
+index 0000000000..c7690e5aa6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node0/cpu3
+@@ -0,0 +1 @@
++../../cpu/cpu3
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node0/cpulist b/tests/virhostcpudata/linux-with-clusters/node/node0/cpulist
+new file mode 100644
+index 0000000000..40c7bb2f1a
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node0/cpulist
+@@ -0,0 +1 @@
++0-3
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node1/cpu4 b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu4
+new file mode 120000
+index 0000000000..9e77a64eb4
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu4
+@@ -0,0 +1 @@
++../../cpu/cpu4
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node1/cpu5 b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu5
+new file mode 120000
+index 0000000000..cc07c3b97b
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu5
+@@ -0,0 +1 @@
++../../cpu/cpu5
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node1/cpu6 b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu6
+new file mode 120000
+index 0000000000..2e7576354f
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu6
+@@ -0,0 +1 @@
++../../cpu/cpu6
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node1/cpu7 b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu7
+new file mode 120000
+index 0000000000..09e3f79b43
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node1/cpu7
+@@ -0,0 +1 @@
++../../cpu/cpu7
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/node1/cpulist b/tests/virhostcpudata/linux-with-clusters/node/node1/cpulist
+new file mode 100644
+index 0000000000..93fccd3cc6
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/node1/cpulist
+@@ -0,0 +1 @@
++4-7
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/online b/tests/virhostcpudata/linux-with-clusters/node/online
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/online
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcpudata/linux-with-clusters/node/possible b/tests/virhostcpudata/linux-with-clusters/node/possible
+new file mode 100644
+index 0000000000..8b0fab869c
+--- /dev/null
++++ b/tests/virhostcpudata/linux-with-clusters/node/possible
+@@ -0,0 +1 @@
++0-1
+diff --git a/tests/virhostcputest.c b/tests/virhostcputest.c
+index 0990013878..cf310cb4ce 100644
+--- a/tests/virhostcputest.c
++++ b/tests/virhostcputest.c
+@@ -273,6 +273,7 @@ mymain(void)
+         {"subcores3", VIR_ARCH_PPC64},
+         {"with-frequency", VIR_ARCH_S390X},
+         {"with-die", VIR_ARCH_X86_64},
++        {"with-clusters", VIR_ARCH_AARCH64},
+     };
+ 
+     if (virInitialize() < 0)
+-- 
+2.43.0

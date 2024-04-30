@@ -1,0 +1,67 @@
+From 743afd9422e59bc6cbda6b4a904394a045eb9aec Mon Sep 17 00:00:00 2001
+Message-ID: <743afd9422e59bc6cbda6b4a904394a045eb9aec.1707394627.git.jdenemar@redhat.com>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Tue, 30 Jan 2024 12:13:32 +0100
+Subject: [PATCH] qemu_snapshot: create: don't require disk-only flag for
+ offline external snapshot
+
+Historically creating offline external snapshot required disk-only flag
+as well. Now when user requests new snapshot for offline VM and at least
+one disk is specified to use external snapshot we will no longer require
+disk-only flag as all other not specified disk will use external
+snapshots as well.
+
+Resolves: https://issues.redhat.com/browse/RHEL-22797
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 189fdeff10b85786a495a8fcf67ba1428d9fc482)
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_snapshot.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_snapshot.c b/src/qemu/qemu_snapshot.c
+index 871e63c9cd..0cac0c4146 100644
+--- a/src/qemu/qemu_snapshot.c
++++ b/src/qemu/qemu_snapshot.c
+@@ -1582,15 +1582,27 @@ qemuSnapshotCreateXMLValidateDef(virDomainObj *vm,
+  * to internal snapshots.
+  */
+ static bool
+-qemuSnapshotCreateUseExternal(virDomainSnapshotDef *def,
++qemuSnapshotCreateUseExternal(virDomainObj *vm,
++                              virDomainSnapshotDef *def,
+                               unsigned int flags)
+ {
++    size_t i;
++
+     if (flags & VIR_DOMAIN_SNAPSHOT_CREATE_DISK_ONLY)
+         return true;
+ 
+     if (def->memory == VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL)
+         return true;
+ 
++    if (!virDomainObjIsActive(vm)) {
++        /* No need to check all disks as function qemuSnapshotPrepare() guarantees
++         * that we don't have a combination of internal and external location. */
++        for (i = 0; i < def->ndisks; i++) {
++            if (def->disks[i].snapshot == VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL)
++                return true;
++        }
++    }
++
+     return false;
+ }
+ 
+@@ -1623,7 +1635,7 @@ qemuSnapshotCreateAlignDisks(virDomainObj *vm,
+             return -1;
+     }
+ 
+-    if (qemuSnapshotCreateUseExternal(def, flags)) {
++    if (qemuSnapshotCreateUseExternal(vm, def, flags)) {
+         align_location = VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL;
+         def->state = virDomainObjGetState(vm, NULL);
+ 
+-- 
+2.43.0

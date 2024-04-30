@@ -1,0 +1,42 @@
+From 08318e2c7dd6d5ea76c2f7ddfa7e61519903744c Mon Sep 17 00:00:00 2001
+Message-ID: <08318e2c7dd6d5ea76c2f7ddfa7e61519903744c.1711034741.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 5 Mar 2024 14:55:26 +0100
+Subject: [PATCH] qemu: virtiofs: do not crash if cgroups are missing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+On domain startup, qemuSetupCgroupForExtDevices checks
+if a cgroup controller is present and skips the setup if not.
+
+Add a similar check to qemuVirtioFSSetupCgroup to prevent
+crashing when hotplugging a virtiofs filesystem.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit a9da0092198ba2f278cea370f8251f2e29f57c7d)
+
+https://issues.redhat.com/browse/RHEL-7386
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_virtiofs.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/qemu/qemu_virtiofs.c b/src/qemu/qemu_virtiofs.c
+index d539d0a192..15dea3bb57 100644
+--- a/src/qemu/qemu_virtiofs.c
++++ b/src/qemu/qemu_virtiofs.c
+@@ -353,6 +353,9 @@ qemuVirtioFSSetupCgroup(virDomainObj *vm,
+     pid_t pid = -1;
+     int rc;
+ 
++    if (!cgroup)
++        return 0;
++
+     if (!(pidfile = qemuVirtioFSCreatePidFilename(vm, fs->info.alias)))
+         return -1;
+ 
+-- 
+2.44.0

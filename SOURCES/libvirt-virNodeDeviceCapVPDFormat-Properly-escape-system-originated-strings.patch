@@ -1,5 +1,5 @@
-From d7e1cd95acca8573a9706ef88fa4a7c9621cb395 Mon Sep 17 00:00:00 2001
-Message-ID: <d7e1cd95acca8573a9706ef88fa4a7c9621cb395.1708340442.git.jdenemar@redhat.com>
+From dd11b0a672feb5932548aa72c4db859889401587 Mon Sep 17 00:00:00 2001
+Message-ID: <dd11b0a672feb5932548aa72c4db859889401587.1707394627.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 30 Jan 2024 17:11:37 +0100
 Subject: [PATCH] virNodeDeviceCapVPDFormat: Properly escape system-originated
@@ -27,7 +27,7 @@ https://issues.redhat.com/browse/RHEL-22399 [9.2.z]
  1 file changed, 13 insertions(+), 19 deletions(-)
 
 diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
-index 258c70c28d..7d30c7667b 100644
+index 87c046e571..95de77abe9 100644
 --- a/src/conf/node_device_conf.c
 +++ b/src/conf/node_device_conf.c
 @@ -270,14 +270,6 @@ virNodeDeviceCapVPDFormatCustomSystemField(virPCIVPDResourceCustom *field, virBu
@@ -91,4 +91,4 @@ index 258c70c28d..7d30c7667b 100644
      }
  
 -- 
-2.43.2
+2.43.0

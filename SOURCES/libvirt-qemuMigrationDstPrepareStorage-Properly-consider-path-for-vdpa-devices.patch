@@ -1,0 +1,40 @@
+From 2087ac009a019ceb206475363113bbe6c2821e2f Mon Sep 17 00:00:00 2001
+Message-ID: <2087ac009a019ceb206475363113bbe6c2821e2f.1708614745.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 16 Feb 2024 16:40:20 +0100
+Subject: [PATCH] qemuMigrationDstPrepareStorage: Properly consider path for
+ 'vdpa' devices
+
+Allow storage migration of VDPA devices by properly checking that they
+exist on the destionation. Pre-creation is not supported but if the
+device exists the migration should be able to succeed.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 00c0a94ab5f135ea7d9f0a905ff53d13c82761db)
+https://issues.redhat.com/browse/RHEL-24825
+---
+ src/qemu/qemu_migration.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 3e0aae4e7c..5e27cd5dbe 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -479,10 +479,13 @@ qemuMigrationDstPrepareStorage(virDomainObj *vm,
+             diskSrcPath = nvmePath;
+             break;
+ 
++        case VIR_STORAGE_TYPE_VHOST_VDPA:
++            diskSrcPath = disk->src->vdpadev;
++            break;
++
+         case VIR_STORAGE_TYPE_NETWORK:
+         case VIR_STORAGE_TYPE_VOLUME:
+         case VIR_STORAGE_TYPE_VHOST_USER:
+-        case VIR_STORAGE_TYPE_VHOST_VDPA:
+         case VIR_STORAGE_TYPE_LAST:
+         case VIR_STORAGE_TYPE_NONE:
+             break;
+-- 
+2.43.2

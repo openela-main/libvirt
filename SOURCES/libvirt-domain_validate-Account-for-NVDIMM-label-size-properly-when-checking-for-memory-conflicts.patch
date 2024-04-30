@@ -1,0 +1,123 @@
+From 8d48d5fe02c0afcf5bbe68e0a182ee11f9a108dc Mon Sep 17 00:00:00 2001
+Message-ID: <8d48d5fe02c0afcf5bbe68e0a182ee11f9a108dc.1708614745.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 19 Feb 2024 15:37:16 +0100
+Subject: [PATCH] domain_validate: Account for NVDIMM label size properly when
+ checking for memory conflicts
+
+As of v9.8.0-rc1~7 we check whether two <memory/> devices don't
+overlap (since we allow setting where a <memory/> device should
+be mapped to). We do this pretty straightforward, by comparing
+start and end address of each <memory/> device combination.
+But since only the start address is given (an exposed in the
+XML), the end address is computed trivially as:
+
+  start + mem->size * 1024
+
+And for majority of memory device types this works. Except for
+NVDIMMs. For them the <memory/> device consists of two separate
+regions: 1) actual memory device, and 2) label.
+
+Label is where NVDIMM stores some additional information like
+namespaces partition and so on. But it's not mapped into the
+guest the same way as actual memory device. In fact, mem->size is
+a sum of both actual memory device and label sizes. And to make
+things a bit worse, both sizes are subject to alignment (either
+the alignsize value specified in XML, or system page size if not
+specified in XML).
+
+Therefore, to get the size of actual memory device we need to
+take mem->size and substract label size rounded up to alignment.
+
+If we don't do this we report there's an overlap between two
+NVDIMMs even when in reality there's none.
+
+Fixes: 3fd64fb0e236fc80ffa2cc977c0d471f11fc39bf
+Fixes: 91f9a9fb4fc0d34ed8d7a869de3d9f87687c3618
+Resolves: https://issues.redhat.com/browse/RHEL-4452?focusedId=23805174#comment-23805174
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 4545f313c23e7000451d1cec793ebc8da1a2c25f)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/conf/domain_validate.c | 51 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index 46479f10f2..faa7659f07 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -2225,6 +2225,53 @@ virDomainHostdevDefValidate(const virDomainHostdevDef *hostdev)
+ }
+ 
+ 
++/**
++ * virDomainMemoryGetMappedSize:
++ * @mem: memory device definition
++ *
++ * For given memory device definition (@mem) calculate size mapped into
++ * the guest. This is usually mem->size, except for NVDIMM where its
++ * label is mapped elsewhere.
++ *
++ * Returns: Number of bytes a memory device takes when mapped into a
++ * guest.
++ */
++static unsigned long long
++virDomainMemoryGetMappedSize(const virDomainMemoryDef *mem)
++{
++    unsigned long long ret = mem->size;
++
++    if (mem->model == VIR_DOMAIN_MEMORY_MODEL_NVDIMM) {
++        unsigned long long alignsize = mem->source.nvdimm.alignsize;
++        unsigned long long labelsize = 0;
++
++        /* For NVDIMM the situation is a bit more complicated. Firstly,
++         * its <label/> is not mapped as a part of memory device, so we
++         * must subtract label size from NVDIMM size. Secondly,
++         * remaining memory is then aligned again (rounded down). But
++         * for our purposes we might just round label size up and
++         * achieve the same (numeric) result. */
++
++        if (alignsize == 0) {
++            long pagesize = virGetSystemPageSizeKB();
++
++            /* If no alignment is specified in the XML, fallback to
++             * system page size alignment. */
++            if (pagesize > 0)
++                alignsize = pagesize;
++        }
++
++        if (alignsize > 0) {
++            labelsize = VIR_ROUND_UP(mem->target.nvdimm.labelsize, alignsize);
++
++            ret -= labelsize;
++        }
++    }
++
++    return ret * 1024;
++}
++
++
+ static int
+ virDomainMemoryDefCheckConflict(const virDomainMemoryDef *mem,
+                                 const virDomainDef *def)
+@@ -2259,7 +2306,7 @@ virDomainMemoryDefCheckConflict(const virDomainMemoryDef *mem,
+     }
+ 
+     /* thisStart and thisEnd are in bytes, mem->size in kibibytes */
+-    thisEnd = thisStart + mem->size * 1024;
++    thisEnd = thisStart + virDomainMemoryGetMappedSize(mem);
+ 
+     for (i = 0; i < def->nmems; i++) {
+         const virDomainMemoryDef *other = def->mems[i];
+@@ -2316,7 +2363,7 @@ virDomainMemoryDefCheckConflict(const virDomainMemoryDef *mem,
+         if (thisStart == 0 || otherStart == 0)
+             continue;
+ 
+-        otherEnd = otherStart + other->size * 1024;
++        otherEnd = otherStart + virDomainMemoryGetMappedSize(other);
+ 
+         if ((thisStart <= otherStart && thisEnd > otherStart) ||
+             (otherStart <= thisStart && otherEnd > thisStart)) {
+-- 
+2.43.2

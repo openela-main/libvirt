@@ -1,0 +1,153 @@
+From c6af8b2be6ba25125efd9ed96e2464da96f23315 Mon Sep 17 00:00:00 2001
+Message-ID: <c6af8b2be6ba25125efd9ed96e2464da96f23315.1710860841.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 11 Mar 2024 17:04:48 +0100
+Subject: [PATCH] qemu: domain: Drop added features from migratable CPU
+
+Features marked with added='yes' in CPU model definitions have to be
+removed before migration, otherwise older libvirt would complain about
+unknown CPU features. We only do this for features that were enabled for
+a given CPU model even with older libvirt, which just ignored the
+features. And only for features we added ourselves when updating CPU
+definition during domain startup, that is we do not remove features
+which were explicitly mentioned by a user.
+
+That said, this is not the safest thing we could do, but it's
+effectively the same thing we did before the affected features were
+added: we ignored them completely on both sides of migration.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Tim Wiederhake <twiederh@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 14d3517410021d59cb53fb4c841a5d9922e814d1)
+https://issues.redhat.com/browse/RHEL-25995
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c           | 50 ++++++++++++++++++++++++++++++--
+ src/qemu/qemu_domain.h           |  3 +-
+ src/qemu/qemu_migration_cookie.c |  5 +++-
+ 3 files changed, 54 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 8e7665b198..1daa53dd1b 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -66,6 +66,7 @@
+ #include "backup_conf.h"
+ #include "virutil.h"
+ #include "virsecureerase.h"
++#include "cpu/cpu_x86.h"
+ 
+ #include <sys/time.h>
+ #include <fcntl.h>
+@@ -6587,10 +6588,36 @@ qemuDomainDefCopy(virQEMUDriver *driver,
+ }
+ 
+ 
++typedef struct {
++    const char * const *added;
++    GStrv keep;
++} qemuDomainDropAddedCPUFeaturesData;
++
++
++static bool
++qemuDomainDropAddedCPUFeatures(const char *name,
++                               virCPUFeaturePolicy policy G_GNUC_UNUSED,
++                               void *opaque)
++{
++    qemuDomainDropAddedCPUFeaturesData *data = opaque;
++
++    if (!g_strv_contains(data->added, name))
++        return true;
++
++    if (data->keep && g_strv_contains((const char **) data->keep, name))
++        return true;
++
++    return false;
++}
++
++
+ int
+ qemuDomainMakeCPUMigratable(virArch arch,
+-                            virCPUDef *cpu)
++                            virCPUDef *cpu,
++                            virCPUDef *origCPU)
+ {
++    qemuDomainDropAddedCPUFeaturesData data = { 0 };
++
+     if (cpu->mode != VIR_CPU_MODE_CUSTOM ||
+         !cpu->model ||
+         !ARCH_IS_X86(arch))
+@@ -6608,6 +6635,25 @@ qemuDomainMakeCPUMigratable(virArch arch,
+             return -1;
+     }
+ 
++    if (virCPUx86GetAddedFeatures(cpu->model, &data.added) < 0)
++        return -1;
++
++    /* Drop features marked as added in a cpu model, but only
++     * when they are not mentioned in origCPU, i.e., when they were not
++     * explicitly mentioned by the user.
++     */
++    if (data.added) {
++        g_auto(GStrv) keep = NULL;
++
++        if (origCPU) {
++            keep = virCPUDefListExplicitFeatures(origCPU);
++            data.keep = keep;
++        }
++
++        if (virCPUDefFilterFeatures(cpu, qemuDomainDropAddedCPUFeatures, &data) < 0)
++            return -1;
++    }
++
+     return 0;
+ }
+ 
+@@ -6787,7 +6833,7 @@ qemuDomainDefFormatBufInternal(virQEMUDriver *driver,
+         }
+ 
+         if (def->cpu &&
+-            qemuDomainMakeCPUMigratable(def->os.arch, def->cpu) < 0)
++            qemuDomainMakeCPUMigratable(def->os.arch, def->cpu, origCPU) < 0)
+             return -1;
+ 
+         /* Old libvirt doesn't understand <audio> elements so
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index a7a8bcc460..d98f1c0a99 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -1046,7 +1046,8 @@ qemuDomainSupportsCheckpointsBlockjobs(virDomainObj *vm)
+ 
+ int
+ qemuDomainMakeCPUMigratable(virArch arch,
+-                            virCPUDef *cpu);
++                            virCPUDef *cpu,
++                            virCPUDef *origCPU);
+ 
+ int
+ qemuDomainInitializePflashStorageSource(virDomainObj *vm,
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index c53d42a018..90cc079c1a 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -540,12 +540,15 @@ static int
+ qemuMigrationCookieAddCPU(qemuMigrationCookie *mig,
+                           virDomainObj *vm)
+ {
++    qemuDomainObjPrivate *priv = vm->privateData;
++
+     if (mig->cpu)
+         return 0;
+ 
+     mig->cpu = virCPUDefCopy(vm->def->cpu);
+ 
+-    if (qemuDomainMakeCPUMigratable(vm->def->os.arch, mig->cpu) < 0)
++    if (qemuDomainMakeCPUMigratable(vm->def->os.arch, mig->cpu,
++                                    priv->origCPU) < 0)
+         return -1;
+ 
+     mig->flags |= QEMU_MIGRATION_COOKIE_CPU;
+-- 
+2.44.0

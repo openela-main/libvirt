@@ -1,0 +1,65 @@
+From 9f0e2b76c89b692aa935c76f9d21012c50e4575d Mon Sep 17 00:00:00 2001
+Message-ID: <9f0e2b76c89b692aa935c76f9d21012c50e4575d.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 30 Jan 2024 15:02:39 +0100
+Subject: [PATCH] virPCIVPDParseVPDLargeResourceFields: Merge logic conditions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Merge the pre-checks with the 'switch' statement which is operating on
+the same values to simplify further refactoring.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 037803a949cfe60c03824482f889cc315bb7b788)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/util/virpcivpd.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index ddd79fa8bc..ba05014e40 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -438,23 +438,27 @@ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t re
+         fieldKeyword = g_strndup((char *)buf, 2);
+         fieldFormat = virPCIVPDResourceGetFieldValueFormat(fieldKeyword);
+ 
+-        /* Handle special cases first */
+-        if (!readOnly && fieldFormat == VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RESVD) {
+-            VIR_INFO("Unexpected RV keyword in the read-write section.");
+-            return false;
+-        } else if (readOnly && fieldFormat == VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RDWR) {
+-            VIR_INFO("Unexpected RW keyword in the read-only section.");
+-            return false;
+-        }
+-
+         /* Determine how many bytes to read per field value type. */
+         switch (fieldFormat) {
+             case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_TEXT:
+-            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RDWR:
+             case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_BINARY:
+                 bytesToRead = fieldDataLen;
+                 break;
++
++            case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RDWR:
++                if (readOnly) {
++                    VIR_INFO("Unexpected RW keyword in the read-only section.");
++                    return false;
++                }
++
++                bytesToRead = fieldDataLen;
++                break;
++
+             case VIR_PCI_VPD_RESOURCE_FIELD_VALUE_FORMAT_RESVD:
++                if (!readOnly) {
++                    VIR_INFO("Unexpected RV keyword in the read-write section.");
++                    return false;
++                }
+                 /* Only need one byte to be read and accounted towards
+                  * the checksum calculation. */
+                 bytesToRead = 1;
+-- 
+2.43.0

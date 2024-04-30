@@ -1,0 +1,44 @@
+From 676946491ea25cacc4f6fd11f27bd9989b84767d Mon Sep 17 00:00:00 2001
+Message-ID: <676946491ea25cacc4f6fd11f27bd9989b84767d.1708614745.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 16 Feb 2024 12:43:59 -0500
+Subject: [PATCH] Set stubDriverName from hostdev driver model attribute during
+ pci device setup
+
+commit v9.10.0-129-g8b93d78c83 (first appearing in libvirt-10.0.0) was
+supposed to allow forcing a PCI hostdev to be bound to a particular
+driver by adding <driver model='blah'/> to the XML for the
+device. Unfortunately, a single line was missed during the final
+changes to the patch prior to pushing, and the result was that the
+driver model could be set to *anything* and it would be accepted but
+just ignored.
+
+This patch adds the missing line, which will set the stubDriverName
+field of the virPCIDevice object from the hostdev object as the
+virPCIDevice is being created. This ends up being used by
+virPCIDeviceBindToStub() as the driver that it binds the device to.
+
+Fixes: 8b93d78c8325f1fba5db98848350f3db43f5e7d5
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 41fe8524870facae02be067097ea494c475d77f0)
+
+https://issues.redhat.com/browse/RHEL-25858 [9.4.0]
+---
+ src/hypervisor/virhostdev.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/hypervisor/virhostdev.c b/src/hypervisor/virhostdev.c
+index 40f8a4bc2c..185ec2ca50 100644
+--- a/src/hypervisor/virhostdev.c
++++ b/src/hypervisor/virhostdev.c
+@@ -242,6 +242,7 @@ virHostdevGetPCIHostDevice(const virDomainHostdevDef *hostdev,
+         return -1;
+ 
+     virPCIDeviceSetManaged(actual, hostdev->managed);
++    virPCIDeviceSetStubDriverName(actual, pcisrc->driver.model);
+ 
+     if (pcisrc->driver.name == VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VFIO) {
+         virPCIDeviceSetStubDriverType(actual, VIR_PCI_STUB_DRIVER_VFIO);
+-- 
+2.43.2

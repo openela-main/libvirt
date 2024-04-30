@@ -1,0 +1,74 @@
+From 9de66ba6bd07c0c5d674be4dadec1f83a39d1533 Mon Sep 17 00:00:00 2001
+Message-ID: <9de66ba6bd07c0c5d674be4dadec1f83a39d1533.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 30 Jan 2024 17:41:44 +0100
+Subject: [PATCH] virNodeDeviceCapVPDParseXML: Fix error reporting
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Don't overwrite already reported errors and improve parsing of
+attributes.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit dd36db2607e40d0df986108224563295b79d969c)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/conf/node_device_conf.c | 22 +++++++---------------
+ 1 file changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 0f2c341967..c68ac3af78 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -1059,11 +1059,11 @@ virNodeDeviceCapVPDParseXML(xmlXPathContextPtr ctxt, virPCIVPDResource **res)
+ 
+     if (!(newres->name = virXPathString("string(./name)", ctxt))) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+-                _("Could not read a device name from the <name> element"));
++                       _("Could not read a device name from the <name> element"));
+         return -1;
+     }
+ 
+-    if ((nfields = virXPathNodeSet("./fields[@access]", ctxt, &nodes)) < 0)
++    if ((nfields = virXPathNodeSet("./fields", ctxt, &nodes)) < 0)
+         return -1;
+ 
+     for (i = 0; i < nfields; i++) {
+@@ -1071,27 +1071,19 @@ virNodeDeviceCapVPDParseXML(xmlXPathContextPtr ctxt, virPCIVPDResource **res)
+         VIR_XPATH_NODE_AUTORESTORE(ctxt);
+ 
+         ctxt->node = nodes[i];
+-        if (!(access = virXPathString("string(./@access[1])", ctxt))) {
+-            virReportError(VIR_ERR_XML_ERROR, "%s",
+-                    _("VPD fields access type parsing has failed"));
++
++        if (!(access = virXMLPropStringRequired(nodes[i], "access")))
+             return -1;
+-        }
+ 
+         if (STREQ(access, "readonly")) {
+-            if (virNodeDeviceCapVPDParseReadOnlyFields(ctxt, newres) < 0) {
+-                virReportError(VIR_ERR_XML_ERROR,
+-                        _("Could not parse %1$s VPD resource fields"), access);
++            if (virNodeDeviceCapVPDParseReadOnlyFields(ctxt, newres) < 0)
+                 return -1;
+-            }
+         } else if (STREQ(access, "readwrite")) {
+-            if (virNodeDeviceCapVPDParseReadWriteFields(ctxt, newres) < 0) {
+-                virReportError(VIR_ERR_XML_ERROR,
+-                        _("Could not parse %1$s VPD resource fields"), access);
++            if (virNodeDeviceCapVPDParseReadWriteFields(ctxt, newres) < 0)
+                 return -1;
+-            }
+         } else {
+             virReportError(VIR_ERR_XML_ERROR,
+-                           _("Unsupported VPD field access type specified %1$s"),
++                           _("Unsupported VPD field access type '%1$s'"),
+                            access);
+             return -1;
+         }
+-- 
+2.43.0

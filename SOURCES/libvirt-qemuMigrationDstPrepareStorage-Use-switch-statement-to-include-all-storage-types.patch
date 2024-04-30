@@ -1,0 +1,60 @@
+From b73313c9679766c493afb91f0c691e437632e4fa Mon Sep 17 00:00:00 2001
+Message-ID: <b73313c9679766c493afb91f0c691e437632e4fa.1708614745.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 8 Feb 2024 16:48:25 +0100
+Subject: [PATCH] qemuMigrationDstPrepareStorage: Use 'switch' statement to
+ include all storage types
+
+Decrease the likelyhood that addition of a new storage type will be
+forgotten.
+
+This patch also unifies the type check to consult the 'actual' type of
+the storage in both cases as the NVMe check looked for the XML declared
+type while virStorageSourceIsLocalStorage() looks for the
+actual/translated type.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e158b523b8522931200c415ef86562641a2a7c8c)
+https://issues.redhat.com/browse/RHEL-24825
+---
+ src/qemu/qemu_migration.c | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 01ab803842..3e0aae4e7c 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -465,11 +465,27 @@ qemuMigrationDstPrepareStorage(virDomainObj *vm,
+         if (!qemuMigrationAnyCopyDisk(disk, nmigrate_disks, migrate_disks))
+             continue;
+ 
+-        if (disk->src->type == VIR_STORAGE_TYPE_NVME) {
++        switch (virStorageSourceGetActualType(disk->src)) {
++        case VIR_STORAGE_TYPE_FILE:
++        case VIR_STORAGE_TYPE_BLOCK:
++        case VIR_STORAGE_TYPE_DIR:
++            diskSrcPath = virDomainDiskGetSource(disk);
++            break;
++
++        case VIR_STORAGE_TYPE_NVME:
++            /* While NVMe disks are local, they are not accessible via src->path.
++             * Therefore, we have to return false here. */
+             virPCIDeviceAddressGetSysfsFile(&disk->src->nvme->pciAddr, &nvmePath);
+             diskSrcPath = nvmePath;
+-        } else if (virStorageSourceIsLocalStorage(disk->src)) {
+-            diskSrcPath = virDomainDiskGetSource(disk);
++            break;
++
++        case VIR_STORAGE_TYPE_NETWORK:
++        case VIR_STORAGE_TYPE_VOLUME:
++        case VIR_STORAGE_TYPE_VHOST_USER:
++        case VIR_STORAGE_TYPE_VHOST_VDPA:
++        case VIR_STORAGE_TYPE_LAST:
++        case VIR_STORAGE_TYPE_NONE:
++            break;
+         }
+ 
+         if (diskSrcPath) {
+-- 
+2.43.2

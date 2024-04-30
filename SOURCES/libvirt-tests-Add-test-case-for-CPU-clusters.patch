@@ -1,0 +1,146 @@
+From ce0166ed0811034173aca1edf9e7e2025a100cfb Mon Sep 17 00:00:00 2001
+Message-ID: <ce0166ed0811034173aca1edf9e7e2025a100cfb.1706524416.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Mon, 8 Jan 2024 16:21:25 +0100
+Subject: [PATCH] tests: Add test case for CPU clusters
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 82c9196bfa19e73167faccbc1c2713a6d7ddbafc)
+
+https://issues.redhat.com/browse/RHEL-7043
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ .../cpu-topology5.aarch64-latest.args         | 31 +++++++++++++++++++
+ tests/qemuxml2argvdata/cpu-topology5.xml      | 17 ++++++++++
+ tests/qemuxml2argvtest.c                      |  1 +
+ .../cpu-topology5.aarch64-latest.xml          | 29 +++++++++++++++++
+ tests/qemuxml2xmltest.c                       |  2 ++
+ 5 files changed, 80 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/cpu-topology5.aarch64-latest.args
+ create mode 100644 tests/qemuxml2argvdata/cpu-topology5.xml
+ create mode 100644 tests/qemuxml2xmloutdata/cpu-topology5.aarch64-latest.xml
+
+diff --git a/tests/qemuxml2argvdata/cpu-topology5.aarch64-latest.args b/tests/qemuxml2argvdata/cpu-topology5.aarch64-latest.args
+new file mode 100644
+index 0000000000..d835e1c0fa
+--- /dev/null
++++ b/tests/qemuxml2argvdata/cpu-topology5.aarch64-latest.args
+@@ -0,0 +1,31 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1 \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
++/usr/bin/qemu-system-aarch64 \
++-name guest=QEMUGuest1,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
++-machine virt,usb=off,gic-version=2,dump-guest-core=off,memory-backend=mach-virt.ram,acpi=off \
++-accel tcg \
++-cpu cortex-a15 \
++-m size=219136k \
++-object '{"qom-type":"memory-backend-ram","id":"mach-virt.ram","size":224395264}' \
++-overcommit mem-lock=off \
++-smp 1,maxcpus=8,sockets=1,dies=1,clusters=2,cores=2,threads=2 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/cpu-topology5.xml b/tests/qemuxml2argvdata/cpu-topology5.xml
+new file mode 100644
+index 0000000000..f78f0b6b54
+--- /dev/null
++++ b/tests/qemuxml2argvdata/cpu-topology5.xml
+@@ -0,0 +1,17 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <vcpu placement='static' current='1'>8</vcpu>
++  <os>
++    <type arch='aarch64' machine='virt'>hvm</type>
++  </os>
++  <cpu>
++    <topology sockets='1' dies='1' clusters='2' cores='2' threads='2'/>
++  </cpu>
++  <devices>
++    <emulator>/usr/bin/qemu-system-aarch64</emulator>
++    <controller type='usb' model='none'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index cb78465fc2..1be138bb0f 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1813,6 +1813,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("cpu-topology2");
+     DO_TEST_CAPS_LATEST("cpu-topology3");
+     DO_TEST_CAPS_LATEST("cpu-topology4");
++    DO_TEST_CAPS_ARCH_LATEST("cpu-topology5", "aarch64");
+ 
+     DO_TEST_CAPS_ARCH_LATEST_FULL("cpu-minimum1", "x86_64", ARG_CAPS_HOST_CPU_MODEL, QEMU_CPU_DEF_HASWELL);
+     DO_TEST_CAPS_ARCH_LATEST_FULL("cpu-minimum2", "x86_64", ARG_CAPS_HOST_CPU_MODEL, QEMU_CPU_DEF_HASWELL);
+diff --git a/tests/qemuxml2xmloutdata/cpu-topology5.aarch64-latest.xml b/tests/qemuxml2xmloutdata/cpu-topology5.aarch64-latest.xml
+new file mode 100644
+index 0000000000..2f5645baab
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/cpu-topology5.aarch64-latest.xml
+@@ -0,0 +1,29 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static' current='1'>8</vcpu>
++  <os>
++    <type arch='aarch64' machine='virt'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <features>
++    <gic version='2'/>
++  </features>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>cortex-a15</model>
++    <topology sockets='1' dies='1' clusters='2' cores='2' threads='2'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-aarch64</emulator>
++    <controller type='usb' index='0' model='none'/>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <audio id='1' type='none'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 4e39763dc7..15cb6bd692 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -674,6 +674,8 @@ mymain(void)
+ 
+     DO_TEST_CAPS_LATEST("chardev-label");
+ 
++    DO_TEST_CAPS_ARCH_LATEST("cpu-topology5", "aarch64");
++
+     DO_TEST_CAPS_LATEST("cpu-numa1");
+     DO_TEST_CAPS_LATEST("cpu-numa2");
+     DO_TEST_CAPS_LATEST("cpu-numa-no-memory-element");
+-- 
+2.43.0

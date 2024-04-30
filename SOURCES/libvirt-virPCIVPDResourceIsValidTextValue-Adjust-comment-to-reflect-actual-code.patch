@@ -1,5 +1,5 @@
-From fe97fef2c789c1052b43f802459f87b32b2b6fad Mon Sep 17 00:00:00 2001
-Message-ID: <fe97fef2c789c1052b43f802459f87b32b2b6fad.1708340442.git.jdenemar@redhat.com>
+From 4daeb72f2eb09db6c5ac1628c35139af4ab7653e Mon Sep 17 00:00:00 2001
+Message-ID: <4daeb72f2eb09db6c5ac1628c35139af4ab7653e.1707394627.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 24 Jan 2024 15:24:27 +0100
 Subject: [PATCH] virPCIVPDResourceIsValidTextValue: Adjust comment to reflect
@@ -51,4 +51,4 @@ index 39557c7347..248a9b2790 100644
      if (value == NULL)
          return false;
 -- 
-2.43.2
+2.43.0

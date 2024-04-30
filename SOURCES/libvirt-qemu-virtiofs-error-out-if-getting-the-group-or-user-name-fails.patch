@@ -1,0 +1,37 @@
+From 0859b9bf3efde1522aee3be9d007ff1967e14d44 Mon Sep 17 00:00:00 2001
+Message-ID: <0859b9bf3efde1522aee3be9d007ff1967e14d44.1711034741.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 7 Mar 2024 13:36:45 +0100
+Subject: [PATCH] qemu: virtiofs: error out if getting the group or user name
+ fails
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit c9de7a1c3bca9f0732205f2c2b84526781dbf5e5)
+
+https://issues.redhat.com/browse/RHEL-7386
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_virtiofs.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/qemu/qemu_virtiofs.c b/src/qemu/qemu_virtiofs.c
+index d80cddd3ba..78897d8177 100644
+--- a/src/qemu/qemu_virtiofs.c
++++ b/src/qemu/qemu_virtiofs.c
+@@ -388,6 +388,9 @@ qemuVirtioFSPrepareIdMap(virDomainFSDef *fs)
+     username = virGetUserName(euid);
+     groupname = virGetGroupName(egid);
+ 
++    if (!username || !groupname)
++        return -1;
++
+     fs->idmap.uidmap = g_new0(virDomainIdMapEntry, 2);
+     fs->idmap.gidmap = g_new0(virDomainIdMapEntry, 2);
+ 
+-- 
+2.44.0

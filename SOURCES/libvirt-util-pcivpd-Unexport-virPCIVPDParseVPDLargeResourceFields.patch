@@ -1,0 +1,82 @@
+From 44db6e745e039dd10c1f4256047eaef8be61ecd6 Mon Sep 17 00:00:00 2001
+Message-ID: <44db6e745e039dd10c1f4256047eaef8be61ecd6.1707394627.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Jan 2024 14:40:38 +0100
+Subject: [PATCH] util: pcivpd: Unexport virPCIVPDParseVPDLargeResourceFields
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function is not used in other files.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit d395d7a20f218d5c1af956c70fae43e8e9626436)
+
+https://issues.redhat.com/browse/RHEL-22314 [9.4.0]
+---
+ src/libvirt_private.syms |  1 -
+ src/util/virpcivpd.c     | 15 +--------------
+ src/util/virpcivpdpriv.h |  3 ---
+ 3 files changed, 1 insertion(+), 18 deletions(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index dbc4e26d79..89b0d01de6 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -3700,7 +3700,6 @@ virVHBAPathExists;
+ # util/virpcivpd.h
+ 
+ virPCIVPDParse;
+-virPCIVPDParseVPDLargeResourceFields;
+ virPCIVPDParseVPDLargeResourceString;
+ virPCIVPDResourceCustomCompareIndex;
+ virPCIVPDResourceCustomFree;
+diff --git a/src/util/virpcivpd.c b/src/util/virpcivpd.c
+index 373321a836..510be65cb6 100644
+--- a/src/util/virpcivpd.c
++++ b/src/util/virpcivpd.c
+@@ -436,7 +436,7 @@ virPCIVPDReadVPDBytes(int vpdFileFd, uint8_t *buf, size_t count, off_t offset, u
+  * Returns: a pointer to a VPDResource which needs to be freed by the caller or
+  * NULL if getting it failed for some reason.
+  */
+-bool
++static bool
+ virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t resDataLen,
+                                      bool readOnly, uint8_t *csum, virPCIVPDResource *res)
+ {
+@@ -744,19 +744,6 @@ virPCIVPDParseVPDLargeResourceString(int vpdFileFd G_GNUC_UNUSED,
+     return false;
+ }
+ 
+-bool
+-virPCIVPDParseVPDLargeResourceFields(int vpdFileFd G_GNUC_UNUSED,
+-                                     uint16_t resPos G_GNUC_UNUSED,
+-                                     uint16_t resDataLen G_GNUC_UNUSED,
+-                                     bool readOnly G_GNUC_UNUSED,
+-                                     uint8_t *csum G_GNUC_UNUSED,
+-                                     virPCIVPDResource *res G_GNUC_UNUSED)
+-{
+-    virReportError(VIR_ERR_NO_SUPPORT, "%s",
+-                   _("PCI VPD reporting not available on this platform"));
+-    return false;
+-}
+-
+ virPCIVPDResource *
+ virPCIVPDParse(int vpdFileFd G_GNUC_UNUSED)
+ {
+diff --git a/src/util/virpcivpdpriv.h b/src/util/virpcivpdpriv.h
+index 17e6e14ab7..d84f1e9c8a 100644
+--- a/src/util/virpcivpdpriv.h
++++ b/src/util/virpcivpdpriv.h
+@@ -69,8 +69,5 @@ virPCIVPDResourceCustomCompareIndex(virPCIVPDResourceCustom *a, virPCIVPDResourc
+ bool
+ virPCIVPDResourceCustomUpsertValue(GPtrArray *arr, char index, const char *const value);
+ 
+-bool virPCIVPDParseVPDLargeResourceFields(int vpdFileFd, uint16_t resPos, uint16_t resDataLen,
+-                                          bool readOnly, uint8_t *csum, virPCIVPDResource *res);
+-
+ bool virPCIVPDParseVPDLargeResourceString(int vpdFileFd, uint16_t resPos, uint16_t resDataLen,
+                                           uint8_t *csum, virPCIVPDResource *res);
+-- 
+2.43.0
