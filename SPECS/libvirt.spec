@@ -270,7 +270,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.0.0
-Release: 6%{?dist}%{?extra_release}
+Release: 6.2%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -361,6 +361,9 @@ Patch79: libvirt-Add-vmx-features-to-Westmere.patch
 Patch80: libvirt-qemu-virtiofs-do-not-crash-if-cgroups-are-missing.patch
 Patch81: libvirt-qemu-virtiofs-set-correct-label-when-creating-the-socket.patch
 Patch82: libvirt-qemu-virtiofs-error-out-if-getting-the-group-or-user-name-fails.patch
+Patch83: libvirt-Fix-off-by-one-error-in-udevListInterfacesByStatus.patch
+Patch84: libvirt-remote-check-for-negative-array-lengths-before-allocation.patch
+Patch85: libvirt-qemu-Fix-migration-with-custom-XML.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2664,6 +2667,13 @@ exit 0
 %endif
 
 %changelog
+* Wed Apr 17 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.2.el9_4
+- qemu: Fix migration with custom XML (RHEL-32654)
+
+* Mon Apr  8 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.1.el9_4
+- Fix off-by-one error in udevListInterfacesByStatus (CVE-2024-1441, RHEL-25081)
+- remote: check for negative array lengths before allocation (CVE-2024-2494)
+
 * Thu Mar 21 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6
 - qemu: virtiofs: do not crash if cgroups are missing (RHEL-7386)
 - qemu: virtiofs: set correct label when creating the socket (RHEL-7386)
