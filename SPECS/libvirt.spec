@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 22%{?dist}%{?extra_release}
+Release: 23%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -317,6 +317,7 @@ Patch94: libvirt-virpci-Resolve-leak-in-virPCIVirtualFunctionList-cleanup.patch
 Patch95: libvirt-node_device_conf-Avoid-memleak-in-virNodeDeviceGetPCIVPDDynamicCap.patch
 Patch96: libvirt-nodedev-update-transient-mdevs.patch
 Patch97: libvirt-lib-Set-up-cpuset-controller-for-restrictive-numatune.patch
+Patch98: libvirt-virnuma-Avoid-integer-overflow-in-virNumaGetPages.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2196,6 +2197,9 @@ exit 0
 
 
 %changelog
+* Tue Dec 12 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23
+- virnuma: Avoid integer overflow in virNumaGetPages() (rhbz#RHEL-16749)
+
 * Mon Jul 31 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-22
 - lib: Set up cpuset controller for restrictive numatune (rhbz#2223464)
 

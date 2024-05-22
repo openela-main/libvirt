@@ -1,0 +1,68 @@
+From f3ae3ac1807549c1eb4cc5a0286047ff019e14a0 Mon Sep 17 00:00:00 2001
+Message-ID: <f3ae3ac1807549c1eb4cc5a0286047ff019e14a0.1702401900.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 24 Nov 2023 11:59:32 +0100
+Subject: [PATCH] virnuma: Avoid integer overflow in virNumaGetPages()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+On systems with humongous pages (16GiB) and 32bit int it's easy
+to hit integer overflow in virNumaGetPages(). What happens is,
+inside of virNumaGetPages() as we process hugepages for given
+NUMA node (e.g. in order to produce capabilities XML), we keep a
+sum of sizes of pools in an ULL variable (huge_page_sum). In each
+iteration, the variable is incremented by 1024 * page_size *
+page_avail. Now, page_size is just an uint, so we have:
+
+  ULL += U * U * ULL;
+
+and because of associativity, U * U is computed first and since
+we have two operands of the same type, no type expansion happens.
+But this means, for humongous pages (like 16GiB) the
+multiplication overflows.
+
+Therefore, move the multiplication out of the loop. This helps in
+two ways:
+
+1) now we have ULL += U * ULL; which expands the uint in
+   multiplication,
+
+2) it saves couple of CPU cycles.
+
+Resolves: https://issues.redhat.com/browse/RHEL-16749
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 9694d1ca6a4ef7a37ac20249eb8b85c1bb48ef6b)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/util/virnuma.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/util/virnuma.c b/src/util/virnuma.c
+index 7c892d6267..e0938867f9 100644
+--- a/src/util/virnuma.c
++++ b/src/util/virnuma.c
+@@ -806,9 +806,7 @@ virNumaGetPages(int node,
+         tmp_free[ntmp] = page_free;
+         ntmp++;
+ 
+-        /* page_size is in kibibytes while we want huge_page_sum
+-         * in just bytes. */
+-        huge_page_sum += 1024 * page_size * page_avail;
++        huge_page_sum += page_size * page_avail;
+     }
+ 
+     if (direrr < 0)
+@@ -819,6 +817,9 @@ virNumaGetPages(int node,
+     VIR_REALLOC_N(tmp_avail, ntmp + 1);
+     VIR_REALLOC_N(tmp_free, ntmp + 1);
+ 
++    /* page_size is in kibibytes while we want huge_page_sum in just bytes. */
++    huge_page_sum *= 1024;
++
+     if (virNumaGetPageInfo(node, system_page_size, huge_page_sum,
+                            &tmp_avail[ntmp], &tmp_free[ntmp]) < 0)
+         return -1;
+-- 
+2.43.0
