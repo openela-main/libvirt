@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 23%{?dist}%{?extra_release}
+Release: 23.1%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -318,6 +318,7 @@ Patch95: libvirt-node_device_conf-Avoid-memleak-in-virNodeDeviceGetPCIVPDDynamic
 Patch96: libvirt-nodedev-update-transient-mdevs.patch
 Patch97: libvirt-lib-Set-up-cpuset-controller-for-restrictive-numatune.patch
 Patch98: libvirt-virnuma-Avoid-integer-overflow-in-virNumaGetPages.patch
+Patch99: libvirt-remote-check-for-negative-array-lengths-before-allocation.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2197,6 +2198,9 @@ exit 0
 
 
 %changelog
+* Tue Apr  9 2024 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.1.el8
+- remote: check for negative array lengths before allocation (CVE-2024-2494)
+
 * Tue Dec 12 2023 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23
 - virnuma: Avoid integer overflow in virNumaGetPages() (rhbz#RHEL-16749)
 
