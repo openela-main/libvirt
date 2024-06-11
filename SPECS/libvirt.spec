@@ -270,7 +270,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.0.0
-Release: 6.2%{?dist}%{?extra_release}
+Release: 6.3%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -364,6 +364,7 @@ Patch82: libvirt-qemu-virtiofs-error-out-if-getting-the-group-or-user-name-fails
 Patch83: libvirt-Fix-off-by-one-error-in-udevListInterfacesByStatus.patch
 Patch84: libvirt-remote-check-for-negative-array-lengths-before-allocation.patch
 Patch85: libvirt-qemu-Fix-migration-with-custom-XML.patch
+Patch86: libvirt-qemu-migration-Don-t-use-empty-string-for-tls-hostname-NBD-blockdev.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2667,6 +2668,9 @@ exit 0
 %endif
 
 %changelog
+* Fri May  3 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.3.el9_4
+- qemu: migration: Don't use empty string for 'tls-hostname' NBD blockdev (RHEL-33781)
+
 * Wed Apr 17 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.2.el9_4
 - qemu: Fix migration with custom XML (RHEL-32654)
 
