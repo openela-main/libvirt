@@ -1,0 +1,39 @@
+From ffbae27bd15ae9475fd4f0e79b492a7e03bca93e Mon Sep 17 00:00:00 2001
+Message-ID: <ffbae27bd15ae9475fd4f0e79b492a7e03bca93e.1717684031.git.jdenemar@redhat.com>
+From: Jonathon Jongsma <jjongsma@redhat.com>
+Date: Fri, 22 Sep 2023 14:23:10 -0500
+Subject: [PATCH] util: Fix error return for virProcessKillPainfullyDelay()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Commit 93af79fb removed a cleanup label in favor of returning error
+values directly in certain cases. But the final return value was changed
+from -1 to 0. If we get to the end of the function, that means that
+we've waited for the process to exit but it still exists. So we should
+return -1. The error message was still being set correctly, but we were
+returning a success status (0).
+
+Signed-off-by: Jonathon Jongsma <jjongsma@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 51a074e74c6ef2fb95e6f53d41315e3f1e00be77)
+https://issues.redhat.com/browse/RHEL-36064
+---
+ src/util/virprocess.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/util/virprocess.c b/src/util/virprocess.c
+index b559a4257e..f3933a2d16 100644
+--- a/src/util/virprocess.c
++++ b/src/util/virprocess.c
+@@ -471,7 +471,7 @@ virProcessKillPainfullyDelay(pid_t pid, bool force, unsigned int extradelay, boo
+                          _("Failed to terminate process %lld with SIG%s"),
+                          (long long)pid, signame);
+ 
+-    return 0;
++    return -1;
+ }
+ 
+ 
+-- 
+2.45.1
