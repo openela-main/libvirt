@@ -270,7 +270,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.0.0
-Release: 6.3%{?dist}%{?extra_release}
+Release: 6.6%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -365,6 +365,10 @@ Patch83: libvirt-Fix-off-by-one-error-in-udevListInterfacesByStatus.patch
 Patch84: libvirt-remote-check-for-negative-array-lengths-before-allocation.patch
 Patch85: libvirt-qemu-Fix-migration-with-custom-XML.patch
 Patch86: libvirt-qemu-migration-Don-t-use-empty-string-for-tls-hostname-NBD-blockdev.patch
+Patch87: libvirt-rpc-ensure-temporary-GSource-is-removed-from-client-event-loop.patch
+Patch88: libvirt-qemu-Fix-migration-with-disabled-vmx-CPU-features.patch
+Patch89: libvirt-vmx-Do-not-require-DVS-Port-ID.patch
+Patch90: libvirt-vmx-Do-not-require-all-ID-data-for-VMWare-Distributed-Switch.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2668,6 +2672,16 @@ exit 0
 %endif
 
 %changelog
+* Mon Jul  8 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.6.el9_4
+- vmx: Do not require DVS Port ID (RHEL-45520)
+- vmx: Do not require all ID data for VMWare Distributed Switch (RHEL-46595)
+
+* Wed Jul  3 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.5.el9_4
+- qemu: Fix migration with disabled vmx-* CPU features (RHEL-44984)
+
+* Mon Jun 10 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.4.el9_4
+- rpc: ensure temporary GSource is removed from client event loop (CVE-2024-4418)
+
 * Fri May  3 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.3.el9_4
 - qemu: migration: Don't use empty string for 'tls-hostname' NBD blockdev (RHEL-33781)
 

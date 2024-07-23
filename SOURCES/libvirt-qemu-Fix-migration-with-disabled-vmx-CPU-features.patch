@@ -1,0 +1,124 @@
+From 6cbda78c32ef57baad80b71407e30772e8423911 Mon Sep 17 00:00:00 2001
+Message-ID: <6cbda78c32ef57baad80b71407e30772e8423911.1719995479.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 12 Jun 2024 16:44:28 +0200
+Subject: [PATCH] qemu: Fix migration with disabled vmx-* CPU features
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When starting a domain on a host which lacks a vmx-* CPU feature which
+is expected to be enabled by the CPU model specified in the domain XML,
+libvirt properly marks such feature as disabled in the active domain
+XML. But migrating the domain to a similar host which lacks the same
+vmx-* feature will fail with libvirt reporting the feature as missing.
+This is because of a bug in the hack ensuring backward compatibility
+libvirt running on the destination thinks the missing feature is
+expected to be enabled.
+
+https://issues.redhat.com/browse/RHEL-40899
+
+Fixes: v10.1.0-85-g5fbfa5ab8a
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit e622970c8785ec1f7e142d72f792d89f870e07d0)
+
+https://issues.redhat.com/browse/RHEL-44984
+
+Conflicts:
+	src/cpu/cpu_x86.c - context; some upstream commits are missing:
+            ac120f1855 cpu: x86: Check for invalid CPU data from hypervisor
+            8c1b07b088 conf: Change return value of some CPU feature APIs
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu/cpu_x86.c | 50 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 20 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index f31ff22d47..4a4ae6d0b9 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -3023,10 +3023,7 @@ virCPUx86UpdateLive(virCPUDef *cpu,
+     if (!(map = virCPUx86GetMap()))
+         return -1;
+ 
+-    if (!(model = x86ModelFromCPU(cpu, map, -1)))
+-        return -1;
+-
+-    if (hostPassthrough &&
++    if (!(model = x86ModelFromCPU(cpu, map, -1)) ||
+         !(modelDisabled = x86ModelFromCPU(cpu, map, VIR_CPU_FEATURE_DISABLE)))
+         return -1;
+ 
+@@ -3039,39 +3036,52 @@ virCPUx86UpdateLive(virCPUDef *cpu,
+     for (i = 0; i < map->nfeatures; i++) {
+         virCPUx86Feature *feature = map->features[i];
+         virCPUFeaturePolicy expected = VIR_CPU_FEATURE_LAST;
++        bool explicit = false;
++        bool ignore = false;
+ 
+-        if (x86DataIsSubset(&model->data, &feature->data))
++        if (x86DataIsSubset(&model->data, &feature->data)) {
++            explicit = true;
+             expected = VIR_CPU_FEATURE_REQUIRE;
+-        else if (!hostPassthrough ||
+-                 x86DataIsSubset(&modelDisabled->data, &feature->data))
++        } else if (x86DataIsSubset(&modelDisabled->data, &feature->data)) {
++            explicit = true;
++            expected = VIR_CPU_FEATURE_DISABLE;
++        } else if (!hostPassthrough) {
++            /* implicitly disabled */
+             expected = VIR_CPU_FEATURE_DISABLE;
++        }
++
++        /* Features enabled or disabled by the hypervisor are ignored by
++         * check='full' in case they were added to the model later and not
++         * explicitly mentioned in the CPU definition. This matches how libvirt
++         * behaved before the features were added.
++         */
++        if (!explicit &&
++            g_strv_contains((const char **) model->addedFeatures, feature->name))
++            ignore = true;
+ 
+         if (expected == VIR_CPU_FEATURE_DISABLE &&
+             x86DataIsSubset(&enabled, &feature->data)) {
+             VIR_DEBUG("Feature '%s' enabled by the hypervisor", feature->name);
+ 
+-            /* Extra features enabled by the hypervisor are ignored by
+-             * check='full' in case they were added to the model later for
+-             * backward compatibility with the older definition of the model.
+-             */
+-            if (cpu->check == VIR_CPU_CHECK_FULL &&
+-                !g_strv_contains((const char **) model->addedFeatures, feature->name)) {
++            if (cpu->check == VIR_CPU_CHECK_FULL && !ignore)
+                 virBufferAsprintf(&bufAdded, "%s,", feature->name);
+-            } else if (virCPUDefUpdateFeature(cpu, feature->name,
+-                                              VIR_CPU_FEATURE_REQUIRE) < 0) {
++            else if (virCPUDefUpdateFeature(cpu, feature->name,
++                                            VIR_CPU_FEATURE_REQUIRE) < 0)
+                 return -1;
+-            }
+         }
+ 
+         if (x86DataIsSubset(&disabled, &feature->data) ||
+             (expected == VIR_CPU_FEATURE_REQUIRE &&
+              !x86DataIsSubset(&enabled, &feature->data))) {
+             VIR_DEBUG("Feature '%s' disabled by the hypervisor", feature->name);
+-            if (cpu->check == VIR_CPU_CHECK_FULL)
++
++            if (cpu->check == VIR_CPU_CHECK_FULL && !ignore) {
+                 virBufferAsprintf(&bufRemoved, "%s,", feature->name);
+-            else if (virCPUDefUpdateFeature(cpu, feature->name,
+-                                            VIR_CPU_FEATURE_DISABLE) < 0)
+-                return -1;
++            } else {
++                if (virCPUDefUpdateFeature(cpu, feature->name, VIR_CPU_FEATURE_DISABLE) < 0)
++                    return -1;
++                x86DataSubtract(&disabled, &feature->data);
++            }
+         }
+     }
+ 
+-- 
+2.45.2

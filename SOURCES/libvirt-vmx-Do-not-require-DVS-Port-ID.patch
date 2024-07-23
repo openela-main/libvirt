@@ -1,0 +1,91 @@
+From 877f2d98d9fc567cfeddcbba48d0cf0f1e87e6aa Mon Sep 17 00:00:00 2001
+Message-ID: <877f2d98d9fc567cfeddcbba48d0cf0f1e87e6aa.1720447204.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Mon, 13 May 2024 12:24:19 +0200
+Subject: [PATCH] vmx: Do not require DVS Port ID
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It can be safely removed from the VMX, VMWare will still boot the
+machine and once another ethernet is added it is updated in the VMX to
+zero.  So do not require it and default to zero too since this part of
+the XML is done as best effort and it is mentioned even in our
+documentation.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Resolves: https://issues.redhat.com/browse/RHEL-45520
+
+(cherry picked from commit 2482801608b80461e67dcfcaf66ce28134688203)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/vmx/vmx.c                                |  2 +-
+ tests/vmx2xmldata/ethernet-vds-no-portid.vmx | 10 ++++++++
+ tests/vmx2xmldata/ethernet-vds-no-portid.xml | 24 ++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 1 deletion(-)
+ create mode 100644 tests/vmx2xmldata/ethernet-vds-no-portid.vmx
+ create mode 100644 tests/vmx2xmldata/ethernet-vds-no-portid.xml
+
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index 4ac2320251..12f532fe47 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -2854,7 +2854,7 @@ virVMXParseEthernet(virConf *conf, int controller, virDomainNetDef **def)
+                                 portId_name,
+                                 &(*def)->data.vds.port_id,
+                                 0,
+-                                false) < 0 ||
++                                true) < 0 ||
+             virVMXGetConfigLong(conf,
+                                 connectionId_name,
+                                 &(*def)->data.vds.connection_id,
+diff --git a/tests/vmx2xmldata/ethernet-vds-no-portid.vmx b/tests/vmx2xmldata/ethernet-vds-no-portid.vmx
+new file mode 100644
+index 0000000000..7761accb3a
+--- /dev/null
++++ b/tests/vmx2xmldata/ethernet-vds-no-portid.vmx
+@@ -0,0 +1,10 @@
++config.version = "8"
++virtualHW.version = "4"
++ethernet0.present = "true"
++ethernet0.virtualDev = "e1000e"
++ethernet0.addressType = "vpx"
++ethernet0.generatedAddress = "00:50:56:87:65:43"
++ethernet0.dvs.switchId = "50 34 26 b2 94 e9 3b 16-1d 68 87 bf ff 4a 54 40"
++ethernet0.dvs.portgroupId = "dvportgroup-1285"
++ethernet0.dvs.connectionId = "408217997"
++displayName = "test"
+diff --git a/tests/vmx2xmldata/ethernet-vds-no-portid.xml b/tests/vmx2xmldata/ethernet-vds-no-portid.xml
+new file mode 100644
+index 0000000000..60fd9c99fe
+--- /dev/null
++++ b/tests/vmx2xmldata/ethernet-vds-no-portid.xml
+@@ -0,0 +1,24 @@
++<domain type='vmware'>
++  <name>test</name>
++  <uuid>00000000-0000-0000-0000-000000000000</uuid>
++  <memory unit='KiB'>32768</memory>
++  <currentMemory unit='KiB'>32768</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686'>hvm</type>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <interface type='vds'>
++      <mac address='00:50:56:87:65:43' type='generated'/>
++      <source switchid='503426b2-94e9-3b16-1d68-87bfff4a5440' portid='0' portgroupid='dvportgroup-1285' connectionid='408217997'/>
++      <model type='e1000e'/>
++    </interface>
++    <video>
++      <model type='vmvga' vram='4096' primary='yes'/>
++    </video>
++  </devices>
++</domain>
+-- 
+2.45.2
