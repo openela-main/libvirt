@@ -270,7 +270,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.0.0
-Release: 6.6%{?dist}%{?extra_release}
+Release: 6.7%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -369,6 +369,7 @@ Patch87: libvirt-rpc-ensure-temporary-GSource-is-removed-from-client-event-loop.
 Patch88: libvirt-qemu-Fix-migration-with-disabled-vmx-CPU-features.patch
 Patch89: libvirt-vmx-Do-not-require-DVS-Port-ID.patch
 Patch90: libvirt-vmx-Do-not-require-all-ID-data-for-VMWare-Distributed-Switch.patch
+Patch91: libvirt-vmx-Allow-to-appear-in-VMX-file-keys.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2672,6 +2673,9 @@ exit 0
 %endif
 
 %changelog
+* Thu Sep 12 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.7.el9_4
+- vmx: Allow '*' to appear in VMX file keys (RHEL-58676)
+
 * Mon Jul  8 2024 Jiri Denemark <jdenemar@redhat.com> - 10.0.0-6.6.el9_4
 - vmx: Do not require DVS Port ID (RHEL-45520)
 - vmx: Do not require all ID data for VMWare Distributed Switch (RHEL-46595)
