@@ -1,0 +1,154 @@
+From 6cfa4aac1986f423e23b0f314a62b8a75f6c73d8 Mon Sep 17 00:00:00 2001
+Message-ID: <6cfa4aac1986f423e23b0f314a62b8a75f6c73d8.1725606790.git.jdenemar@redhat.com>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 27 Aug 2024 16:19:53 +0200
+Subject: [PATCH] qemu: Use pvpanic by default on aarch64
+
+pvpanic-pci is the only reasonable implementation of a panic
+device for aarch64/virt guests. Right now we're asking users to
+provide the model name manually, but we can be more helpful and
+fill it in automatically instead.
+
+With this change, the aarch64-panic-no-model test no longer
+fails and so it's no longer useful to us. Instead, we can amend
+the aarch64-virt-default-models test case to include panic
+coverage, something that until now wasn't possible.
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit ad924689240af3e7964e88c32799df146b640292)
+
+Conflicts:
+  * tests/qemuxmlconftest.c
+    - missing context due to commit f22583c6c4030a9e3bb3
+      not having been backported
+
+https://issues.redhat.com/browse/RHEL-56451
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_domain.c                              |  3 +++
+ .../aarch64-panic-no-model.aarch64-latest.err       |  1 -
+ tests/qemuxmlconfdata/aarch64-panic-no-model.xml    | 13 -------------
+ ...rt-default-models.aarch64-latest.abi-update.args |  1 +
+ ...irt-default-models.aarch64-latest.abi-update.xml |  3 +++
+ .../aarch64-virt-default-models.aarch64-latest.args |  1 +
+ .../aarch64-virt-default-models.aarch64-latest.xml  |  3 +++
+ .../qemuxmlconfdata/aarch64-virt-default-models.xml |  2 +-
+ tests/qemuxmlconftest.c                             |  1 -
+ 9 files changed, 12 insertions(+), 16 deletions(-)
+ delete mode 100644 tests/qemuxmlconfdata/aarch64-panic-no-model.aarch64-latest.err
+ delete mode 100644 tests/qemuxmlconfdata/aarch64-panic-no-model.xml
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 84f4d26285..f063695421 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -4151,6 +4151,9 @@ qemuDomainDefaultPanicModel(const virDomainDef *def)
+     if (ARCH_IS_X86(def->os.arch))
+         return VIR_DOMAIN_PANIC_MODEL_ISA;
+ 
++    if (qemuDomainIsARMVirt(def))
++        return VIR_DOMAIN_PANIC_MODEL_PVPANIC;
++
+     return VIR_DOMAIN_PANIC_MODEL_DEFAULT;
+ }
+ 
+diff --git a/tests/qemuxmlconfdata/aarch64-panic-no-model.aarch64-latest.err b/tests/qemuxmlconfdata/aarch64-panic-no-model.aarch64-latest.err
+deleted file mode 100644
+index 139249bbc5..0000000000
+--- a/tests/qemuxmlconfdata/aarch64-panic-no-model.aarch64-latest.err
++++ /dev/null
+@@ -1 +0,0 @@
+-unsupported configuration: no panic model provided, and no default for the architecture and machine type
+diff --git a/tests/qemuxmlconfdata/aarch64-panic-no-model.xml b/tests/qemuxmlconfdata/aarch64-panic-no-model.xml
+deleted file mode 100644
+index 5207e48bbd..0000000000
+--- a/tests/qemuxmlconfdata/aarch64-panic-no-model.xml
++++ /dev/null
+@@ -1,13 +0,0 @@
+-<domain type='qemu'>
+-  <name>guest</name>
+-  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
+-  <memory>4194304</memory>
+-  <vcpu>4</vcpu>
+-  <os>
+-    <type arch='aarch64' machine='virt'>hvm</type>
+-  </os>
+-  <devices>
+-    <emulator>/usr/bin/qemu-system-aarch64</emulator>
+-    <panic/>
+-  </devices>
+-</domain>
+diff --git a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.args b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.args
+index a503f45d0c..96fb251d80 100644
+--- a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.args
++++ b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.args
+@@ -44,4 +44,5 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -device '{"driver":"virtio-gpu-pci","id":"video0","max_outputs":1,"bus":"pci.5","addr":"0x0"}' \
+ -sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-device '{"driver":"pvpanic-pci","bus":"pcie.0","addr":"0x2"}' \
+ -msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.xml b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.xml
+index bbe1dd931d..f27e7e1522 100644
+--- a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.xml
++++ b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.abi-update.xml
+@@ -78,5 +78,8 @@
+       <address type='pci' domain='0x0000' bus='0x05' slot='0x00' function='0x0'/>
+     </video>
+     <memballoon model='none'/>
++    <panic model='pvpanic'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
++    </panic>
+   </devices>
+ </domain>
+diff --git a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.args b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.args
+index a503f45d0c..96fb251d80 100644
+--- a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.args
++++ b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.args
+@@ -44,4 +44,5 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -device '{"driver":"virtio-gpu-pci","id":"video0","max_outputs":1,"bus":"pci.5","addr":"0x0"}' \
+ -sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-device '{"driver":"pvpanic-pci","bus":"pcie.0","addr":"0x2"}' \
+ -msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.xml b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.xml
+index bbe1dd931d..f27e7e1522 100644
+--- a/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.xml
++++ b/tests/qemuxmlconfdata/aarch64-virt-default-models.aarch64-latest.xml
+@@ -78,5 +78,8 @@
+       <address type='pci' domain='0x0000' bus='0x05' slot='0x00' function='0x0'/>
+     </video>
+     <memballoon model='none'/>
++    <panic model='pvpanic'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
++    </panic>
+   </devices>
+ </domain>
+diff --git a/tests/qemuxmlconfdata/aarch64-virt-default-models.xml b/tests/qemuxmlconfdata/aarch64-virt-default-models.xml
+index d9ad495e75..a8029d888d 100644
+--- a/tests/qemuxmlconfdata/aarch64-virt-default-models.xml
++++ b/tests/qemuxmlconfdata/aarch64-virt-default-models.xml
+@@ -19,6 +19,6 @@
+     </tpm>
+     <video/>
+     <memballoon model='none'/>
+-    <!-- No default model for <panic/> on aarch64 -->
++    <panic/>
+   </devices>
+ </domain>
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index 0f2afad6c4..338462193b 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -2672,7 +2672,6 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("panic");
+     DO_TEST_CAPS_LATEST("panic-double");
+     DO_TEST_CAPS_LATEST("panic-no-address");
+-    DO_TEST_CAPS_ARCH_LATEST_PARSE_ERROR("aarch64-panic-no-model", "aarch64");
+ 
+     DO_TEST_CAPS_LATEST("pvpanic-pci-x86_64");
+     DO_TEST_CAPS_ARCH_LATEST("pvpanic-pci-aarch64", "aarch64");
+-- 
+2.46.0

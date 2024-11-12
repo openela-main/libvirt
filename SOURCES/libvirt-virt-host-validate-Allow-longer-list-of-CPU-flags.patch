@@ -1,0 +1,85 @@
+From f122faf68c4921d44b98700209766cae7507deec Mon Sep 17 00:00:00 2001
+Message-ID: <f122faf68c4921d44b98700209766cae7507deec.1721740702.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 23 Jul 2024 10:31:27 +0200
+Subject: [PATCH] virt-host-validate: Allow longer list of CPU flags
+
+On various occasions, virt-host-validate parses /proc/cpuinfo to
+learn about CPU flags (see virHostValidateGetCPUFlags()). It does
+so, by reading the file line by line until the line with CPU
+flags is reached. Then the line is split into individual flags
+(using space as a delimiter) and the list of flags is then
+iterated over.
+
+This works, except for cases when the line with CPU flags is too
+long. Problem is - the line is capped at 1024 bytes and on newer
+CPUs (and newer kernels), the line can be significantly longer.
+I've seen a line that's ~1200 characters long (with 164 flags
+reported).
+
+Switch to unbounded read from the file (getline()).
+
+Resolves: https://issues.redhat.com/browse/RHEL-39969
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit e5232f6fd691668decd5be1b3a76cdbd3666d032)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ tools/virt-host-validate-common.c | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/tools/virt-host-validate-common.c b/tools/virt-host-validate-common.c
+index 591143c24d..63cc3dbe7b 100644
+--- a/tools/virt-host-validate-common.c
++++ b/tools/virt-host-validate-common.c
+@@ -106,21 +106,19 @@ virBitmap *virHostValidateGetCPUFlags(void)
+ {
+     FILE *fp;
+     virBitmap *flags = NULL;
++    g_autofree char *line = NULL;
++    size_t linelen = 0;
+ 
+     if (!(fp = fopen("/proc/cpuinfo", "r")))
+         return NULL;
+ 
+     flags = virBitmapNew(VIR_HOST_VALIDATE_CPU_FLAG_LAST);
+ 
+-    do {
+-        char line[1024];
++    while (getline(&line, &linelen, fp) > 0) {
+         char *start;
+         g_auto(GStrv) tokens = NULL;
+         GStrv next;
+ 
+-        if (!fgets(line, sizeof(line), fp))
+-            break;
+-
+         /* The line we're interested in is marked differently depending
+          * on the architecture, so check possible prefixes */
+         if (!STRPREFIX(line, "flags") &&
+@@ -129,11 +127,9 @@ virBitmap *virHostValidateGetCPUFlags(void)
+             !STRPREFIX(line, "facilities"))
+             continue;
+ 
+-        /* fgets() includes the trailing newline in the output buffer,
+-         * so we need to clean that up ourselves. We can safely access
+-         * line[strlen(line) - 1] because the checks above would cause
+-         * us to skip empty strings */
+-        line[strlen(line) - 1] = '\0';
++        /* getline() may include the trailing newline in the output
++         * buffer, so we need to clean that up ourselves. */
++        virStringTrimOptionalNewline(line);
+ 
+         /* Skip to the separator */
+         if (!(start = strchr(line, ':')))
+@@ -153,7 +149,7 @@ virBitmap *virHostValidateGetCPUFlags(void)
+             if ((value = virHostValidateCPUFlagTypeFromString(*next)) >= 0)
+                 ignore_value(virBitmapSetBit(flags, value));
+         }
+-    } while (1);
++    }
+ 
+     VIR_FORCE_FCLOSE(fp);
+ 
+-- 
+2.45.2

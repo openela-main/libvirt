@@ -1,0 +1,208 @@
+From 26c0a729f2ae6dcd932a42bd437fc76da9e6b2cc Mon Sep 17 00:00:00 2001
+Message-ID: <26c0a729f2ae6dcd932a42bd437fc76da9e6b2cc.1720800605.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 4 Jul 2024 15:54:28 +0200
+Subject: [PATCH] qemu: fill capabilities for virtiofsd
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Run the daemon with --print-capabilities first, to see what it supports.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 730eaafaace6b9202f9f694b732196299a0baec2)
+
+https://issues.redhat.com/browse/RHEL-7108
+https://issues.redhat.com/browse/RHEL-40135
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/conf/domain_conf.c                        |  1 +
+ src/conf/domain_conf.h                        |  1 +
+ src/qemu/qemu_vhost_user.c                    | 58 +++++++++++++++++++
+ src/qemu/qemu_vhost_user.h                    | 11 ++++
+ src/qemu/qemu_virtiofs.c                      |  9 ++-
+ .../qemu/vhost-user/50-qemu-virtiofsd.json    |  2 +-
+ tests/qemuxmlconftest.c                       |  2 +
+ 7 files changed, 81 insertions(+), 3 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 8a3c63b1fc..1523341b34 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2600,6 +2600,7 @@ void virDomainFSDefFree(virDomainFSDef *def)
+     g_free(def->sock);
+     g_free(def->idmap.uidmap);
+     g_free(def->idmap.gidmap);
++    virBitmapFree(def->caps);
+ 
+     g_free(def);
+ }
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 2818a9f1f5..b3a0d26cde 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -899,6 +899,7 @@ struct _virDomainFSDef {
+     virDomainIdMapDef idmap;
+     virDomainVirtioOptions *virtio;
+     virObject *privateData;
++    virBitmap *caps;
+ };
+ 
+ 
+diff --git a/src/qemu/qemu_vhost_user.c b/src/qemu/qemu_vhost_user.c
+index 0294daab80..de3ef640a3 100644
+--- a/src/qemu/qemu_vhost_user.c
++++ b/src/qemu/qemu_vhost_user.c
+@@ -22,6 +22,7 @@
+ 
+ #include "qemu_vhost_user.h"
+ #include "qemu_interop_config.h"
++#include "virbitmap.h"
+ #include "virjson.h"
+ #include "virlog.h"
+ #include "viralloc.h"
+@@ -90,6 +91,12 @@ VIR_ENUM_IMPL(qemuVhostUserGPUFeature,
+               "render-node",
+ );
+ 
++VIR_ENUM_IMPL(qemuVhostUserFSFeature,
++              QEMU_VHOST_USER_FS_FEATURE_LAST,
++              "migrate-precopy",
++              "separate-options",
++);
++
+ typedef struct _qemuVhostUserGPU qemuVhostUserGPU;
+ struct _qemuVhostUserGPU {
+     size_t nfeatures;
+@@ -414,6 +421,52 @@ qemuVhostUserFillDomainGPU(virQEMUDriver *driver,
+     return ret;
+ }
+ 
++int
++qemuVhostUserFillFSCapabilities(virBitmap **caps,
++                                const char *binary)
++{
++    g_autoptr(virJSONValue) doc = NULL;
++    g_autofree char *output = NULL;
++    g_autoptr(virCommand) cmd = NULL;
++    virJSONValue *featuresJSON;
++    size_t nfeatures;
++    size_t i;
++    g_autoptr(virBitmap) features = NULL;
++
++    cmd = virCommandNewArgList(binary, "--print-capabilities", NULL);
++    virCommandSetOutputBuffer(cmd, &output);
++    if (virCommandRun(cmd, NULL) < 0)
++        return -2;
++
++    if (!(doc = virJSONValueFromString(output))) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("unable to parse json capabilities '%1$s'"),
++                       binary);
++        return -1;
++    }
++
++    /* Older virtiofsd did not print any features */
++    if (!(featuresJSON = virJSONValueObjectGetArray(doc, "features")))
++        return 0;
++
++    features = virBitmapNew(0);
++    nfeatures = virJSONValueArraySize(featuresJSON);
++
++    for (i = 0; i < nfeatures; i++) {
++        virJSONValue *item = virJSONValueArrayGet(featuresJSON, i);
++        const char *tmpStr = virJSONValueGetString(item);
++        int tmp;
++
++        if ((tmp = qemuVhostUserFSFeatureTypeFromString(tmpStr)) < 0) {
++            VIR_DEBUG("ignoring unknown virtiofs feature '%s'", tmpStr);
++            continue;
++        }
++        virBitmapSetBitExpand(features, tmp);
++    }
++
++    *caps = g_steal_pointer(&features);
++    return 0;
++}
+ 
+ int
+ qemuVhostUserFillDomainFS(virQEMUDriver *driver,
+@@ -435,6 +488,11 @@ qemuVhostUserFillDomainFS(virQEMUDriver *driver,
+             continue;
+ 
+         fs->binary = g_strdup(vu->binary);
++
++        /* skip binaries that can't report their capabilities */
++        if (qemuVhostUserFillFSCapabilities(&fs->caps,
++                                            vu->binary) == -1)
++            continue;
+         break;
+     }
+ 
+diff --git a/src/qemu/qemu_vhost_user.h b/src/qemu/qemu_vhost_user.h
+index d1aa6ca189..c39fbfebe8 100644
+--- a/src/qemu/qemu_vhost_user.h
++++ b/src/qemu/qemu_vhost_user.h
+@@ -46,3 +46,14 @@ qemuVhostUserFillDomainGPU(virQEMUDriver *driver,
+ int
+ qemuVhostUserFillDomainFS(virQEMUDriver *driver,
+                           virDomainFSDef *fs);
++
++int
++qemuVhostUserFillFSCapabilities(virBitmap **caps,
++                                const char *binary);
++typedef enum {
++    QEMU_VHOST_USER_FS_FEATURE_MIGRATE_PRECOPY = 0,
++    QEMU_VHOST_USER_FS_FEATURE_SEPARATE_OPTIONS,
++    QEMU_VHOST_USER_FS_FEATURE_LAST
++} qemuVhostUserFSFeature;
++
++VIR_ENUM_DECL(qemuVhostUserFSFeature);
+diff --git a/src/qemu/qemu_virtiofs.c b/src/qemu/qemu_virtiofs.c
+index 78897d8177..0df8d67b1b 100644
+--- a/src/qemu/qemu_virtiofs.c
++++ b/src/qemu/qemu_virtiofs.c
+@@ -446,8 +446,13 @@ qemuVirtioFSPrepareDomain(virQEMUDriver *driver,
+     if (fs->sock)
+         return 0;
+ 
+-    if (!fs->binary && qemuVhostUserFillDomainFS(driver, fs) < 0)
+-        return -1;
++    if (fs->binary) {
++        if (qemuVhostUserFillFSCapabilities(&fs->caps, fs->binary) < 0)
++            return -1;
++    } else {
++        if (qemuVhostUserFillDomainFS(driver, fs) < 0)
++            return -1;
++    }
+ 
+     if (!driver->privileged && !fs->idmap.uidmap) {
+         if (qemuVirtioFSPrepareIdMap(fs) < 0)
+diff --git a/tests/qemuvhostuserdata/usr/share/qemu/vhost-user/50-qemu-virtiofsd.json b/tests/qemuvhostuserdata/usr/share/qemu/vhost-user/50-qemu-virtiofsd.json
+index b908bc6b30..5cf2c986f8 100644
+--- a/tests/qemuvhostuserdata/usr/share/qemu/vhost-user/50-qemu-virtiofsd.json
++++ b/tests/qemuvhostuserdata/usr/share/qemu/vhost-user/50-qemu-virtiofsd.json
+@@ -1,5 +1,5 @@
+ {
+   "description": "virtiofsd vhost-user-fs",
+   "type": "fs",
+-  "binary": "/usr/libexec/qemu/vhost-user/test-vhost-user-gpu"
++  "binary": "/usr/libexec/qemu/vhost-user/test-virtiofsd"
+ }
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index 8e0d47c6fd..a3a399e16c 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -1079,6 +1079,8 @@ mymain(void)
+ 
+     virFileWrapperAddPrefix("/usr/libexec/qemu/vhost-user",
+                             abs_srcdir "/qemuvhostuserdata/usr/libexec/qemu/vhost-user");
++    virFileWrapperAddPrefix("/usr/libexec/virtiofsd",
++                            abs_srcdir "/qemuvhostuserdata/usr/libexec/qemu/vhost-user/test-virtiofsd");
+ 
+     if (!(conn = virGetConnect()))
+         return EXIT_FAILURE;
+-- 
+2.45.2

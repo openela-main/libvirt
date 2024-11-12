@@ -1,0 +1,52 @@
+From 5f73e98cc870b13a053fd99d4d2707fed50e57d0 Mon Sep 17 00:00:00 2001
+Message-ID: <5f73e98cc870b13a053fd99d4d2707fed50e57d0.1720800605.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 4 Jul 2024 15:54:30 +0200
+Subject: [PATCH] qemu: migration: allow migration for virtiofs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Allow migration if the "migrate-precopy" capability is present or
+libvirt is not the one running the virtiofs daemon.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit d94b31a68ab94f27f8a1d6d216817b49881c38ae)
+
+https://issues.redhat.com/browse/RHEL-40135
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_migration.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 26c082fc08..4fd7a0aafb 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -39,6 +39,7 @@
+ #include "qemu_slirp.h"
+ #include "qemu_block.h"
+ #include "qemu_tpm.h"
++#include "qemu_vhost_user.h"
+ 
+ #include "domain_audit.h"
+ #include "virlog.h"
+@@ -1576,8 +1577,12 @@ qemuMigrationSrcIsAllowed(virDomainObj *vm,
+             virDomainFSDef *fs = vm->def->fss[i];
+ 
+             if (fs->fsdriver == VIR_DOMAIN_FS_DRIVER_TYPE_VIRTIOFS) {
+-                virReportError(VIR_ERR_OPERATION_INVALID, "%s",
+-                               _("migration with virtiofs device is not supported"));
++                if (fs->sock ||
++                    virBitmapIsBitSet(fs->caps, QEMU_VHOST_USER_FS_FEATURE_MIGRATE_PRECOPY))
++                    continue;
++
++                virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
++                               _("migration with this virtiofs device is not supported"));
+                 return false;
+             }
+         }
+-- 
+2.45.2

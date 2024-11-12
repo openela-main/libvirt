@@ -1,0 +1,124 @@
+From 53b691e4d85f8a442f14ecf4b3bf0b17d607fb2b Mon Sep 17 00:00:00 2001
+Message-ID: <53b691e4d85f8a442f14ecf4b3bf0b17d607fb2b.1720800605.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 11 Jul 2024 13:49:09 +0200
+Subject: [PATCH] qemu: Don't leave beingDestroyed=true on inactive domain
+
+Recent commit v10.4.0-87-gd9935a5c4f made a reasonable change to only
+reset beingDestroyed back to false when vm->def->id is reset to make
+sure other code can detect a domain is (about to become) inactive. It
+even added a comment saying any caller of qemuProcessBeginStopJob is
+supposed to call qemuProcessStop to clear beingDestroyed. But not every
+caller really does so because they first call qemuProcessBeginStopJob
+and then check whether a domain is still running. If not the
+qemuProcessStop call is skipped leaving beingDestroyed=true. In case of
+a persistent domain this may block incoming migrations of such domain as
+the migration code would think the domain died unexpectedly (even though
+it's still running).
+
+The qemuProcessBeginStopJob function is a wrapper around
+virDomainObjBeginJob, but virDomainObjEndJob was used directly for
+cleanup. This patch introduces a new qemuProcessEndStopJob wrapper
+around virDomainObjEndJob to properly undo everything
+qemuProcessBeginStopJob did.
+
+https://issues.redhat.com/browse/RHEL-43309
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit bec903cae84c21850d47a1b4d3ab57ca81189519)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_driver.c  |  4 ++--
+ src/qemu/qemu_process.c | 20 ++++++++++++++++----
+ src/qemu/qemu_process.h |  1 +
+ 3 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index fc1704f4fc..d9073b2154 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -2115,7 +2115,7 @@ qemuDomainDestroyFlags(virDomainPtr dom,
+  endjob:
+     if (ret == 0)
+         qemuDomainRemoveInactive(driver, vm, 0, false);
+-    virDomainObjEndJob(vm);
++    qemuProcessEndStopJob(vm);
+ 
+  cleanup:
+     virDomainObjEndAPI(&vm);
+@@ -3901,7 +3901,7 @@ processMonitorEOFEvent(virQEMUDriver *driver,
+ 
+  endjob:
+     qemuDomainRemoveInactive(driver, vm, 0, false);
+-    virDomainObjEndJob(vm);
++    qemuProcessEndStopJob(vm);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index b9b6ccf1de..bea42d38c6 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -8422,7 +8422,8 @@ qemuProcessKill(virDomainObj *vm, unsigned int flags)
+  * qemuProcessBeginStopJob:
+  *
+  * Stop all current jobs by killing the domain and start a new one for
+- * qemuProcessStop.
++ * qemuProcessStop. The caller has to make sure qemuProcessEndStopJob is
++ * called to properly cleanup the job.
+  */
+ int
+ qemuProcessBeginStopJob(virDomainObj *vm,
+@@ -8449,8 +8450,9 @@ qemuProcessBeginStopJob(virDomainObj *vm,
+         goto error;
+ 
+     /* priv->beingDestroyed is deliberately left set to 'true' here. Caller
+-     * is supposed to call qemuProcessStop, which will reset it after
+-     * 'vm->def->id' is set to -1 */
++     * is supposed to call qemuProcessStop (which will reset it after
++     * 'vm->def->id' is set to -1) and/or qemuProcessEndStopJob to do proper
++     * cleanup. */
+     return 0;
+ 
+  error:
+@@ -8459,6 +8461,16 @@ qemuProcessBeginStopJob(virDomainObj *vm,
+ }
+ 
+ 
++void
++qemuProcessEndStopJob(virDomainObj *vm)
++{
++    if (!virDomainObjIsActive(vm))
++        QEMU_DOMAIN_PRIVATE(vm)->beingDestroyed = false;
++
++    virDomainObjEndJob(vm);
++}
++
++
+ void qemuProcessStop(virQEMUDriver *driver,
+                      virDomainObj *vm,
+                      virDomainShutoffReason reason,
+@@ -8801,7 +8813,7 @@ qemuProcessAutoDestroy(virDomainObj *dom,
+ 
+     qemuDomainRemoveInactive(driver, dom, 0, false);
+ 
+-    virDomainObjEndJob(dom);
++    qemuProcessEndStopJob(dom);
+ 
+     virObjectEventStateQueue(driver->domainEventState, event);
+ }
+diff --git a/src/qemu/qemu_process.h b/src/qemu/qemu_process.h
+index c1ea949215..cb67bfcd2d 100644
+--- a/src/qemu/qemu_process.h
++++ b/src/qemu/qemu_process.h
+@@ -169,6 +169,7 @@ typedef enum {
+ int qemuProcessBeginStopJob(virDomainObj *vm,
+                             virDomainJob job,
+                             bool forceKill);
++void qemuProcessEndStopJob(virDomainObj *vm);
+ void qemuProcessStop(virQEMUDriver *driver,
+                      virDomainObj *vm,
+                      virDomainShutoffReason reason,
+-- 
+2.45.2

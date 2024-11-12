@@ -1,0 +1,49 @@
+From bbe550bf0b916cfd71bb0accfe818fc3a18ed569 Mon Sep 17 00:00:00 2001
+Message-ID: <bbe550bf0b916cfd71bb0accfe818fc3a18ed569.1723196972.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 23 Jul 2024 14:14:13 +0200
+Subject: [PATCH] qemu: virtiofs: cache: use 'never' instead of 'none'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The new option style renamed one of the cache modes.
+
+https://issues.redhat.com/browse/RHEL-50329
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8d3b2397372111d15d6b79138c5c5a80203f85f5)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_virtiofs.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_virtiofs.c b/src/qemu/qemu_virtiofs.c
+index 0e3c7dbb58..c7be2766a2 100644
+--- a/src/qemu/qemu_virtiofs.c
++++ b/src/qemu/qemu_virtiofs.c
+@@ -147,10 +147,20 @@ qemuVirtioFSBuildCommandLine(virQEMUDriverConfig *cfg,
+         virCommandAddArg(cmd, "--shared-dir");
+         virCommandAddArg(cmd, fs->src->path);
+ 
+-        if (fs->cache) {
++        switch (fs->cache) {
++        case VIR_DOMAIN_FS_CACHE_MODE_DEFAULT:
++        case VIR_DOMAIN_FS_CACHE_MODE_LAST:
++            break;
++        case VIR_DOMAIN_FS_CACHE_MODE_NONE:
++            virCommandAddArg(cmd, "--cache");
++            virCommandAddArg(cmd, "never");
++            break;
++        case VIR_DOMAIN_FS_CACHE_MODE_ALWAYS:
+             virCommandAddArg(cmd, "--cache");
+             virCommandAddArg(cmd, virDomainFSCacheModeTypeToString(fs->cache));
++            break;
+         }
++
+         if (fs->sandbox) {
+             virCommandAddArg(cmd, "--sandbox");
+             virCommandAddArg(cmd, virDomainFSSandboxModeTypeToString(fs->sandbox));
+-- 
+2.46.0

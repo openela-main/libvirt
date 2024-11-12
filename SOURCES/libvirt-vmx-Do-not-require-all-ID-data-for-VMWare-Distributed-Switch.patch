@@ -1,5 +1,5 @@
-From ad2101ea710d705e1225f9a6ccb676bcb546eb63 Mon Sep 17 00:00:00 2001
-Message-ID: <ad2101ea710d705e1225f9a6ccb676bcb546eb63.1720447204.git.jdenemar@redhat.com>
+From 945895b9af739a93690b1771e0e604b3a23fb7e0 Mon Sep 17 00:00:00 2001
+Message-ID: <945895b9af739a93690b1771e0e604b3a23fb7e0.1720800605.git.jdenemar@redhat.com>
 From: Martin Kletzander <mkletzan@redhat.com>
 Date: Mon, 8 Jul 2024 13:04:13 +0200
 Subject: [PATCH] vmx: Do not require all ID data for VMWare Distributed Switch
@@ -14,9 +14,6 @@ Resolves: https://issues.redhat.com/browse/RHEL-46099
 
 Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
-
-Resolves: https://issues.redhat.com/browse/RHEL-46595
-
 (cherry picked from commit db622081e0fa55b481da1fc7fb81279224a60f88)
 Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 ---
@@ -30,10 +27,10 @@ Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
  rename tests/vmx2xmldata/{ethernet-vds-no-portid.xml => ethernet-vds-no-params.xml} (82%)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index 52a5796ad2..468fc56be1 100644
+index cb1154b23f..8a3c63b1fc 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
-@@ -9536,15 +9536,14 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
+@@ -9576,15 +9576,14 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
                             def->data.vds.switch_id) < 0)
              return NULL;
  
@@ -55,10 +52,10 @@ index 52a5796ad2..468fc56be1 100644
  
          break;
 diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
-index df44cd9857..be47b5a930 100644
+index 844a931deb..51572f3e70 100644
 --- a/src/conf/schemas/domaincommon.rng
 +++ b/src/conf/schemas/domaincommon.rng
-@@ -3621,15 +3621,21 @@
+@@ -3684,15 +3684,21 @@
                <attribute name="switchid">
                  <ref name="UUID"/>
                </attribute>
@@ -90,10 +87,10 @@ index df44cd9857..be47b5a930 100644
              <ref name="interface-options"/>
            </interleave>
 diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
-index 12f532fe47..b12fed771f 100644
+index d082a07660..e5bc2d793c 100644
 --- a/src/vmx/vmx.c
 +++ b/src/vmx/vmx.c
-@@ -2849,7 +2849,7 @@ virVMXParseEthernet(virConf *conf, int controller, virDomainNetDef **def)
+@@ -2896,7 +2896,7 @@ virVMXParseEthernet(virConf *conf, int controller, virDomainNetDef **def)
          if (virVMXGetConfigString(conf,
                                    portgroupId_name,
                                    &(*def)->data.vds.portgroup_id,
@@ -102,7 +99,7 @@ index 12f532fe47..b12fed771f 100644
              virVMXGetConfigLong(conf,
                                  portId_name,
                                  &(*def)->data.vds.port_id,
-@@ -2859,7 +2859,7 @@ virVMXParseEthernet(virConf *conf, int controller, virDomainNetDef **def)
+@@ -2906,7 +2906,7 @@ virVMXParseEthernet(virConf *conf, int controller, virDomainNetDef **def)
                                  connectionId_name,
                                  &(*def)->data.vds.connection_id,
                                  0,
@@ -111,7 +108,7 @@ index 12f532fe47..b12fed771f 100644
              goto cleanup;
      } else if (connectionType == NULL && networkName == NULL) {
          (*def)->type = VIR_DOMAIN_NET_TYPE_NULL;
-@@ -3980,14 +3980,22 @@ virVMXFormatEthernet(virDomainNetDef *def, int controller,
+@@ -4038,14 +4038,22 @@ virVMXFormatEthernet(virDomainNetDef *def, int controller,
                            uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10],
                            uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
  

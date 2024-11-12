@@ -1,0 +1,46 @@
+From fa4a66a178829bcd66ae91732204540111fa9e7b Mon Sep 17 00:00:00 2001
+Message-ID: <fa4a66a178829bcd66ae91732204540111fa9e7b.1720800605.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 4 Jul 2024 15:54:27 +0200
+Subject: [PATCH] tests: qemuxmlconf: adjust test case to new virtiofsd
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Now that we have a fake virtiofsd json descriptor in our vhost-user
+test data, we can remove the explicitly specified binary and our
+mocking will ensure this test won't be affected by the host state.
+
+Also remove the locking options, since they were never supported
+by the Rust version of virtiofsd.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 132bf6d89b0eb744db6255e18494b493bd998d1d)
+
+https://issues.redhat.com/browse/RHEL-7108
+https://issues.redhat.com/browse/RHEL-40135
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ tests/qemuxmlconfdata/vhost-user-fs-fd-memory.xml | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/tests/qemuxmlconfdata/vhost-user-fs-fd-memory.xml b/tests/qemuxmlconfdata/vhost-user-fs-fd-memory.xml
+index 1d0bc26c46..b0b1b44081 100644
+--- a/tests/qemuxmlconfdata/vhost-user-fs-fd-memory.xml
++++ b/tests/qemuxmlconfdata/vhost-user-fs-fd-memory.xml
+@@ -28,10 +28,9 @@
+     <controller type='pci' index='0' model='pci-root'/>
+     <filesystem type='mount' accessmode='passthrough'>
+       <driver type='virtiofs' queue='1024'/>
+-      <binary path='/usr/libexec/virtiofsd' xattr='on'>
++      <binary xattr='on'>
+         <cache mode='always'/>
+         <sandbox mode='chroot'/>
+-        <lock posix='off' flock='off'/>
+         <thread_pool size='16'/>
+       </binary>
+       <idmap>
+-- 
+2.45.2

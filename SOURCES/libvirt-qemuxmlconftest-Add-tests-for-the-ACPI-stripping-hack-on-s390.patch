@@ -1,0 +1,435 @@
+From 374d2bbe544224e7e31ac8ce92e1d42e60bdb44e Mon Sep 17 00:00:00 2001
+Message-ID: <374d2bbe544224e7e31ac8ce92e1d42e60bdb44e.1723196972.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 31 Jul 2024 12:38:23 +0200
+Subject: [PATCH] qemuxmlconftest: Add tests for the ACPI stripping hack on
+ s390
+
+Replace the 'misc-acpi' case by testing a bunch of architectures for how
+ACPI is handled including a test for the s390 ACPI strip hack added in
+previous commit.
+
+The input files are adapted from the corresponding '-minimal.xml' files.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+(cherry picked from commit 432e442ca8eeb4ed8c0dcc3a3c7d723f85b38c40)
+https://issues.redhat.com/browse/RHEL-49516
+---
+ .../aarch64-noacpi-acpi.aarch64-latest.err    |  1 +
+ tests/qemuxmlconfdata/aarch64-noacpi-acpi.xml | 18 ++++++++
+ .../misc-acpi.x86_64-latest.args              | 34 ---------------
+ .../misc-acpi.x86_64-latest.xml               | 41 -------------------
+ tests/qemuxmlconfdata/misc-acpi.xml           | 33 ---------------
+ .../riscv64-virt-acpi.riscv64-latest.args     | 33 +++++++++++++++
+ .../riscv64-virt-acpi.riscv64-latest.xml      | 36 ++++++++++++++++
+ tests/qemuxmlconfdata/riscv64-virt-acpi.xml   | 15 +++++++
+ ...s390x-ccw-acpi.s390x-latest.abi-update.err |  1 +
+ .../s390x-ccw-acpi.s390x-latest.args          | 32 +++++++++++++++
+ .../s390x-ccw-acpi.s390x-latest.xml           | 27 ++++++++++++
+ tests/qemuxmlconfdata/s390x-ccw-acpi.xml      | 15 +++++++
+ tests/qemuxmlconftest.c                       | 18 +++++++-
+ 13 files changed, 195 insertions(+), 109 deletions(-)
+ create mode 100644 tests/qemuxmlconfdata/aarch64-noacpi-acpi.aarch64-latest.err
+ create mode 100644 tests/qemuxmlconfdata/aarch64-noacpi-acpi.xml
+ delete mode 100644 tests/qemuxmlconfdata/misc-acpi.x86_64-latest.args
+ delete mode 100644 tests/qemuxmlconfdata/misc-acpi.x86_64-latest.xml
+ delete mode 100644 tests/qemuxmlconfdata/misc-acpi.xml
+ create mode 100644 tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.args
+ create mode 100644 tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.xml
+ create mode 100644 tests/qemuxmlconfdata/riscv64-virt-acpi.xml
+ create mode 100644 tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.abi-update.err
+ create mode 100644 tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.args
+ create mode 100644 tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.xml
+ create mode 100644 tests/qemuxmlconfdata/s390x-ccw-acpi.xml
+
+diff --git a/tests/qemuxmlconfdata/aarch64-noacpi-acpi.aarch64-latest.err b/tests/qemuxmlconfdata/aarch64-noacpi-acpi.aarch64-latest.err
+new file mode 100644
+index 0000000000..5f379d56ce
+--- /dev/null
++++ b/tests/qemuxmlconfdata/aarch64-noacpi-acpi.aarch64-latest.err
+@@ -0,0 +1 @@
++unsupported configuration: machine type 'borzoi' does not support ACPI
+diff --git a/tests/qemuxmlconfdata/aarch64-noacpi-acpi.xml b/tests/qemuxmlconfdata/aarch64-noacpi-acpi.xml
+new file mode 100644
+index 0000000000..10dbeabd6d
+--- /dev/null
++++ b/tests/qemuxmlconfdata/aarch64-noacpi-acpi.xml
+@@ -0,0 +1,18 @@
++<domain type='kvm'>
++  <name>aarch64test</name>
++  <uuid>6ba410c5-1e5c-4d57-bee7-2228e7ffa32f</uuid>
++  <memory unit='KiB'>1048576</memory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <!-- machine type doesn't matter as long as it has no ACPI -->
++    <type arch='aarch64' machine='borzoi'>hvm</type>
++  </os>
++  <features>
++    <acpi/>
++  </features>
++  <cpu mode='host-passthrough'/>
++  <devices>
++    <emulator>/usr/bin/qemu-system-aarch64</emulator>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconfdata/misc-acpi.x86_64-latest.args b/tests/qemuxmlconfdata/misc-acpi.x86_64-latest.args
+deleted file mode 100644
+index c4e09c0af2..0000000000
+--- a/tests/qemuxmlconfdata/misc-acpi.x86_64-latest.args
++++ /dev/null
+@@ -1,34 +0,0 @@
+-LC_ALL=C \
+-PATH=/bin \
+-HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1 \
+-USER=test \
+-LOGNAME=test \
+-XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.local/share \
+-XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.cache \
+-XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+-/usr/bin/qemu-system-x86_64 \
+--name guest=QEMUGuest1,debug-threads=on \
+--S \
+--object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+--machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=on \
+--accel tcg \
+--cpu qemu64 \
+--m size=219136k \
+--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+--overcommit mem-lock=off \
+--smp 1,sockets=1,cores=1,threads=1 \
+--uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+--display none \
+--no-user-config \
+--nodefaults \
+--chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
+--mon chardev=charmonitor,id=monitor,mode=control \
+--rtc base=utc \
+--no-shutdown \
+--boot strict=on \
+--device '{"driver":"piix3-usb-uhci","id":"usb","bus":"pci.0","addr":"0x1.0x2"}' \
+--blockdev '{"driver":"host_device","filename":"/dev/HostVG/QEMUGuest1","node-name":"libvirt-1-storage","read-only":false}' \
+--device '{"driver":"ide-hd","bus":"ide.0","unit":0,"drive":"libvirt-1-storage","id":"ide0-0-0","bootindex":1}' \
+--audiodev '{"id":"audio1","driver":"none"}' \
+--sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+--msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/misc-acpi.x86_64-latest.xml b/tests/qemuxmlconfdata/misc-acpi.x86_64-latest.xml
+deleted file mode 100644
+index 176926bb60..0000000000
+--- a/tests/qemuxmlconfdata/misc-acpi.x86_64-latest.xml
++++ /dev/null
+@@ -1,41 +0,0 @@
+-<domain type='qemu'>
+-  <name>QEMUGuest1</name>
+-  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+-  <memory unit='KiB'>219136</memory>
+-  <currentMemory unit='KiB'>219136</currentMemory>
+-  <vcpu placement='static'>1</vcpu>
+-  <os>
+-    <type arch='x86_64' machine='pc'>hvm</type>
+-    <boot dev='hd'/>
+-  </os>
+-  <features>
+-    <acpi/>
+-  </features>
+-  <cpu mode='custom' match='exact' check='none'>
+-    <model fallback='forbid'>qemu64</model>
+-  </cpu>
+-  <clock offset='utc'/>
+-  <on_poweroff>destroy</on_poweroff>
+-  <on_reboot>restart</on_reboot>
+-  <on_crash>destroy</on_crash>
+-  <devices>
+-    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+-    <disk type='block' device='disk'>
+-      <driver name='qemu' type='raw'/>
+-      <source dev='/dev/HostVG/QEMUGuest1'/>
+-      <target dev='hda' bus='ide'/>
+-      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+-    </disk>
+-    <controller type='usb' index='0' model='piix3-uhci'>
+-      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+-    </controller>
+-    <controller type='ide' index='0'>
+-      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+-    </controller>
+-    <controller type='pci' index='0' model='pci-root'/>
+-    <input type='mouse' bus='ps2'/>
+-    <input type='keyboard' bus='ps2'/>
+-    <audio id='1' type='none'/>
+-    <memballoon model='none'/>
+-  </devices>
+-</domain>
+diff --git a/tests/qemuxmlconfdata/misc-acpi.xml b/tests/qemuxmlconfdata/misc-acpi.xml
+deleted file mode 100644
+index 59fbe471ff..0000000000
+--- a/tests/qemuxmlconfdata/misc-acpi.xml
++++ /dev/null
+@@ -1,33 +0,0 @@
+-<domain type='qemu'>
+-  <name>QEMUGuest1</name>
+-  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+-  <memory unit='KiB'>219136</memory>
+-  <currentMemory unit='KiB'>219136</currentMemory>
+-  <vcpu placement='static'>1</vcpu>
+-  <os>
+-    <type arch='x86_64' machine='pc'>hvm</type>
+-    <boot dev='hd'/>
+-  </os>
+-  <features>
+-    <acpi/>
+-  </features>
+-  <clock offset='utc'/>
+-  <on_poweroff>destroy</on_poweroff>
+-  <on_reboot>restart</on_reboot>
+-  <on_crash>destroy</on_crash>
+-  <devices>
+-    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+-    <disk type='block' device='disk'>
+-      <driver name='qemu' type='raw'/>
+-      <source dev='/dev/HostVG/QEMUGuest1'/>
+-      <target dev='hda' bus='ide'/>
+-      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+-    </disk>
+-    <controller type='usb' index='0'/>
+-    <controller type='ide' index='0'/>
+-    <controller type='pci' index='0' model='pci-root'/>
+-    <input type='mouse' bus='ps2'/>
+-    <input type='keyboard' bus='ps2'/>
+-    <memballoon model='none'/>
+-  </devices>
+-</domain>
+diff --git a/tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.args b/tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.args
+new file mode 100644
+index 0000000000..fcb80b009e
+--- /dev/null
++++ b/tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.args
+@@ -0,0 +1,33 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-guest \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
++/usr/bin/qemu-system-riscv64 \
++-name guest=guest,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
++-machine virt,usb=off,dump-guest-core=off,memory-backend=riscv_virt_board.ram \
++-accel tcg \
++-m size=4194304k \
++-object '{"qom-type":"memory-backend-ram","id":"riscv_virt_board.ram","size":4294967296}' \
++-overcommit mem-lock=off \
++-smp 4,sockets=4,cores=1,threads=1 \
++-uuid 1ccfd97d-5eb4-478a-bbe6-88d254c16db7 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-device '{"driver":"pcie-root-port","port":8,"chassis":1,"id":"pci.1","bus":"pcie.0","multifunction":true,"addr":"0x1"}' \
++-device '{"driver":"pcie-root-port","port":9,"chassis":2,"id":"pci.2","bus":"pcie.0","addr":"0x1.0x1"}' \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-device '{"driver":"virtio-balloon-pci","id":"balloon0","bus":"pci.1","addr":"0x0"}' \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.xml b/tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.xml
+new file mode 100644
+index 0000000000..075708df9c
+--- /dev/null
++++ b/tests/qemuxmlconfdata/riscv64-virt-acpi.riscv64-latest.xml
+@@ -0,0 +1,36 @@
++<domain type='qemu'>
++  <name>guest</name>
++  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
++  <memory unit='KiB'>4194304</memory>
++  <currentMemory unit='KiB'>4194304</currentMemory>
++  <vcpu placement='static'>4</vcpu>
++  <os>
++    <type arch='riscv64' machine='virt'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <features>
++    <acpi/>
++  </features>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-riscv64</emulator>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='pci' index='1' model='pcie-root-port'>
++      <model name='pcie-root-port'/>
++      <target chassis='1' port='0x8'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0' multifunction='on'/>
++    </controller>
++    <controller type='pci' index='2' model='pcie-root-port'>
++      <model name='pcie-root-port'/>
++      <target chassis='2' port='0x9'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
++    </controller>
++    <audio id='1' type='none'/>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
++    </memballoon>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconfdata/riscv64-virt-acpi.xml b/tests/qemuxmlconfdata/riscv64-virt-acpi.xml
+new file mode 100644
+index 0000000000..72fc0d8e1c
+--- /dev/null
++++ b/tests/qemuxmlconfdata/riscv64-virt-acpi.xml
+@@ -0,0 +1,15 @@
++<domain type='qemu'>
++  <name>guest</name>
++  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
++  <memory>4194304</memory>
++  <vcpu>4</vcpu>
++  <os>
++    <type arch='riscv64' machine='virt'>hvm</type>
++  </os>
++  <features>
++    <acpi/>
++  </features>
++  <devices>
++    <emulator>/usr/bin/qemu-system-riscv64</emulator>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.abi-update.err b/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.abi-update.err
+new file mode 100644
+index 0000000000..4ca9af1de0
+--- /dev/null
++++ b/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.abi-update.err
+@@ -0,0 +1 @@
++unsupported configuration: machine type 's390-ccw-virtio' does not support ACPI
+diff --git a/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.args b/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.args
+new file mode 100644
+index 0000000000..84098e580e
+--- /dev/null
++++ b/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.args
+@@ -0,0 +1,32 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-guest \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
++/usr/bin/qemu-system-s390x \
++-name guest=guest,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
++-machine s390-ccw-virtio,usb=off,dump-guest-core=off,memory-backend=s390.ram \
++-accel tcg \
++-cpu qemu \
++-m size=4194304k \
++-object '{"qom-type":"memory-backend-ram","id":"s390.ram","size":4294967296}' \
++-overcommit mem-lock=off \
++-smp 4,sockets=4,cores=1,threads=1 \
++-uuid 1ccfd97d-5eb4-478a-bbe6-88d254c16db7 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-device '{"driver":"virtio-balloon-ccw","id":"balloon0","devno":"fe.0.0000"}' \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.xml b/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.xml
+new file mode 100644
+index 0000000000..df8e578212
+--- /dev/null
++++ b/tests/qemuxmlconfdata/s390x-ccw-acpi.s390x-latest.xml
+@@ -0,0 +1,27 @@
++<domain type='qemu'>
++  <name>guest</name>
++  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
++  <memory unit='KiB'>4194304</memory>
++  <currentMemory unit='KiB'>4194304</currentMemory>
++  <vcpu placement='static'>4</vcpu>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++    <controller type='pci' index='0' model='pci-root'/>
++    <audio id='1' type='none'/>
++    <memballoon model='virtio'>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0000'/>
++    </memballoon>
++    <panic model='s390'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconfdata/s390x-ccw-acpi.xml b/tests/qemuxmlconfdata/s390x-ccw-acpi.xml
+new file mode 100644
+index 0000000000..b7be060c66
+--- /dev/null
++++ b/tests/qemuxmlconfdata/s390x-ccw-acpi.xml
+@@ -0,0 +1,15 @@
++<domain type='qemu'>
++  <name>guest</name>
++  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
++  <memory>4194304</memory>
++  <vcpu>4</vcpu>
++  <features>
++    <acpi/>
++  </features>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio'>hvm</type>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index a3a399e16c..0f2afad6c4 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -1740,7 +1740,23 @@ mymain(void)
+ 
+     DO_TEST_CAPS_LATEST("input-usbmouse");
+     DO_TEST_CAPS_LATEST("input-usbtablet");
+-    DO_TEST_CAPS_LATEST("misc-acpi");
++
++    /* tests for ACPI support handling:
++     *  - existing positive test cases enabling ACPI for aarch64/x86_64/loongarch:
++     *     - firmware-manual-efi-acpi-q35
++     *     - firmware-manual-efi-acpi-aarch64
++     *     - firmware-auto-efi-loongarch64
++     *
++     *  - negative case for aarch64 with 'borzoi' machine not supporting ACPI
++     *
++     *  - s390x has hack to strip ACPI to preserve migration of old configs,
++     *    but should produce error when ABI_UPDATE is requested
++     */
++    DO_TEST_CAPS_ARCH_LATEST_PARSE_ERROR("aarch64-noacpi-acpi", "aarch64");
++    DO_TEST_CAPS_ARCH_LATEST("riscv64-virt-acpi", "riscv64");
++    DO_TEST_CAPS_ARCH_LATEST("s390x-ccw-acpi", "s390x");
++    DO_TEST_CAPS_ARCH_LATEST_ABI_UPDATE_PARSE_ERROR("s390x-ccw-acpi", "s390x");
++
+     DO_TEST_CAPS_LATEST("misc-disable-s3");
+     DO_TEST_CAPS_LATEST("misc-disable-suspends");
+     DO_TEST_CAPS_LATEST("misc-enable-s4");
+-- 
+2.46.0
