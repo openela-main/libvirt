@@ -1,0 +1,51 @@
+From afbf59c823a04b417b4ae66edb99e15e6e8ba877 Mon Sep 17 00:00:00 2001
+Message-ID: <afbf59c823a04b417b4ae66edb99e15e6e8ba877.1730898528.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 8 Aug 2023 15:53:53 +0200
+Subject: [PATCH] virStorageBackendLogicalCheckPool: Properly mark empty
+ logical pools as active
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The '/dev' filesystem convenience directory for a LVM volume group is
+not created when the volume group is empty.
+
+The logic in 'virStorageBackendLogicalCheckPool' which is used to see
+whether a pool is active was first checking presence of the directory,
+which failed for an empty VG.
+
+Since the second step is virStorageBackendLogicalMatchPoolSource which
+is checking mapping between configured PVs and the VG, we can simply
+rely on the function to also check presence of the pool.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=2228223
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit fa1a54baa59d244289ce666f9dc52d9eabca47f1)
+https://issues.redhat.com/browse/RHEL-65771
+---
+ src/storage/storage_backend_logical.c | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/storage/storage_backend_logical.c b/src/storage/storage_backend_logical.c
+index 3f27e63aeb..b7e3ba2498 100644
+--- a/src/storage/storage_backend_logical.c
++++ b/src/storage/storage_backend_logical.c
+@@ -628,13 +628,7 @@ static int
+ virStorageBackendLogicalCheckPool(virStoragePoolObj *pool,
+                                   bool *isActive)
+ {
+-    virStoragePoolDef *def = virStoragePoolObjGetDef(pool);
+-
+-    /* If we can find the target.path as well as ensure that the
+-     * pool's def source
+-     */
+-    *isActive = virFileExists(def->target.path) &&
+-                virStorageBackendLogicalMatchPoolSource(pool);
++    *isActive = virStorageBackendLogicalMatchPoolSource(pool);
+     return 0;
+ }
+ 
+-- 
+2.47.0

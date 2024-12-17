@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 23.2%{?dist}%{?extra_release}
+Release: 23.3%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -321,6 +321,7 @@ Patch98: libvirt-virnuma-Avoid-integer-overflow-in-virNumaGetPages.patch
 Patch99: libvirt-remote-check-for-negative-array-lengths-before-allocation.patch
 Patch100: libvirt-util-Fix-error-return-for-virProcessKillPainfullyDelay.patch
 Patch101: libvirt-rpc-ensure-temporary-GSource-is-removed-from-client-event-loop.patch
+Patch102: libvirt-virStorageBackendLogicalCheckPool-Properly-mark-empty-logical-pools-as-active.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2200,6 +2201,9 @@ exit 0
 
 
 %changelog
+* Wed Nov  6 2024 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.3.el8
+- virStorageBackendLogicalCheckPool: Properly mark empty logical pools as active (RHEL-65771)
+
 * Thu Jun  6 2024 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.2.el8
 - util: Fix error return for virProcessKillPainfullyDelay() (RHEL-36064)
 - rpc: ensure temporary GSource is removed from client event loop (CVE-2024-4418)
