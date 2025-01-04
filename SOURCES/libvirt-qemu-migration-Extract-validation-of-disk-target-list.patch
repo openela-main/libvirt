@@ -1,0 +1,91 @@
+From 0326166a5240c12799cac7fe1caf5e0cc22100c6 Mon Sep 17 00:00:00 2001
+Message-ID: <0326166a5240c12799cac7fe1caf5e0cc22100c6.1729611061.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 30 Sep 2024 10:38:58 +0200
+Subject: [PATCH] qemu: migration: Extract validation of disk target list
+
+The migration code is checking the disk list provided via
+VIR_MIGRATE_PARAM_MIGRATE_DISKS against existing disks. Extract it to a
+helper function as we'll be passing another list of disk targets soon.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit aaefaabf5a27dcc36dc7a9bb26aec7e00a483ed8)
+
+https://issues.redhat.com/browse/RHEL-61177
+---
+ src/qemu/qemu_migration.c | 52 +++++++++++++++++++++++++--------------
+ 1 file changed, 34 insertions(+), 18 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 0d9bb7aeef..21d4c3ece6 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -2559,6 +2559,37 @@ qemuMigrationSrcBeginXML(virDomainObj *vm,
+ }
+ 
+ 
++/**
++ * qemuMigrationSrcBeginPhaseValidateDiskTargetList:
++ * @vm: domain object
++ * @disks: NULL-terminated list of disk 'dst' strings to validate
++ *
++ * Validates that all members of the @disk list are valid disk targets.
++ */
++static int
++qemuMigrationSrcBeginPhaseValidateDiskTargetList(virDomainObj *vm,
++                                                 const char **disks)
++{
++    size_t i;
++    const char **d;
++
++    for (d = disks; *d; d++) {
++        for (i = 0; i < vm->def->ndisks; i++) {
++            if (STREQ(vm->def->disks[i]->dst, *d))
++                break;
++        }
++
++        if (i == vm->def->ndisks) {
++            virReportError(VIR_ERR_INVALID_ARG,
++                           _("disk target %1$s not found"), *d);
++            return -1;
++        }
++    }
++
++    return 0;
++}
++
++
+ /* The caller is supposed to lock the vm and start a migration job. */
+ static char *
+ qemuMigrationSrcBeginPhase(virQEMUDriver *driver,
+@@ -2643,24 +2674,9 @@ qemuMigrationSrcBeginPhase(virQEMUDriver *driver,
+             return NULL;
+         }
+ 
+-        if (migrate_disks) {
+-            size_t j;
+-            const char **d;
+-
+-            /* Check user requested only known disk targets. */
+-            for (d = migrate_disks; *d; d++) {
+-                for (j = 0; j < vm->def->ndisks; j++) {
+-                    if (STREQ(vm->def->disks[j]->dst, *d))
+-                        break;
+-                }
+-
+-                if (j == vm->def->ndisks) {
+-                    virReportError(VIR_ERR_INVALID_ARG,
+-                                   _("disk target %1$s not found"), *d);
+-                    return NULL;
+-                }
+-            }
+-        }
++        if (migrate_disks &&
++            qemuMigrationSrcBeginPhaseValidateDiskTargetList(vm, migrate_disks) < 0)
++            return NULL;
+ 
+         priv->nbdPort = 0;
+ 
+-- 
+2.47.0

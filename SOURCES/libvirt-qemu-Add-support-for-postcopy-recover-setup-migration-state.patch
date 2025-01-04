@@ -1,0 +1,186 @@
+From 431e35b6d23ff0948e7199139ac9ec68354cae37 Mon Sep 17 00:00:00 2001
+Message-ID: <431e35b6d23ff0948e7199139ac9ec68354cae37.1730734026.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 8 Aug 2024 11:45:16 +0200
+Subject: [PATCH] qemu: Add support for postcopy-recover-setup migration state
+
+This patch adds support for recognizing the new migration state reported
+by QEMU when post-copy recovery is requested. It is not actually used
+for anything yet.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 79e0b50bb64ff6b78b897cb08c4ce0b1f02a1c92)
+
+https://issues.redhat.com/browse/RHEL-63877
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/virdomainjob.c      | 1 +
+ src/conf/virdomainjob.h      | 1 +
+ src/qemu/qemu_domain.c       | 2 ++
+ src/qemu/qemu_domain.h       | 4 ++++
+ src/qemu/qemu_driver.c       | 1 +
+ src/qemu/qemu_migration.c    | 7 +++++++
+ src/qemu/qemu_monitor.c      | 1 +
+ src/qemu/qemu_monitor.h      | 1 +
+ src/qemu/qemu_monitor_json.c | 1 +
+ src/qemu/qemu_process.c      | 4 ++++
+ 10 files changed, 23 insertions(+)
+
+diff --git a/src/conf/virdomainjob.c b/src/conf/virdomainjob.c
+index 38f08f1d18..2d5a857a8c 100644
+--- a/src/conf/virdomainjob.c
++++ b/src/conf/virdomainjob.c
+@@ -106,6 +106,7 @@ virDomainJobStatusToType(virDomainJobStatus status)
+     case VIR_DOMAIN_JOB_STATUS_HYPERVISOR_COMPLETED:
+     case VIR_DOMAIN_JOB_STATUS_POSTCOPY:
+     case VIR_DOMAIN_JOB_STATUS_POSTCOPY_PAUSED:
++    case VIR_DOMAIN_JOB_STATUS_POSTCOPY_RECOVER:
+     case VIR_DOMAIN_JOB_STATUS_PAUSED:
+         return VIR_DOMAIN_JOB_UNBOUNDED;
+ 
+diff --git a/src/conf/virdomainjob.h b/src/conf/virdomainjob.h
+index 0d62bab287..8b2dccd298 100644
+--- a/src/conf/virdomainjob.h
++++ b/src/conf/virdomainjob.h
+@@ -89,6 +89,7 @@ typedef enum {
+     VIR_DOMAIN_JOB_STATUS_PAUSED,
+     VIR_DOMAIN_JOB_STATUS_POSTCOPY,
+     VIR_DOMAIN_JOB_STATUS_POSTCOPY_PAUSED,
++    VIR_DOMAIN_JOB_STATUS_POSTCOPY_RECOVER,
+     VIR_DOMAIN_JOB_STATUS_COMPLETED,
+     VIR_DOMAIN_JOB_STATUS_FAILED,
+     VIR_DOMAIN_JOB_STATUS_CANCELED,
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index f063695421..c7dedf88b1 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -1873,6 +1873,8 @@ qemuDomainObjPrivateDataClear(qemuDomainObjPrivate *priv)
+     virHashRemoveAll(priv->statsSchema);
+ 
+     g_slist_free_full(g_steal_pointer(&priv->threadContextAliases), g_free);
++
++    priv->migrationRecoverSetup = false;
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index d777559119..604a8ddb6f 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -198,6 +198,10 @@ struct _qemuDomainObjPrivate {
+      * private XML. */
+     virBitmap *migrationCaps;
+ 
++    /* True if QEMU supports "postcopy-recover-setup" migration state. Checked
++     * QEMU enters the state, not to be stored in private XML. */
++    bool migrationRecoverSetup;
++
+     /* true if qemu-pr-helper process is running for the domain */
+     bool prDaemonRunning;
+ 
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 42814834d4..e3df946478 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -11940,6 +11940,7 @@ qemuDomainGetJobInfoMigrationStats(virDomainObj *vm,
+     case VIR_DOMAIN_JOB_STATUS_POSTCOPY:
+     case VIR_DOMAIN_JOB_STATUS_PAUSED:
+     case VIR_DOMAIN_JOB_STATUS_POSTCOPY_PAUSED:
++    case VIR_DOMAIN_JOB_STATUS_POSTCOPY_RECOVER:
+         if (qemuMigrationAnyFetchStats(vm, VIR_ASYNC_JOB_NONE,
+                                        jobData, NULL) < 0)
+             return -1;
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index d67cae56f6..70318e26f3 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -1812,6 +1812,10 @@ qemuMigrationUpdateJobType(virDomainJobData *jobData)
+         jobData->status = VIR_DOMAIN_JOB_STATUS_POSTCOPY;
+         break;
+ 
++    case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
++        jobData->status = VIR_DOMAIN_JOB_STATUS_POSTCOPY_RECOVER;
++        break;
++
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_PAUSED:
+         jobData->status = VIR_DOMAIN_JOB_STATUS_POSTCOPY_PAUSED;
+         break;
+@@ -1953,6 +1957,7 @@ qemuMigrationJobCheckStatus(virDomainObj *vm,
+     case VIR_DOMAIN_JOB_STATUS_MIGRATING:
+     case VIR_DOMAIN_JOB_STATUS_HYPERVISOR_COMPLETED:
+     case VIR_DOMAIN_JOB_STATUS_POSTCOPY:
++    case VIR_DOMAIN_JOB_STATUS_POSTCOPY_RECOVER:
+     case VIR_DOMAIN_JOB_STATUS_PAUSED:
+         break;
+     }
+@@ -2038,6 +2043,7 @@ qemuMigrationAnyCompleted(virDomainObj *vm,
+     case VIR_DOMAIN_JOB_STATUS_MIGRATING:
+     case VIR_DOMAIN_JOB_STATUS_POSTCOPY:
+     case VIR_DOMAIN_JOB_STATUS_PAUSED:
++    case VIR_DOMAIN_JOB_STATUS_POSTCOPY_RECOVER:
+         /* The migration was aborted by us rather than QEMU itself. */
+         jobData->status = VIR_DOMAIN_JOB_STATUS_FAILED;
+         return -2;
+@@ -4686,6 +4692,7 @@ qemuMigrationSrcIsCanceled(virDomainObj *vm)
+ 
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY:
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER:
++    case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_PAUSED:
+     case QEMU_MONITOR_MIGRATION_STATUS_PRE_SWITCHOVER:
+     case QEMU_MONITOR_MIGRATION_STATUS_DEVICE:
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index b1c0c6a064..7f65c23748 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -152,6 +152,7 @@ VIR_ENUM_IMPL(qemuMonitorMigrationStatus,
+               "postcopy-active",
+               "postcopy-paused",
+               "postcopy-recover",
++              "postcopy-recover-setup",
+               "completed",
+               "failed",
+               "cancelling",
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 8dde3f9fff..70b230ec5b 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -762,6 +762,7 @@ typedef enum {
+     QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY,
+     QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_PAUSED,
+     QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER,
++    QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP,
+     QEMU_MONITOR_MIGRATION_STATUS_COMPLETED,
+     QEMU_MONITOR_MIGRATION_STATUS_ERROR,
+     QEMU_MONITOR_MIGRATION_STATUS_CANCELLING,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 89ea33a3ab..b052d2c712 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -2968,6 +2968,7 @@ qemuMonitorJSONGetMigrationStatsReply(virJSONValue *reply,
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY:
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_PAUSED:
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER:
++    case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
+     case QEMU_MONITOR_MIGRATION_STATUS_COMPLETED:
+     case QEMU_MONITOR_MIGRATION_STATUS_CANCELLING:
+     case QEMU_MONITOR_MIGRATION_STATUS_PRE_SWITCHOVER:
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index bea42d38c6..d23c3f98c7 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -1500,6 +1500,10 @@ qemuProcessHandleMigrationStatus(qemuMonitor *mon G_GNUC_UNUSED,
+         }
+         break;
+ 
++    case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
++        priv->migrationRecoverSetup = true;
++        break;
++
+     case QEMU_MONITOR_MIGRATION_STATUS_POSTCOPY_RECOVER:
+         if (virDomainObjIsFailedPostcopy(vm, vm->job)) {
+             int eventType = -1;
+-- 
+2.47.0

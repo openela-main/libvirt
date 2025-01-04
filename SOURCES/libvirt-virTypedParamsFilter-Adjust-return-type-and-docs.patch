@@ -1,0 +1,90 @@
+From 9f029a7ab4e387abda2c43fd685fe66f3fc5eac9 Mon Sep 17 00:00:00 2001
+Message-ID: <9f029a7ab4e387abda2c43fd685fe66f3fc5eac9.1729611061.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 27 Sep 2024 10:55:00 +0200
+Subject: [PATCH] virTypedParamsFilter: Adjust return type and docs
+
+The 'virTypedParamsFilter' function can't fail and thus it never returns
+negative values. Change the return type to 'size_t' and adjust callers
+to not check the return value for being negative.
+
+Adjust the docs to hilight this and also the fact that the filtered
+typed param list returned via @ret is not a deep copy and thus callers
+must not use the common function to free it.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 933ab93e8f7bb7779717305b602ef5d08cd72bed)
+
+https://issues.redhat.com/browse/RHEL-61177
+---
+ src/util/virtypedparam.c | 19 ++++++++++---------
+ src/util/virtypedparam.h |  2 +-
+ 2 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/util/virtypedparam.c b/src/util/virtypedparam.c
+index 1be249d855..634385aa97 100644
+--- a/src/util/virtypedparam.c
++++ b/src/util/virtypedparam.c
+@@ -394,18 +394,22 @@ virTypedParamsCopy(virTypedParameterPtr *dst,
+  * @ret: pointer to the returned array
+  *
+  * Filters @params retaining only the parameters named @name in the
+- * resulting array @ret. Caller should free the @ret array but not
+- * the items since they are pointing to the @params elements.
++ * resulting array @ret.
+  *
+- * Returns amount of elements in @ret on success, -1 on error.
++ * Important Caller should free the @ret array but not the items since they are
++ * pointing to the @params elements. I.e. callers must not use
++ * 'virTypedParamsFree' or equivalent on pointer returned via @ret.
++ *
++ * Returns amount of elements in @ret.
+  */
+-int
++size_t
+ virTypedParamsFilter(virTypedParameterPtr params,
+                      int nparams,
+                      const char *name,
+                      virTypedParameterPtr **ret)
+ {
+-    size_t i, n = 0;
++    size_t i;
++    size_t n = 0;
+ 
+     *ret = g_new0(virTypedParameterPtr, nparams);
+ 
+@@ -443,7 +447,7 @@ virTypedParamsGetStringList(virTypedParameterPtr params,
+                             const char ***values)
+ {
+     size_t i, n;
+-    int nfiltered;
++    size_t nfiltered;
+     virTypedParameterPtr *filtered = NULL;
+ 
+     virCheckNonNullArgGoto(values, error);
+@@ -451,9 +455,6 @@ virTypedParamsGetStringList(virTypedParameterPtr params,
+ 
+     nfiltered = virTypedParamsFilter(params, nparams, name, &filtered);
+ 
+-    if (nfiltered < 0)
+-        goto error;
+-
+     if (nfiltered)
+         *values = g_new0(const char *, nfiltered);
+ 
+diff --git a/src/util/virtypedparam.h b/src/util/virtypedparam.h
+index 7454ef3ce0..afd923aacb 100644
+--- a/src/util/virtypedparam.h
++++ b/src/util/virtypedparam.h
+@@ -81,7 +81,7 @@ virTypedParamsGetStringList(virTypedParameterPtr params,
+                             int nparams,
+                             const char *name,
+                             const char ***values);
+-int
++size_t
+ virTypedParamsFilter(virTypedParameterPtr params,
+                      int nparams,
+                      const char *name,
+-- 
+2.47.0

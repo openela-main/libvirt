@@ -1,0 +1,62 @@
+From 6346bcf6e574b46defaf24baac185c32bc41ba30 Mon Sep 17 00:00:00 2001
+Message-ID: <6346bcf6e574b46defaf24baac185c32bc41ba30.1729611062.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 10 Oct 2024 08:42:20 +0200
+Subject: [PATCH] docs: Add warning about using a cleared image with
+ VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES_ZEROES
+
+The migration parameter causes zero detection to be enabled and zero
+blocks are *not* transferred to the destination. This means that users
+must provide pre-cleared images that read all zero, otherwise the
+non-zero blocks on destination which reside in places where the source
+has zero blocks would be kept intact corrupting the image.
+
+As not transferring and overwriting the zero blocks is what the feature
+is supposed to do the users need to provide the proper environment.
+
+Document the requirement, both in API and in the virsh man page for the
+'--migrate-disks-detect-zeroes' option.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 332ee4931a84ec23e7f6fcb963083318c1307dc7)
+
+https://issues.redhat.com/browse/RHEL-61177
+---
+ docs/manpages/virsh.rst          | 4 +++-
+ include/libvirt/libvirt-domain.h | 5 ++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 87de338644..bb1b2e5cc4 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -3425,7 +3425,9 @@ transfer via the comma separated ``disk-list`` argument.
+ The *--migrate-disks-detect-zeroes* option which takes a comma separated list of
+ disk target names enables zeroed block detection for the listed migrated disks.
+ These blocks are not transferred or allocated on destination, effectively
+-sparsifying the disk at the cost of CPU overhead.
++sparsifying the disk at the cost of CPU overhead. Users must ensure that any
++pre-created storage source is cleared and thus reads all-zeroes before using
++this option as otherwise the destination image may become corrupted.
+ With *--copy-storage-synchronous-writes* flag used the disk data migration will
+ synchronously handle guest disk writes to both the original source and the
+ destination to ensure that the disk migration converges at the price of possibly
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index a6afacbc22..c83dc299e7 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -1245,7 +1245,10 @@ typedef enum {
+  *
+  * virDomainMigrate* params multiple field: The multiple values that list
+  * the block devices for which zero detection (to avoid transferring zero blocks)
+- * is to be enabled. This may increase CPU overhead of the migration. At the
++ * is to be enabled. Users must ensure that any pre-created storage source on
++ * the destination will be cleared and thus read all-zeroes before using this
++ * feature, otherwise the destination image may become corrupted.
++ * This may increase CPU overhead of the migration. At the
+  * moment this is only supported by the QEMU driver but not for the tunnelled
+  * migration.
+  *
+-- 
+2.47.0

@@ -1,0 +1,123 @@
+From 74c6eb6abe8757124ab7a694f8559b9f58deeab7 Mon Sep 17 00:00:00 2001
+Message-ID: <74c6eb6abe8757124ab7a694f8559b9f58deeab7.1729611061.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 27 Sep 2024 13:56:06 +0200
+Subject: [PATCH] qemu: migration: Avoid use of 'nmigration_disks'
+
+'migration_disks' is a NULL-terminated string list, so the code can be
+converted to either iterate the string-list, use existing accessors or
+check the presence of the pointers instead of checking the count.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 4ebf1acb83161bf567c37f7c972f408b24cf8784)
+
+https://issues.redhat.com/browse/RHEL-61177
+---
+ src/qemu/qemu_migration.c | 48 +++++++++++++++++++--------------------
+ 1 file changed, 23 insertions(+), 25 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 60e2cad712..0d9bb7aeef 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -382,18 +382,12 @@ qemuMigrationDstPrecreateDisk(virConnectPtr *conn,
+ 
+ static bool
+ qemuMigrationAnyCopyDisk(virDomainDiskDef const *disk,
+-                         size_t nmigrate_disks, const char **migrate_disks)
++                         size_t nmigrate_disks G_GNUC_UNUSED,
++                         const char **migrate_disks)
+ {
+-    size_t i;
+-
+-    /* Check if the disk alias is in the list */
+-    if (nmigrate_disks) {
+-        for (i = 0; i < nmigrate_disks; i++) {
+-            if (STREQ(disk->dst, migrate_disks[i]))
+-                return true;
+-        }
+-        return false;
+-    }
++    /* List of disks to migrate takes priority if present */
++    if (migrate_disks)
++        return g_strv_contains(migrate_disks, disk->dst);
+ 
+     /* Default is to migrate only non-shared non-readonly disks
+      * with source */
+@@ -2649,19 +2643,20 @@ qemuMigrationSrcBeginPhase(virQEMUDriver *driver,
+             return NULL;
+         }
+ 
+-        if (nmigrate_disks) {
+-            size_t i, j;
++        if (migrate_disks) {
++            size_t j;
++            const char **d;
++
+             /* Check user requested only known disk targets. */
+-            for (i = 0; i < nmigrate_disks; i++) {
++            for (d = migrate_disks; *d; d++) {
+                 for (j = 0; j < vm->def->ndisks; j++) {
+-                    if (STREQ(vm->def->disks[j]->dst, migrate_disks[i]))
++                    if (STREQ(vm->def->disks[j]->dst, *d))
+                         break;
+                 }
+ 
+                 if (j == vm->def->ndisks) {
+                     virReportError(VIR_ERR_INVALID_ARG,
+-                                   _("disk target %1$s not found"),
+-                                   migrate_disks[i]);
++                                   _("disk target %1$s not found"), *d);
+                     return NULL;
+                 }
+             }
+@@ -2674,7 +2669,7 @@ qemuMigrationSrcBeginPhase(virQEMUDriver *driver,
+                                                      nmigrate_disks))
+             cookieFlags |= QEMU_MIGRATION_COOKIE_NBD;
+     } else {
+-        if (nmigrate_disks > 0) {
++        if (migrate_disks) {
+             virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
+                            _("use of 'VIR_MIGRATE_PARAM_MIGRATE_DISKS' requires use of 'VIR_MIGRATE_NON_SHARED_DISK' or 'VIR_MIGRATE_NON_SHARED_INC' flag"));
+             return NULL;
+@@ -5536,7 +5531,6 @@ qemuMigrationSrcPerformPeer2Peer3(virQEMUDriver *driver,
+     virTypedParameterPtr params = NULL;
+     int nparams = 0;
+     int maxparams = 0;
+-    size_t i;
+     bool offline = !!(flags & VIR_MIGRATE_OFFLINE);
+ 
+     VIR_DEBUG("driver=%p, sconn=%p, dconn=%p, dconnuri=%s, vm=%p, xmlin=%s, "
+@@ -5595,11 +5589,15 @@ qemuMigrationSrcPerformPeer2Peer3(virQEMUDriver *driver,
+                                     VIR_MIGRATE_PARAM_LISTEN_ADDRESS,
+                                     listenAddress) < 0)
+             goto cleanup;
+-        for (i = 0; i < nmigrate_disks; i++)
+-            if (virTypedParamsAddString(&params, &nparams, &maxparams,
+-                                        VIR_MIGRATE_PARAM_MIGRATE_DISKS,
+-                                        migrate_disks[i]) < 0)
+-                goto cleanup;
++        if (migrate_disks) {
++            const char **d;
++
++            for (d = migrate_disks; *d; d++)
++                if (virTypedParamsAddString(&params, &nparams, &maxparams,
++                                            VIR_MIGRATE_PARAM_MIGRATE_DISKS,
++                                            *d) < 0)
++                    goto cleanup;
++        }
+         if (nbdPort &&
+             virTypedParamsAddInt(&params, &nparams, &maxparams,
+                                  VIR_MIGRATE_PARAM_DISKS_PORT,
+@@ -5990,7 +5988,7 @@ qemuMigrationSrcPerformPeer2Peer(virQEMUDriver *driver,
+ 
+     /* Only xmlin, dname, uri, and bandwidth parameters can be used with
+      * old-style APIs. */
+-    if (!useParams && (graphicsuri || listenAddress || nmigrate_disks)) {
++    if (!useParams && (graphicsuri || listenAddress || migrate_disks)) {
+         virReportError(VIR_ERR_ARGUMENT_UNSUPPORTED, "%s",
+                        _("Migration APIs with extensible parameters are not supported but extended parameters were passed"));
+         goto cleanup;
+-- 
+2.47.0

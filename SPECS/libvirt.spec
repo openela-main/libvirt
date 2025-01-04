@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.5.0
-Release: 7%{?dist}%{?extra_release}
+Release: 7.2%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -315,6 +315,25 @@ Patch15: libvirt-udevListInterfaces-Honour-array-length-for-zero-length-NULL-arr
 Patch16: libvirt-qemu-Refactor-default-panic-model.patch
 Patch17: libvirt-qemu-Sometimes-the-default-panic-model-doesn-t-exist.patch
 Patch18: libvirt-qemu-Use-pvpanic-by-default-on-aarch64.patch
+Patch19: libvirt-qemu-migration-Pre-create-QCOW2-images-for-non-shared-storage-with-0-allocation.patch
+Patch20: libvirt-virTypedParamsFilter-Adjust-return-type-and-docs.patch
+Patch21: libvirt-virTypedParamsGetStringList-Refactor-and-adjust-docs.patch
+Patch22: libvirt-virTypedParamsFilter-Introduce-option-to-filter-also-by-type.patch
+Patch23: libvirt-virTypedParamsGetStringList-Ensure-that-returned-array-is-NULL-if-there-are-no-matching-fields.patch
+Patch24: libvirt-virTypedParamsGetStringList-Ensure-that-returned-string-list-is-NULL-terminated.patch
+Patch25: libvirt-qemuMigrationSrcBeginPhaseBlockDirtyBitmaps-Use-qemuMigrationAnyCopyDisk.patch
+Patch26: libvirt-qemu-migration-Don-t-log-nmigrate_disks.patch
+Patch27: libvirt-qemu-migration-Avoid-use-of-nmigration_disks.patch
+Patch28: libvirt-qemu-migration-Extract-validation-of-disk-target-list.patch
+Patch29: libvirt-qemu-migration-Remove-nmigration_disks-variable-from-all-places.patch
+Patch30: libvirt-qemu-Introduce-and-wire-in-VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES.patch
+Patch31: libvirt-virsh-Add-support-for-VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES-migration-parameter.patch
+Patch32: libvirt-qemu-migration-Fix-blockdev-config-with-VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES.patch
+Patch33: libvirt-docs-Add-warning-about-using-a-cleared-image-with-VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES_ZEROES.patch
+Patch34: libvirt-util-Look-for-newer-name-of-cpu-wait-time-statistic.patch
+Patch35: libvirt-vmx-Allow-to-appear-in-VMX-file-keys.patch
+Patch36: libvirt-qemu-Add-support-for-postcopy-recover-setup-migration-state.patch
+Patch37: libvirt-qemu-Avoid-false-failure-when-resuming-post-copy-migration.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2643,6 +2662,29 @@ exit 0
 %endif
 
 %changelog
+* Mon Nov  4 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.2.el9_5
+- qemu: Add support for postcopy-recover-setup migration state (RHEL-63877)
+- qemu: Avoid false failure when resuming post-copy migration (RHEL-63877)
+
+* Tue Oct 22 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.1.el9_5
+- qemu: migration: Pre-create QCOW2 images for non-shared storage with 0 allocation (RHEL-61177)
+- virTypedParamsFilter: Adjust return type and docs (RHEL-61177)
+- virTypedParamsGetStringList: Refactor and adjust docs (RHEL-61177)
+- virTypedParamsFilter: Introduce option to filter also by type (RHEL-61177)
+- virTypedParamsGetStringList: Ensure that returned array is NULL if there are no matching fields (RHEL-61177)
+- virTypedParamsGetStringList: Ensure that returned string list is NULL-terminated (RHEL-61177)
+- qemuMigrationSrcBeginPhaseBlockDirtyBitmaps: Use qemuMigrationAnyCopyDisk() (RHEL-61177)
+- qemu: migration: Don't log 'nmigrate_disks' (RHEL-61177)
+- qemu: migration: Avoid use of 'nmigration_disks' (RHEL-61177)
+- qemu: migration: Extract validation of disk target list (RHEL-61177)
+- qemu: migration: Remove 'nmigration_disks' variable from all places (RHEL-61177)
+- qemu: Introduce and wire in 'VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES' (RHEL-61177)
+- virsh: Add support for VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES migration parameter (RHEL-61177)
+- qemu: migration: Fix blockdev config with VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES (RHEL-61177)
+- docs: Add warning about using a cleared image with VIR_MIGRATE_PARAM_MIGRATE_DISKS_DETECT_ZEROES_ZEROES (RHEL-61177)
+- util: Look for newer name of cpu wait time statistic (RHEL-61511)
+- vmx: Allow '*' to appear in VMX file keys (RHEL-58677)
+
 * Fri Sep  6 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7
 - qemu: Refactor default panic model (RHEL-56451)
 - qemu: Sometimes the default panic model doesn't exist (RHEL-56451)
