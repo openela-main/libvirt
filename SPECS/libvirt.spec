@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.5.0
-Release: 7.2%{?dist}%{?extra_release}
+Release: 7.4%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -334,6 +334,11 @@ Patch34: libvirt-util-Look-for-newer-name-of-cpu-wait-time-statistic.patch
 Patch35: libvirt-vmx-Allow-to-appear-in-VMX-file-keys.patch
 Patch36: libvirt-qemu-Add-support-for-postcopy-recover-setup-migration-state.patch
 Patch37: libvirt-qemu-Avoid-false-failure-when-resuming-post-copy-migration.patch
+Patch38: libvirt-libvirt_private.syms-Export-virDomainIOMMUDefNew.patch
+Patch39: libvirt-qemu-Turn-EIM-IOMMU-on-automagically.patch
+Patch40: libvirt-qemu_domain-Automagically-add-IOMMU-if-needed.patch
+Patch41: libvirt-qemu-Enable-I-O-APIC-if-needed.patch
+Patch42: libvirt-qemu-Enable-I-O-APIC-even-more-frequently.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2662,6 +2667,15 @@ exit 0
 %endif
 
 %changelog
+* Fri Dec 20 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.4.el9_5
+- qemu: Enable I/O APIC if needed (RHEL-69725)
+- qemu: Enable I/O APIC even more frequently (RHEL-69725)
+
+* Thu Dec  5 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.3.el9_5
+- libvirt_private.syms: Export virDomainIOMMUDefNew() (RHEL-69725)
+- qemu: Turn EIM IOMMU on automagically (RHEL-69725)
+- qemu_domain: Automagically add IOMMU if needed (RHEL-69725)
+
 * Mon Nov  4 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.2.el9_5
 - qemu: Add support for postcopy-recover-setup migration state (RHEL-63877)
 - qemu: Avoid false failure when resuming post-copy migration (RHEL-63877)

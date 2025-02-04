@@ -1,0 +1,67 @@
+From 053ae17ed2d2428410413b7bd5c583cd68cb1396 Mon Sep 17 00:00:00 2001
+Message-ID: <053ae17ed2d2428410413b7bd5c583cd68cb1396.1734705550.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 12 Dec 2024 10:02:43 +0100
+Subject: [PATCH] qemu: Enable I/O APIC if needed
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is a follow up of my previous commits. If the number of
+vCPUs exceeds some arbitrary value (255) then QEMU requires IOMMU
+with EIM and intremap enabled. But in turn, intremap IOMMU
+requires split I/O APIC (per virDomainDefIOMMUValidate()). Since
+after my previous commits (e.g. v10.10.0-rc1~183) IOMMU is added
+automagically, the I/O APIC can be also enabled automagically.
+
+Relates to: https://issues.redhat.com/browse/RHEL-65844
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 2d222ecf6e73614a400b830ac56e9aaa1bc55ecc)
+
+https://issues.redhat.com/browse/RHEL-69725
+
+Conflicts:
+src/qemu/qemu_postparse.c: In the downstream, postparse still
+lives in qemu_domain.c because v10.10.0-rc1~144 isn't backported.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_domain.c                            | 7 +++++++
+ tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml | 3 ---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 16fcdefbf0..1ca1c6ceac 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -4532,6 +4532,13 @@ qemuDomainDefEnableDefaultFeatures(virDomainDef *def,
+          * capabilities, we still want to enable this */
+         def->features[VIR_DOMAIN_FEATURE_GIC] = VIR_TRISTATE_SWITCH_ON;
+     }
++
++    /* IOMMU with intremap requires split I/O APIC */
++    if (def->iommu &&
++        def->iommu->intremap == VIR_TRISTATE_SWITCH_ON &&
++        def->features[VIR_DOMAIN_FEATURE_IOAPIC] == VIR_DOMAIN_IOAPIC_NONE) {
++        def->features[VIR_DOMAIN_FEATURE_IOAPIC] = VIR_DOMAIN_IOAPIC_QEMU;
++    }
+ }
+ 
+ 
+diff --git a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+index fa3aaf0d44..5abc40e566 100644
+--- a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
++++ b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+@@ -8,9 +8,6 @@
+     <type arch='x86_64' machine='q35'>hvm</type>
+     <boot dev='hd'/>
+   </os>
+-  <features>
+-    <ioapic driver='qemu'/>
+-  </features>
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+   </cpu>
+-- 
+2.47.1

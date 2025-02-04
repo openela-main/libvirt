@@ -1,0 +1,265 @@
+From f945c27315df56d44e76d6c66f8b87dc0d29e38e Mon Sep 17 00:00:00 2001
+Message-ID: <f945c27315df56d44e76d6c66f8b87dc0d29e38e.1733398772.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 6 Nov 2024 12:34:42 +0100
+Subject: [PATCH] qemu: Turn EIM IOMMU on automagically
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If a Q35 domain has huge number of vCPUS (over 255, currently), then
+it needs IOMMU with Extended Interrupt Mode enabled (see check in
+qemuValidateDomainVCpuTopology()).
+
+Well, we already add some devices and to other tricks when
+parsing new domain XML. Might as well turn the EIM on for IOMMU
+device.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit b15047ff2690428fefea80a455a5e8a17767e162)
+Resolves: https://issues.redhat.com/browse/RHEL-69725
+
+Conflicts:
+src/qemu/qemu_domain.c: Context, since v10.6.0~12 is not
+backported.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_domain.c                        | 37 ++++++++++++++++++-
+ src/qemu/qemu_validate.c                      |  1 -
+ src/qemu/qemu_validate.h                      |  2 +
+ ...-eim-autoadd.x86_64-latest.abi-update.args | 34 +++++++++++++++++
+ ...u-eim-autoadd.x86_64-latest.abi-update.xml | 37 +++++++++++++++++++
+ .../intel-iommu-eim-autoadd.xml               | 35 ++++++++++++++++++
+ tests/qemuxmlconftest.c                       |  1 +
+ 7 files changed, 145 insertions(+), 2 deletions(-)
+ create mode 100644 tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.args
+ create mode 100644 tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.xml
+ create mode 100644 tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index c7dedf88b1..97e7ca5139 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -6332,6 +6332,37 @@ qemuDomainMemoryDefPostParse(virDomainMemoryDef *mem, virArch arch,
+ }
+ 
+ 
++static int
++qemuDomainIOMMUDefPostParse(virDomainIOMMUDef *iommu,
++                            const virDomainDef *def,
++                            virQEMUCaps *qemuCaps,
++                            unsigned int parseFlags)
++{
++    /* In case domain has huge number of vCPUS and Extended Interrupt Mode
++     * (EIM) is not explicitly turned off, let's enable it. If we didn't then
++     * guest will have troubles with interrupts. */
++    if (parseFlags & VIR_DOMAIN_DEF_PARSE_ABI_UPDATE &&
++        ARCH_IS_X86(def->os.arch) &&
++        virDomainDefGetVcpusMax(def) > QEMU_MAX_VCPUS_WITHOUT_EIM &&
++        qemuDomainIsQ35(def) &&
++        iommu && iommu->model == VIR_DOMAIN_IOMMU_MODEL_INTEL) {
++
++        /* eim requires intremap. */
++        if (iommu->intremap == VIR_TRISTATE_SWITCH_ABSENT &&
++            virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_INTREMAP)) {
++            iommu->intremap = VIR_TRISTATE_SWITCH_ON;
++        }
++
++        if (iommu->eim == VIR_TRISTATE_SWITCH_ABSENT &&
++            virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_EIM)) {
++            iommu->eim = VIR_TRISTATE_SWITCH_ON;
++        }
++    }
++
++    return 0;
++}
++
++
+ static int
+ qemuDomainDeviceDefPostParse(virDomainDeviceDef *dev,
+                              const virDomainDef *def,
+@@ -6393,6 +6424,11 @@ qemuDomainDeviceDefPostParse(virDomainDeviceDef *dev,
+                                            parseFlags);
+         break;
+ 
++    case VIR_DOMAIN_DEVICE_IOMMU:
++        ret = qemuDomainIOMMUDefPostParse(dev->data.iommu, def,
++                                          qemuCaps, parseFlags);
++        break;
++
+     case VIR_DOMAIN_DEVICE_LEASE:
+     case VIR_DOMAIN_DEVICE_FS:
+     case VIR_DOMAIN_DEVICE_INPUT:
+@@ -6405,7 +6441,6 @@ qemuDomainDeviceDefPostParse(virDomainDeviceDef *dev,
+     case VIR_DOMAIN_DEVICE_MEMBALLOON:
+     case VIR_DOMAIN_DEVICE_NVRAM:
+     case VIR_DOMAIN_DEVICE_RNG:
+-    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_AUDIO:
+     case VIR_DOMAIN_DEVICE_CRYPTO:
+         ret = 0;
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index f3d512acf7..02fd224a49 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -31,7 +31,6 @@
+ #include "virutil.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_QEMU
+-#define QEMU_MAX_VCPUS_WITHOUT_EIM 255
+ 
+ VIR_LOG_INIT("qemu.qemu_validate");
+ 
+diff --git a/src/qemu/qemu_validate.h b/src/qemu/qemu_validate.h
+index e06a43b8e3..9315be73f5 100644
+--- a/src/qemu/qemu_validate.h
++++ b/src/qemu/qemu_validate.h
+@@ -22,6 +22,8 @@
+ 
+ #include "qemu_capabilities.h"
+ 
++#define QEMU_MAX_VCPUS_WITHOUT_EIM 255
++
+ int
+ qemuValidateDomainDef(const virDomainDef *def,
+                       void *opaque,
+diff --git a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.args b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.args
+new file mode 100644
+index 0000000000..07fa1191b7
+--- /dev/null
++++ b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.args
+@@ -0,0 +1,34 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1 \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
++/usr/bin/qemu-system-x86_64 \
++-name guest=QEMUGuest1,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
++-machine q35,usb=off,kernel_irqchip=split,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
++-accel kvm \
++-cpu qemu64 \
++-m size=219136k \
++-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
++-overcommit mem-lock=off \
++-smp 288,sockets=288,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-device '{"driver":"intel-iommu","id":"iommu0","intremap":"on","eim":"on"}' \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-global ICH9-LPC.noreboot=off \
++-watchdog-action reset \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.xml b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.xml
+new file mode 100644
+index 0000000000..1caa0ceb60
+--- /dev/null
++++ b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.x86_64-latest.abi-update.xml
+@@ -0,0 +1,37 @@
++<domain type='kvm'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>288</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <features>
++    <ioapic driver='qemu'/>
++  </features>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu64</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='usb' index='0' model='none'/>
++    <controller type='sata' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
++    </controller>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <audio id='1' type='none'/>
++    <watchdog model='itco' action='reset'/>
++    <memballoon model='none'/>
++    <iommu model='intel'>
++      <driver intremap='on' eim='on'/>
++    </iommu>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+new file mode 100644
+index 0000000000..7c294fe2f9
+--- /dev/null
++++ b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+@@ -0,0 +1,35 @@
++<domain type='kvm'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>288</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <features>
++    <ioapic driver='qemu'/>
++  </features>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu64</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='usb' index='0' model='none'/>
++    <controller type='sata' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
++    </controller>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <audio id='1' type='none'/>
++    <watchdog model='itco' action='reset'/>
++    <memballoon model='none'/>
++    <iommu model='intel'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index 338462193b..79a5c1c1e1 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -2772,6 +2772,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("intel-iommu-device-iotlb");
+     DO_TEST_CAPS_LATEST("intel-iommu-aw-bits");
+     DO_TEST_CAPS_LATEST_PARSE_ERROR("intel-iommu-wrong-machine");
++    DO_TEST_CAPS_LATEST_ABI_UPDATE("intel-iommu-eim-autoadd");
+     DO_TEST_CAPS_ARCH_LATEST("iommu-smmuv3", "aarch64");
+     DO_TEST_CAPS_LATEST("virtio-iommu-x86_64");
+     DO_TEST_CAPS_VER_PARSE_ERROR("virtio-iommu-x86_64", "6.1.0");
+-- 
+2.47.0

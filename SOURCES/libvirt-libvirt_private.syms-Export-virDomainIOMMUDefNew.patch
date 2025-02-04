@@ -1,0 +1,32 @@
+From d0cbc2e55ad6669dd1011b421d70411f47ef68d4 Mon Sep 17 00:00:00 2001
+Message-ID: <d0cbc2e55ad6669dd1011b421d70411f47ef68d4.1733398772.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 6 Nov 2024 12:59:02 +0100
+Subject: [PATCH] libvirt_private.syms: Export virDomainIOMMUDefNew()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit a9797d7c433c84d1d8287a3708ed54e4bcb6727c)
+Resolves: https://issues.redhat.com/browse/RHEL-69725
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/libvirt_private.syms | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index f7a0a8bc36..09c3e2a354 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -489,6 +489,7 @@ virDomainInputSourceGrabTypeFromString;
+ virDomainInputSourceGrabTypeToString;
+ virDomainInputTypeToString;
+ virDomainIOMMUDefFree;
++virDomainIOMMUDefNew;
+ virDomainIOMMUModelTypeFromString;
+ virDomainIOMMUModelTypeToString;
+ virDomainIOThreadIDAdd;
+-- 
+2.47.0

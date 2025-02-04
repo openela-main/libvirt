@@ -1,0 +1,86 @@
+From 21a5e5cd2a5c8030453eed7ad3e84d244429d403 Mon Sep 17 00:00:00 2001
+Message-ID: <21a5e5cd2a5c8030453eed7ad3e84d244429d403.1733398772.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 6 Nov 2024 12:57:21 +0100
+Subject: [PATCH] qemu_domain: Automagically add IOMMU if needed
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If a Q35 domain has huge number of vCPUS (over 255, currently), then
+it needs IOMMU with Extended Interrupt Mode enabled (see check in
+qemuValidateDomainVCpuTopology()).
+
+Well, we already add some devices and to other tricks when
+parsing new domain XML. Might as well add IOMMU device if above
+condition is met.
+
+Resolves: https://issues.redhat.com/browse/RHEL-65844
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 844d1036eb734b6c80397a0c69f491645c682313)
+Resolves: https://issues.redhat.com/browse/RHEL-69725
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_domain.c                        | 20 +++++++++++++++++++
+ .../intel-iommu-eim-autoadd.xml               |  1 -
+ 2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 97e7ca5139..16fcdefbf0 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -4176,6 +4176,7 @@ qemuDomainDefAddDefaultDevices(virQEMUDriver *driver,
+     bool addDefaultUSBMouse = false;
+     bool addPanicDevice = false;
+     bool addITCOWatchdog = false;
++    bool addIOMMU = false;
+ 
+     /* add implicit input devices */
+     if (qemuDomainDefAddImplicitInputDevice(def) < 0)
+@@ -4198,6 +4199,10 @@ qemuDomainDefAddDefaultDevices(virQEMUDriver *driver,
+             addImplicitSATA = true;
+             addITCOWatchdog = true;
+ 
++            if (virDomainDefGetVcpusMax(def) > QEMU_MAX_VCPUS_WITHOUT_EIM) {
++                addIOMMU = true;
++            }
++
+             /* Prefer adding a USB3 controller if supported, fall back
+              * to USB2 if there is no USB3 available, and if that's
+              * unavailable don't add anything.
+@@ -4444,6 +4449,21 @@ qemuDomainDefAddDefaultDevices(virQEMUDriver *driver,
+         }
+     }
+ 
++    if (addIOMMU && !def->iommu &&
++        virQEMUCapsGet(qemuCaps, QEMU_CAPS_DEVICE_INTEL_IOMMU) &&
++        virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_INTREMAP) &&
++        virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_EIM)) {
++        g_autoptr(virDomainIOMMUDef) iommu = NULL;
++
++        iommu = virDomainIOMMUDefNew();
++        iommu->model = VIR_DOMAIN_IOMMU_MODEL_INTEL;
++        /* eim requires intremap. */
++        iommu->intremap = VIR_TRISTATE_SWITCH_ON;
++        iommu->eim = VIR_TRISTATE_SWITCH_ON;
++
++        def->iommu = g_steal_pointer(&iommu);
++    }
++
+     if (qemuDomainDefAddDefaultAudioBackend(driver, def) < 0)
+         return -1;
+ 
+diff --git a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+index 7c294fe2f9..fa3aaf0d44 100644
+--- a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
++++ b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd.xml
+@@ -30,6 +30,5 @@
+     <audio id='1' type='none'/>
+     <watchdog model='itco' action='reset'/>
+     <memballoon model='none'/>
+-    <iommu model='intel'/>
+   </devices>
+ </domain>
+-- 
+2.47.0
