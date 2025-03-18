@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.5.0
-Release: 7.4%{?dist}%{?extra_release}
+Release: 7.5%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -339,6 +339,7 @@ Patch39: libvirt-qemu-Turn-EIM-IOMMU-on-automagically.patch
 Patch40: libvirt-qemu_domain-Automagically-add-IOMMU-if-needed.patch
 Patch41: libvirt-qemu-Enable-I-O-APIC-if-needed.patch
 Patch42: libvirt-qemu-Enable-I-O-APIC-even-more-frequently.patch
+Patch43: libvirt-qemu-snapshot-delete-disk-image-only-if-parent-snapshot-is-external.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2667,6 +2668,9 @@ exit 0
 %endif
 
 %changelog
+* Tue Jan 21 2025 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.5.el9_5
+- qemu: snapshot: delete disk image only if parent snapshot is external (RHEL-75154)
+
 * Fri Dec 20 2024 Jiri Denemark <jdenemar@redhat.com> - 10.5.0-7.4.el9_5
 - qemu: Enable I/O APIC if needed (RHEL-69725)
 - qemu: Enable I/O APIC even more frequently (RHEL-69725)
