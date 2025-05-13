@@ -1,0 +1,110 @@
+From c6e5688293b765885e8b76c35ad47bc316de81aa Mon Sep 17 00:00:00 2001
+Message-ID: <c6e5688293b765885e8b76c35ad47bc316de81aa.1744361503.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 4 Apr 2025 19:38:28 -0400
+Subject: [PATCH] qemu: put vhost-user code that's special for passt in a
+ helper function
+
+Rather than duplicating these two lines of chr device object setup for
+hotplug and domain start, put them in a helper function that's called
+from both places. That way when we need to setup *more* stuff specific
+to passt+vhostuser, we can just add it in that one place.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Tested-by: Stefano Brivio <sbrivio@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 95ff77f2896478e039673bb552affec2c5a5e822)
+
+https://issues.redhat.com/browse/RHEL-84782
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_hotplug.c |  7 +------
+ src/qemu/qemu_passt.c   | 19 +++++++++++++++++++
+ src/qemu/qemu_passt.h   |  3 +++
+ src/qemu/qemu_process.c |  9 ++-------
+ 4 files changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index c8746f5e22..ff09b58bfe 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -1264,12 +1264,7 @@ qemuDomainAttachNetDevice(virQEMUDriver *driver,
+ 
+         if (net->backend.type == VIR_DOMAIN_NET_BACKEND_PASST) {
+ 
+-            /* vhostuser needs socket path in this location, and when
+-             * backend is passt, the path is derived from other info,
+-             * not taken from config.
+-             */
+-            g_free(net->data.vhostuser->data.nix.path);
+-            net->data.vhostuser->data.nix.path = qemuPasstCreateSocketPath(vm, net);
++            qemuPasstPrepareVhostUser(vm, net);
+ 
+             if (qemuPasstStart(vm, net) < 0)
+                 goto cleanup;
+diff --git a/src/qemu/qemu_passt.c b/src/qemu/qemu_passt.c
+index b9616d1c63..bc495eca1e 100644
+--- a/src/qemu/qemu_passt.c
++++ b/src/qemu/qemu_passt.c
+@@ -165,6 +165,25 @@ qemuPasstSetupCgroup(virDomainObj *vm,
+ }
+ 
+ 
++void
++qemuPasstPrepareVhostUser(virDomainObj *vm,
++                          virDomainNetDef *net)
++{
++    /* There are some options on the QEMU commandline for a vhost-user
++     * chr device that are normally configurable, but when it is passt
++     * speaking to the vhost-user device those things are
++     * derived/fixed. This function, which is called prior to
++     * generating the QEMU commandline, sets thos derived/fixed things
++     * in the chr device object.
++     */
++
++    /* The socket path is not user-configurable for passt - it is
++     * derived from other info
++     */
++    g_free(net->data.vhostuser->data.nix.path);
++    net->data.vhostuser->data.nix.path = qemuPasstCreateSocketPath(vm, net);
++}
++
+ int
+ qemuPasstStart(virDomainObj *vm,
+                virDomainNetDef *net)
+diff --git a/src/qemu/qemu_passt.h b/src/qemu/qemu_passt.h
+index e0b9aaac8d..ea545ccf38 100644
+--- a/src/qemu/qemu_passt.h
++++ b/src/qemu/qemu_passt.h
+@@ -37,5 +37,8 @@ int qemuPasstSetupCgroup(virDomainObj *vm,
+                          virDomainNetDef *net,
+                          virCgroup *cgroup);
+ 
++void qemuPasstPrepareVhostUser(virDomainObj *vm,
++                               virDomainNetDef *net);
++
+ char *qemuPasstCreateSocketPath(virDomainObj *vm,
+                                 virDomainNetDef *net);
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index f5c277203f..c80d7bb6dc 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5952,13 +5952,8 @@ qemuProcessPrepareDomainNetwork(virDomainObj *vm)
+ 
+         case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
+             if (net->backend.type == VIR_DOMAIN_NET_BACKEND_PASST) {
+-                /* when using the passt backend, the path of the
+-                 * unix socket is always derived from other info
+-                 * *not* manually given in the config, but all the
+-                 * vhostuser code looks for it there.
+-                 */
+-                g_free(net->data.vhostuser->data.nix.path);
+-                net->data.vhostuser->data.nix.path = qemuPasstCreateSocketPath(vm, net);
++                /* some extra setup of internal data for passt vhostuser mode */
++                qemuPasstPrepareVhostUser(vm, net);
+             }
+             break;
+ 
+-- 
+2.49.0

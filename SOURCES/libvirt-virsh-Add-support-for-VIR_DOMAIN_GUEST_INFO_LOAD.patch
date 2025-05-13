@@ -1,0 +1,71 @@
+From f2b3e5bf2ae55e028125e545a1fe9565e2bc86f9 Mon Sep 17 00:00:00 2001
+Message-ID: <f2b3e5bf2ae55e028125e545a1fe9565e2bc86f9.1745925135.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Feb 2025 15:22:35 +0100
+Subject: [PATCH] virsh: Add support for VIR_DOMAIN_GUEST_INFO_LOAD
+
+Resolves: https://issues.redhat.com/browse/RHEL-71883
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 71e75ce09203aa2489803426ae368d1693ee925b)
+
+https://issues.redhat.com/browse/RHEL-88449
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/manpages/virsh.rst | 8 +++++++-
+ tools/virsh-domain.c    | 6 ++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 2e525d3fac..77798af7d3 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -2912,7 +2912,7 @@ Success is always reported in this case.
+ 
+ You can limit the types of information that are returned by specifying one or
+ more flags.  Available information types flags are *--user*, *--os*,
+-*--timezone*, *--hostname*, *--filesystem*, *--disk* and *--interface*.
++*--timezone*, *--hostname*, *--filesystem*, *--disk*, *--interface* and *--load*.
+ If an explicitly requested information type is not supported by the guest agent
+ at that point, the processes will provide an exit code of 1.
+ 
+@@ -2991,6 +2991,12 @@ returned:
+ * ``if.<num>.addr.<num1>.addr`` - the IP address of addr <num1>
+ * ``if.<num>.addr.<num1>.prefix`` - the prefix of IP address of addr <num1>
+ 
++*--load* returns:
++* ``load.1m``  - average load in guest for last 1 minute
++* ``load.5m``  - average load in guest for last 5 minutes
++* ``load.15m`` - average load in guest for last 15 minutes
++
++
+ guestvcpus
+ ----------
+ 
+diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
+index e4923284af..0f30a65fd9 100644
+--- a/tools/virsh-domain.c
++++ b/tools/virsh-domain.c
+@@ -13066,6 +13066,10 @@ static const vshCmdOptDef opts_guestinfo[] = {
+      .type = VSH_OT_BOOL,
+      .help = N_("report interface information"),
+     },
++    {.name = "load",
++     .type = VSH_OT_BOOL,
++     .help = N_("report load averages information"),
++    },
+     {.name = NULL}
+ };
+ 
+@@ -13093,6 +13097,8 @@ cmdGuestInfo(vshControl *ctl, const vshCmd *cmd)
+         types |= VIR_DOMAIN_GUEST_INFO_DISKS;
+     if (vshCommandOptBool(cmd, "interface"))
+         types |= VIR_DOMAIN_GUEST_INFO_INTERFACES;
++    if (vshCommandOptBool(cmd, "load"))
++        types |= VIR_DOMAIN_GUEST_INFO_LOAD;
+ 
+     if (!(dom = virshCommandOptDomain(ctl, cmd, NULL)))
+         return false;
+-- 
+2.49.0

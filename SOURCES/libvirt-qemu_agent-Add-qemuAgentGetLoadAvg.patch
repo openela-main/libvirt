@@ -1,0 +1,163 @@
+From 4e04c0a27ced260053815b2348474ef7226aabb7 Mon Sep 17 00:00:00 2001
+Message-ID: <4e04c0a27ced260053815b2348474ef7226aabb7.1745925135.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Feb 2025 15:23:07 +0100
+Subject: [PATCH] qemu_agent: Add qemuAgentGetLoadAvg()
+
+With qemu guest agent 9.3 we are able to get the load averages with a
+new command.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 1669d91eade46b930ebb44e4b9d398ea8c2064e7)
+
+https://issues.redhat.com/browse/RHEL-88449
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_agent.c | 46 +++++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_agent.h |  6 +++++
+ tests/qemuagenttest.c | 53 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 105 insertions(+)
+
+diff --git a/src/qemu/qemu_agent.c b/src/qemu/qemu_agent.c
+index 43fca86f10..16a6eaa998 100644
+--- a/src/qemu/qemu_agent.c
++++ b/src/qemu/qemu_agent.c
+@@ -2568,3 +2568,49 @@ int qemuAgentGetDisks(qemuAgent *agent,
+     g_free(*disks);
+     return -1;
+ }
++
++
++int
++qemuAgentGetLoadAvg(qemuAgent *agent,
++                    double *load1m,
++                    double *load5m,
++                    double *load15m,
++                    bool report_unsupported)
++{
++    g_autoptr(virJSONValue) cmd = NULL;
++    g_autoptr(virJSONValue) reply = NULL;
++    virJSONValue *data = NULL;
++    int rc;
++
++    if (!(cmd = qemuAgentMakeCommand("guest-get-load", NULL)))
++        return -1;
++
++    if ((rc = qemuAgentCommandFull(agent, cmd, &reply, agent->timeout,
++                                   report_unsupported)) < 0)
++        return rc;
++
++    if (!(data = virJSONValueObjectGetObject(reply, "return"))) {
++        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                       _("qemu agent didn't return an array of loads"));
++        return -1;
++    }
++
++#define GET_NUMBER_PARAM(param_) \
++    do { \
++        if (param_ && \
++            virJSONValueObjectGetNumberDouble(data, #param_, param_) < 0) { \
++            virReportError(VIR_ERR_INTERNAL_ERROR, \
++                           _("parameter '%1$s' is missing in reply of guest-get-load"), \
++                           #param_); \
++            return -1; \
++        } \
++    } while (0)
++
++    GET_NUMBER_PARAM(load1m);
++    GET_NUMBER_PARAM(load5m);
++    GET_NUMBER_PARAM(load15m);
++
++#undef GET_NUMBER_PARAM
++
++    return 0;
++}
+diff --git a/src/qemu/qemu_agent.h b/src/qemu/qemu_agent.h
+index f98586e8f8..cd17a98d39 100644
+--- a/src/qemu/qemu_agent.h
++++ b/src/qemu/qemu_agent.h
+@@ -195,3 +195,9 @@ int qemuAgentSSHRemoveAuthorizedKeys(qemuAgent *agent,
+ int qemuAgentGetDisks(qemuAgent *mon,
+                       qemuAgentDiskInfo ***disks,
+                       bool report_unsupported);
++
++int qemuAgentGetLoadAvg(qemuAgent *agent,
++                        double *load1m,
++                        double *load5m,
++                        double *load15m,
++                        bool report_unsupported);
+diff --git a/tests/qemuagenttest.c b/tests/qemuagenttest.c
+index 3287880241..566571cf11 100644
+--- a/tests/qemuagenttest.c
++++ b/tests/qemuagenttest.c
+@@ -1356,6 +1356,58 @@ testQemuAgentTimezone(const void *data)
+     virTypedParamsFree(params, nparams);
+     return ret;
+ }
++
++
++static const char testQemuAgentGetLoadAvgResponse[] =
++    "{"
++    "  \"return\": {"
++    "    \"load15m\": 0.03564453125,"
++    "    \"load5m\": 0.064453125,"
++    "    \"load1m\": 0.00390625"
++    "  }"
++    "}";
++
++static int
++testQemuAgentGetLoadAvg(const void *data)
++{
++    virDomainXMLOption *xmlopt = (virDomainXMLOption *)data;
++    g_autoptr(qemuMonitorTest) test = qemuMonitorTestNewAgent(xmlopt);
++    double load1m = 0;
++    double load5m = 0;
++    double load15m = 0;
++
++    if (!test)
++        return -1;
++
++    if (qemuMonitorTestAddAgentSyncResponse(test) < 0)
++        return -1;
++
++    if (qemuMonitorTestAddItem(test, "guest-get-load",
++                               testQemuAgentGetLoadAvgResponse) < 0)
++        return -1;
++
++    if (qemuAgentGetLoadAvg(qemuMonitorTestGetAgent(test),
++                            &load1m, &load5m, &load15m, true) < 0)
++        return -1;
++
++#define VALIDATE_LOAD(value_, expected_) \
++    do { \
++        if (value_ != expected_) { \
++            virReportError(VIR_ERR_INTERNAL_ERROR, \
++                           "Expected " #value_ " '%.11f', got '%.11f'", \
++                           expected_, value_); \
++            return -1; \
++        } \
++    } while (0)
++
++    VALIDATE_LOAD(load1m, 0.00390625);
++    VALIDATE_LOAD(load5m, 0.064453125);
++    VALIDATE_LOAD(load15m, 0.03564453125);
++
++    return 0;
++}
++
++
+ static int
+ mymain(void)
+ {
+@@ -1392,6 +1444,7 @@ mymain(void)
+     DO_TEST(Timezone);
+     DO_TEST(SSHKeys);
+     DO_TEST(GetDisks);
++    DO_TEST(GetLoadAvg);
+ 
+     DO_TEST(Timeout); /* Timeout should always be called last */
+ 
+-- 
+2.49.0

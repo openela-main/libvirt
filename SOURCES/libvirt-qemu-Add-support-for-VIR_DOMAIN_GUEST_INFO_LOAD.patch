@@ -1,0 +1,72 @@
+From 816ce9100cbc410706fde26763158640f6d06f44 Mon Sep 17 00:00:00 2001
+Message-ID: <816ce9100cbc410706fde26763158640f6d06f44.1745925135.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Feb 2025 15:36:32 +0100
+Subject: [PATCH] qemu: Add support for VIR_DOMAIN_GUEST_INFO_LOAD
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit b4cf9c8cba45e65551aa9440dea2c3757a96aa0c)
+
+https://issues.redhat.com/browse/RHEL-88449
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_driver.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index d65fc542d1..3e194999fe 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -19288,7 +19288,8 @@ static const unsigned int qemuDomainGetGuestInfoSupportedTypes =
+     VIR_DOMAIN_GUEST_INFO_HOSTNAME |
+     VIR_DOMAIN_GUEST_INFO_FILESYSTEM |
+     VIR_DOMAIN_GUEST_INFO_DISKS |
+-    VIR_DOMAIN_GUEST_INFO_INTERFACES;
++    VIR_DOMAIN_GUEST_INFO_INTERFACES |
++    VIR_DOMAIN_GUEST_INFO_LOAD;
+ 
+ static int
+ qemuDomainGetGuestInfoCheckSupport(unsigned int types,
+@@ -19575,6 +19576,10 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+     qemuAgentDiskInfo **agentdiskinfo = NULL;
+     virDomainInterfacePtr *ifaces = NULL;
+     size_t nifaces = 0;
++    double load1m = 0;
++    double load5m = 0;
++    double load15m = 0;
++    bool format_load = false;
+     size_t i;
+ 
+     virCheckFlags(0, -1);
+@@ -19645,6 +19650,14 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+             nifaces = rc;
+     }
+ 
++    if (supportedTypes & VIR_DOMAIN_GUEST_INFO_LOAD) {
++        rc = qemuAgentGetLoadAvg(agent, &load1m, &load5m, &load15m, report_unsupported);
++        if (rc == -1)
++            goto exitagent;
++        if (rc >= 0)
++            format_load = true;
++    }
++
+     qemuDomainObjExitAgent(vm, agent);
+     virDomainObjEndAgentJob(vm);
+ 
+@@ -19671,6 +19684,12 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+         virDomainInterfaceFormatParams(ifaces, nifaces, params, nparams, &maxparams);
+     }
+ 
++    if (format_load) {
++        virTypedParamsAddDouble(params, nparams, &maxparams, "load.1m", load1m);
++        virTypedParamsAddDouble(params, nparams, &maxparams, "load.5m", load5m);
++        virTypedParamsAddDouble(params, nparams, &maxparams, "load.15m", load15m);
++    }
++
+     ret = 0;
+ 
+  cleanup:
+-- 
+2.49.0

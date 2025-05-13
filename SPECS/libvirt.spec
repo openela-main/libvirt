@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 7.1%{?dist}%{?extra_release}
+Release: 7.3%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -381,6 +381,22 @@ Patch81: libvirt-docs-improve-type-user-docs-to-higlight-differences-between-SLI
 Patch82: libvirt-docs-document-using-passt-backend-with-interface-type-vhostuser.patch
 Patch83: libvirt-utils-Canonicalize-paths-before-comparing-them.patch
 Patch84: libvirt-remote-add-sysusers-file-to-create-libvirt-group.patch
+Patch85: libvirt-util-introduce-object-for-holding-a-system-inhibitor-lock.patch
+Patch86: libvirt-src-convert-drivers-over-to-new-virInhibitor-APIs.patch
+Patch87: libvirt-rpc-remove-logind-support-for-virNetDaemon.patch
+Patch88: libvirt-util-fix-off-by-1-in-inhibitor-constants.patch
+Patch89: libvirt-util-don-t-attempt-to-acquire-logind-inhibitor-if-not-requested.patch
+Patch90: libvirt-network-Free-inhibitor-in-networkStateCleanup.patch
+Patch91: libvirt-conf-parse-interface-source-dev-for-all-interface-types-with-backend-type-passt.patch
+Patch92: libvirt-qemu-remove-nonsensical-sanity-check-in-processNetdevStreamDisconnectedEvent.patch
+Patch93: libvirt-qemu-make-processNetDevStreamDisconnectedEvent-reusable.patch
+Patch94: libvirt-qemu-respond-to-NETDEV_VHOST_USER_DISCONNECTED-event.patch
+Patch95: libvirt-qemu-put-vhost-user-code-that-s-special-for-passt-in-a-helper-function.patch
+Patch96: libvirt-qemu-make-passt-vhostuser-reconnect-behave-identically-to-passt-user.patch
+Patch97: libvirt-Add-load-average-information-type-into-virDomainGetGuestInfo.patch
+Patch98: libvirt-qemu_agent-Add-qemuAgentGetLoadAvg.patch
+Patch99: libvirt-qemu-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
+Patch100: libvirt-virsh-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2706,6 +2722,26 @@ exit 0
 %endif
 
 %changelog
+* Tue Apr 29 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.3.el9_6
+- Add load average information type into virDomainGetGuestInfo (RHEL-88449)
+- qemu_agent: Add qemuAgentGetLoadAvg() (RHEL-88449)
+- qemu: Add support for VIR_DOMAIN_GUEST_INFO_LOAD (RHEL-88449)
+- virsh: Add support for VIR_DOMAIN_GUEST_INFO_LOAD (RHEL-88449)
+
+* Fri Apr 11 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.2.el9_6
+- util: introduce object for holding a system inhibitor lock (RHEL-83076)
+- src: convert drivers over to new virInhibitor APIs (RHEL-83076)
+- rpc: remove logind support for virNetDaemon (RHEL-83076)
+- util: fix off-by-1 in inhibitor constants (RHEL-83076)
+- util: don't attempt to acquire logind inhibitor if not requested (RHEL-83076)
+- network: Free inhibitor in networkStateCleanup() (RHEL-83076)
+- conf: parse interface/source/@dev for all interface types (with backend type='passt') (RHEL-84689)
+- qemu: remove nonsensical sanity check in processNetdevStreamDisconnectedEvent() (RHEL-84782)
+- qemu: make processNetDevStreamDisconnectedEvent() reusable (RHEL-84782)
+- qemu: respond to NETDEV_VHOST_USER_DISCONNECTED event (RHEL-84782)
+- qemu: put vhost-user code that's special for passt in a helper function (RHEL-84782)
+- qemu: make passt+vhostuser reconnect behave identically to passt+user (RHEL-84782)
+
 * Fri Mar  7 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.1.el9_6
 - remote: add sysusers file to create 'libvirt' group (RHEL-81740)
 

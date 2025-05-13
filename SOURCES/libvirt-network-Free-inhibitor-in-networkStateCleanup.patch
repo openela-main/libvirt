@@ -1,0 +1,44 @@
+From 8e64dac6129cacd8f53813cbc7580209e96e7dc3 Mon Sep 17 00:00:00 2001
+Message-ID: <8e64dac6129cacd8f53813cbc7580209e96e7dc3.1744361503.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 13 Mar 2025 13:01:19 +0100
+Subject: [PATCH] network: Free inhibitor in networkStateCleanup()
+
+The shutdown inhibitor is created in networkStateInitialize() but
+corresponding call to virInhibitorFree() is missing in
+networkStateCleanup() leading to a memleak:
+
+116 (72 direct, 44 indirect) bytes in 1 blocks are definitely lost in loss record 1,769 of 1,998
+   at 0x484CEF3: calloc (vg_replace_malloc.c:1675)
+   by 0x4F0E7A9: g_malloc0 (in /usr/lib64/libglib-2.0.so.0.8000.5)
+   by 0x4993B9B: virInhibitorNew (virinhibitor.c:152)
+   by 0x5279394: networkStateInitialize (bridge_driver.c:654)
+   by 0x4CC74DC: virStateInitialize (libvirt.c:665)
+   by 0x15B719: daemonRunStateInit (remote_daemon.c:613)
+   by 0x49F2B44: virThreadHelper (virthread.c:256)
+   by 0x5356662: start_thread (in /usr/lib64/libc.so.6)
+   by 0x53D7DA3: clone (in /usr/lib64/libc.so.6)
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 8701ba4feb528109da8b72fa48a8ada50a235807)
+Resolves: https://issues.redhat.com/browse/RHEL-83076
+---
+ src/network/bridge_driver.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/network/bridge_driver.c b/src/network/bridge_driver.c
+index ce793c12ef..adcff6f34f 100644
+--- a/src/network/bridge_driver.c
++++ b/src/network/bridge_driver.c
+@@ -802,6 +802,8 @@ networkStateCleanup(void)
+                           network_driver->lockFD);
+     }
+ 
++    virInhibitorFree(network_driver->inhibitor);
++
+     virObjectUnref(network_driver->config);
+     virObjectUnref(network_driver->dnsmasqCaps);
+ 
+-- 
+2.49.0

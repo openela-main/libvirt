@@ -1,0 +1,56 @@
+From f6d606779aaedc8a6d958a2e97b462df390cb0a5 Mon Sep 17 00:00:00 2001
+Message-ID: <f6d606779aaedc8a6d958a2e97b462df390cb0a5.1744361503.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 4 Apr 2025 16:48:23 -0400
+Subject: [PATCH] qemu: remove nonsensical sanity check in
+ processNetdevStreamDisconnectedEvent()
+
+By definition QEMU will never send a NETDEV_STREAM_DISCONNECTED event
+if it doesn't support the reconnect option for a stream netdev. And
+even if, by some comedy of errors, it did send
+NETDEV_STREAM_DISCONNECTED in that case, our response to the event
+doesn't request anything at all of QEMU (much less something that
+would fail if QEMU didn't understand NETDEV_STREAM_DISCONNECTED) - it
+just starts a new passt process to replace the one that has been
+terminated, so we don't need to check the QEMU capabilities for
+QEMU_CAPS_NETDEV_STREAM_RECONNECT.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Tested-by: Stefano Brivio <sbrivio@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 51a54dc1c4ecf37d60acee1cb94252e51c5ef627)
+
+https://issues.redhat.com/browse/RHEL-84782
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_driver.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index f8f3d2c725..53dcd690f0 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -3623,7 +3623,6 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,
+ {
+     virDomainDeviceDef dev;
+     virDomainNetDef *def;
+-    virQEMUCaps *qemuCaps = QEMU_DOMAIN_PRIVATE(vm)->qemuCaps;
+     const char *devAlias = STRSKIP(netdevId, "host");
+ 
+     /* The event sends us the "netdev-id", but we don't store the
+@@ -3669,12 +3668,6 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,
+         goto endjob;
+     }
+ 
+-    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_NETDEV_STREAM_RECONNECT)) {
+-        VIR_WARN("ignore NETDEV_STREAM_DISCONNECTED event for passt network device %s in domain %s - QEMU binary does not support reconnect",
+-                  def->info.alias, vm->def->name);
+-        goto endjob;
+-    }
+-
+     /* handle the event - restart the passt process with its original
+      * parameters
+      */
+-- 
+2.49.0

@@ -1,0 +1,53 @@
+From 514588d016d1e105f987d821331a578a34ccdf49 Mon Sep 17 00:00:00 2001
+Message-ID: <514588d016d1e105f987d821331a578a34ccdf49.1745925135.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Feb 2025 15:36:03 +0100
+Subject: [PATCH] Add load average information type into virDomainGetGuestInfo
+
+The public API part.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit c52c449fd40c7263896d5f17129207b815c3a09c)
+
+https://issues.redhat.com/browse/RHEL-88449
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ include/libvirt/libvirt-domain.h | 1 +
+ src/libvirt-domain.c             | 8 ++++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index f026ce197c..c04b696f03 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -6425,6 +6425,7 @@ typedef enum {
+     VIR_DOMAIN_GUEST_INFO_FILESYSTEM = (1 << 4), /* return filesystem information (Since: 5.7.0) */
+     VIR_DOMAIN_GUEST_INFO_DISKS = (1 << 5), /* return disks information (Since: 7.0.0) */
+     VIR_DOMAIN_GUEST_INFO_INTERFACES = (1 << 6), /* return interfaces information (Since: 7.10.0) */
++    VIR_DOMAIN_GUEST_INFO_LOAD = (1 << 7), /* return load averages (Since: 11.2.0) */
+ } virDomainGuestInfoTypes;
+ 
+ int virDomainGetGuestInfo(virDomainPtr domain,
+diff --git a/src/libvirt-domain.c b/src/libvirt-domain.c
+index 7c6b93963c..24752a9888 100644
+--- a/src/libvirt-domain.c
++++ b/src/libvirt-domain.c
+@@ -13292,6 +13292,14 @@ virDomainSetVcpu(virDomainPtr domain,
+  *      "if.<num>.addr.<num1>.addr" - the IP address of addr <num1>
+  *      "if.<num>.addr.<num1>.prefix" - the prefix of IP address of addr <num1>
+  *
++ * VIR_DOMAIN_GUEST_INFO_LOAD:
++ *  Returns load (the number of processes in the runqueue or waiting for disk
++ *  I/O) as double values:
++ *
++ *      "load.1m" - load averaged over 1 minute
++ *      "load.5m" - load averaged over 5 minutes
++ *      "load.15m" - load averaged over 15 minutes
++ *
+  * Using 0 for @types returns all information groups supported by the given
+  * hypervisor.
+  *
+-- 
+2.49.0
