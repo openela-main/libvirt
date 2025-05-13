@@ -1,0 +1,160 @@
+From 662a2be65c232cf811e3b7618bb51a32c3c74ad6 Mon Sep 17 00:00:00 2001
+Message-ID: <662a2be65c232cf811e3b7618bb51a32c3c74ad6.1739824249.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 10 Feb 2025 17:51:31 +0100
+Subject: [PATCH] qemu: monitor: Add monitor backend for 'blockdev-set-active'
+
+The command will be used to re-activate block nodes after migration when
+we're leaving the VM paused so that blockjobs can be used.
+
+As the 'node-name' field is optional the 'qemumonitorjsontest' case
+tests both variants.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit d8f9cfb5e45111da0bd39f334f0643c0ab22ef49)
+
+https://issues.redhat.com/browse/RHEL-79095
+---
+ src/qemu/qemu_monitor.c      | 21 +++++++++++++++++++++
+ src/qemu/qemu_monitor.h      |  5 +++++
+ src/qemu/qemu_monitor_json.c | 21 +++++++++++++++++++++
+ src/qemu/qemu_monitor_json.h |  5 +++++
+ tests/qemumonitorjsontest.c  | 31 +++++++++++++++++++++++++++++++
+ 5 files changed, 83 insertions(+)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 79ff4e2e87..82aa1cbc5f 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -4555,3 +4555,24 @@ qemuMonitorDisplayReload(qemuMonitor *mon,
+ 
+     return qemuMonitorJSONDisplayReload(mon, type, tlsCerts);
+ }
++
++
++/**
++ * qemuMonitorBlockdevSetActive:
++ * @mon: monitor object
++ * @nodename: optional nodename to (de)activate
++ * @active: requested state
++ *
++ * Activate or deactivate @nodename based on @active. If @nodename is NULL,
++ * qemu will act on all block nodes.
++ */
++int
++qemuMonitorBlockdevSetActive(qemuMonitor *mon,
++                             const char *nodename,
++                             bool active)
++{
++    QEMU_CHECK_MONITOR(mon);
++    VIR_DEBUG("nodename='%s', active='%d'", NULLSTR(nodename), active);
++
++    return qemuMonitorJSONBlockdevSetActive(mon, nodename, active);
++}
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index a4818a6aa1..672cd6487e 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -1650,3 +1650,8 @@ qemuMonitorSnapshotDelete(qemuMonitor *mon,
+                           const char *jobname,
+                           const char *snapshotname,
+                           const char **disks);
++
++int
++qemuMonitorBlockdevSetActive(qemuMonitor *mon,
++                             const char *nodename,
++                             bool active);
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 53648dea8b..6f9f495888 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -8831,3 +8831,24 @@ qemuMonitorJSONSnapshotDelete(qemuMonitor *mon,
+ 
+     return qemuMonitorJSONCheckError(cmd, reply);
+ }
++
++
++int
++qemuMonitorJSONBlockdevSetActive(qemuMonitor *mon,
++                                 const char *nodename,
++                                 bool active)
++{
++    g_autoptr(virJSONValue) cmd = NULL;
++    g_autoptr(virJSONValue) reply = NULL;
++
++    if (!(cmd = qemuMonitorJSONMakeCommand("blockdev-set-active",
++                                           "S:node-name", nodename,
++                                           "b:active", active,
++                                           NULL)))
++        return -1;
++
++    if (qemuMonitorJSONCommand(mon, cmd, &reply) < 0)
++        return -1;
++
++    return qemuMonitorJSONCheckError(cmd, reply);
++}
+diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
+index 0214e9e9ff..68f60aec61 100644
+--- a/src/qemu/qemu_monitor_json.h
++++ b/src/qemu/qemu_monitor_json.h
+@@ -816,3 +816,8 @@ qemuMonitorJSONSnapshotDelete(qemuMonitor *mon,
+                               const char *jobname,
+                               const char *snapshotname,
+                               const char **disks);
++
++int
++qemuMonitorJSONBlockdevSetActive(qemuMonitor *mon,
++                                 const char *nodename,
++                                 bool active);
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index f7fe0fb6f4..f0f6a329c8 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -1249,6 +1249,36 @@ testQemuMonitorJSONqemuMonitorJSONSnapshot(const void *opaque)
+ }
+ 
+ 
++static int
++testQemuMonitorJSONqemuMonitorJSONBlockdevSetActive(const void *opaque)
++{
++    const testGenericData *data = opaque;
++    virDomainXMLOption *xmlopt = data->xmlopt;
++    g_autoptr(qemuMonitorTest) test = NULL;
++
++    if (!(test = qemuMonitorTestNewSchema(xmlopt, data->schema)))
++        return -1;
++
++    if (qemuMonitorTestAddItem(test, "blockdev-set-active",
++                               "{\"return\":{}}") < 0)
++        return -1;
++
++    if (qemuMonitorTestAddItem(test, "blockdev-set-active",
++                               "{\"return\":{}}") < 0)
++        return -1;
++
++    if (qemuMonitorJSONBlockdevSetActive(qemuMonitorTestGetMonitor(test),
++                                         NULL, true) < 0)
++        return -1;
++
++    if (qemuMonitorJSONBlockdevSetActive(qemuMonitorTestGetMonitor(test),
++                                         "testnode", false) < 0)
++        return -1;
++
++    return 0;
++}
++
++
+ static bool
+ testQemuMonitorJSONqemuMonitorJSONQueryCPUsEqual(struct qemuMonitorQueryCpusEntry *a,
+                                                  struct qemuMonitorQueryCpusEntry *b)
+@@ -2989,6 +3019,7 @@ mymain(void)
+     DO_TEST(qemuMonitorJSONSendKeyHoldtime);
+     DO_TEST(qemuMonitorJSONNBDServerStart);
+     DO_TEST(qemuMonitorJSONSnapshot);
++    DO_TEST(qemuMonitorJSONBlockdevSetActive);
+ 
+     DO_TEST_CPU_DATA("host");
+     DO_TEST_CPU_DATA("full");
+-- 
+2.48.1

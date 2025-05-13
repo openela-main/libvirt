@@ -1,0 +1,37 @@
+From c417e164d2b225ea401093e33a853d827d8bd8ca Mon Sep 17 00:00:00 2001
+Message-ID: <c417e164d2b225ea401093e33a853d827d8bd8ca.1738940191.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 28 Jan 2025 14:06:16 +0100
+Subject: [PATCH] libxlDomainGetMessages: Add existing flags to 'virCheckFlags'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The two VIR_DOMAIN_MESSAGE_* flags were not listed in the virCheckFlags
+check in 'libxl' but were present in 'test' and 'qemu' driver impls.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 042ea8630b1b35ce6d325df52fefa84bad94d027)
+
+https://issues.redhat.com/browse/RHEL-77884
+---
+ src/libxl/libxl_driver.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index e72553603d..26d22550ae 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -6575,7 +6575,8 @@ libxlDomainGetMessages(virDomainPtr dom,
+     virDomainObj *vm = NULL;
+     int ret = -1;
+ 
+-    virCheckFlags(0, -1);
++    virCheckFlags(VIR_DOMAIN_MESSAGE_DEPRECATION |
++                  VIR_DOMAIN_MESSAGE_TAINTING, -1);
+ 
+     if (!(vm = libxlDomObjFromDomain(dom)))
+         return -1;
+-- 
+2.48.1

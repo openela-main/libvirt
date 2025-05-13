@@ -1,0 +1,658 @@
+From e901d5338199da24fa6a96410b1369df2ce13d5a Mon Sep 17 00:00:00 2001
+Message-ID: <e901d5338199da24fa6a96410b1369df2ce13d5a.1734433246.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:34:21 +0100
+Subject: [PATCH] cpu_map: Add qemu32-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit d9b23d77c0165a3a1cbea6b6bf953ae49547b60d)
+
+https://issues.redhat.com/browse/RHEL-70052
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                              | 1 +
+ src/cpu_map/meson.build                            | 1 +
+ src/cpu_map/x86_qemu32-v1.xml                      | 6 ++++++
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml         | 3 ++-
+ 43 files changed, 88 insertions(+), 40 deletions(-)
+ create mode 100644 src/cpu_map/x86_qemu32-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index eb847341da..0fe2a513ca 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -26,6 +26,7 @@
+ 
+     <group name='Generic QEMU CPU models'>
+       <include filename='x86_qemu32.xml'/>
++      <include filename='x86_qemu32-v1.xml'/>
+       <include filename='x86_kvm32.xml'/>
+       <include filename='x86_cpu64-rhel5.xml'/>
+       <include filename='x86_cpu64-rhel6.xml'/>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index b179fb442c..61c5e403f9 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -121,6 +121,7 @@ cpumap_data = [
+   'x86_pentium3.xml',
+   'x86_pentiumpro.xml',
+   'x86_phenom.xml',
++  'x86_qemu32-v1.xml',
+   'x86_qemu32.xml',
+   'x86_qemu64.xml',
+   'x86_SandyBridge-IBRS.xml',
+diff --git a/src/cpu_map/x86_qemu32-v1.xml b/src/cpu_map/x86_qemu32-v1.xml
+new file mode 100644
+index 0000000000..904c3c6461
+--- /dev/null
++++ b/src/cpu_map/x86_qemu32-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='qemu32-v1'>
++    <decode host='on' guest='off'/>
++    <model name='qemu32'/>
++  </model>
++</cpus>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index d4853706b3..90a947b72a 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -816,7 +816,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index 03c88241c8..a1d2982897 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -1430,7 +1430,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 75592e124e..1c6e65a408 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -815,7 +815,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index de38e87010..bafaee4dc5 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -838,7 +838,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index 29aa3f9adc..bac7c98eea 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -1520,7 +1520,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 6469251e47..fe78b42ab3 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -837,7 +837,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index 3918fd5101..c4e6cfeb84 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -939,7 +939,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index 5d5b18cfdf..3390d156e5 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -1717,7 +1717,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index 98bcfec2bb..62d5a4bdad 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -938,7 +938,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index ed4a66a4ca..77fa39cf13 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -945,7 +945,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index a748c623bc..ee36631717 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -1732,7 +1732,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index f9a0221e7b..fb66ff6032 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -944,7 +944,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index 6b97ff8ba7..fbbe1f7ed4 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -972,7 +972,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index 2e27e674f2..f5a84c16f7 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -1756,7 +1756,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index 99d8cf9558..d828319061 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -971,7 +971,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index e101305e83..968be6fc31 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -939,7 +939,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index 24f90ed830..d0a03a641c 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -1704,7 +1704,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 0f993e3763..a0492d152e 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -938,7 +938,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index bfea565a00..dfb06177ff 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -944,7 +944,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index 91fc6133e4..90908a78e2 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -1417,7 +1417,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index 91fc6133e4..90908a78e2 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -1417,7 +1417,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index 1e8f10d17f..f3c03fe68b 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -943,7 +943,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index 8dfbc2b21a..27e43a875e 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -1026,7 +1026,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index 6982dc8035..8fc17e9d8a 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -1512,7 +1512,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index a739ec6b73..ccaf3af991 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -1025,7 +1025,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index 4d6e8c8a7f..f77e36d1ea 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -1255,7 +1255,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index 0009fb007d..5e5cf92e53 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -1498,7 +1498,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 74f9fe6dbe..3b53baae7a 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -1254,7 +1254,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index d4d7a9e079..a4faf9112c 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -1256,7 +1256,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index b948f32538..3e7ba22317 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -1465,7 +1465,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index 3e22f5e9b3..a2fbea3b21 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -1255,7 +1255,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index 7a30c27b83..b945327d7a 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -1256,7 +1256,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index ee71c658cb..1c00bbb899 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -1395,7 +1395,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index 8509032a62..c0d45ff56b 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -1255,7 +1255,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index b43b607c39..7d5c0b114d 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -1392,7 +1392,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index b79140038c..915970f0ca 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -1500,7 +1500,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index 509b5a6c33..3703b8b6f4 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -1391,7 +1391,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index 9114ece766..c76d4d112f 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -1392,7 +1392,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index e2e40d7ca2..cf9ef74abe 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -1500,7 +1500,8 @@
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index 4a5a09c488..bb64a26754 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -1391,7 +1391,8 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>qemu32</model>
++      <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
++      <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown'>qemu64</model>
+     </mode>
+   </cpu>
+-- 
+2.47.1

@@ -1,0 +1,658 @@
+From d70b69c794be4bcda17250c0101772bd2ffd2996 Mon Sep 17 00:00:00 2001
+Message-ID: <d70b69c794be4bcda17250c0101772bd2ffd2996.1734433246.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:47:52 +0100
+Subject: [PATCH] cpu_map: Add Opteron_G2-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 51ffa44fb4242bd6c6610271a6c45d2c3672a55d)
+
+https://issues.redhat.com/browse/RHEL-70052
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                              | 1 +
+ src/cpu_map/meson.build                            | 1 +
+ src/cpu_map/x86_Opteron_G2-v1.xml                  | 6 ++++++
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml         | 3 ++-
+ 43 files changed, 88 insertions(+), 40 deletions(-)
+ create mode 100644 src/cpu_map/x86_Opteron_G2-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index 4cf884e778..0070796dee 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -139,6 +139,7 @@
+       <include filename='x86_Opteron_G1.xml'/>
+       <include filename='x86_Opteron_G1-v1.xml'/>
+       <include filename='x86_Opteron_G2.xml'/>
++      <include filename='x86_Opteron_G2-v1.xml'/>
+       <include filename='x86_Opteron_G3.xml'/>
+       <include filename='x86_Opteron_G4.xml'/>
+       <include filename='x86_Opteron_G5.xml'/>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index 8385c89552..fb6494a14a 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -114,6 +114,7 @@ cpumap_data = [
+   'x86_Nehalem.xml',
+   'x86_Opteron_G1-v1.xml',
+   'x86_Opteron_G1.xml',
++  'x86_Opteron_G2-v1.xml',
+   'x86_Opteron_G2.xml',
+   'x86_Opteron_G3.xml',
+   'x86_Opteron_G4.xml',
+diff --git a/src/cpu_map/x86_Opteron_G2-v1.xml b/src/cpu_map/x86_Opteron_G2-v1.xml
+new file mode 100644
+index 0000000000..8f0a05f37c
+--- /dev/null
++++ b/src/cpu_map/x86_Opteron_G2-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='Opteron_G2-v1'>
++    <decode host='on' guest='off'/>
++    <model name='Opteron_G2'/>
++  </model>
++</cpus>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index d12aa0d569..8f0b9b3bff 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -574,7 +574,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index 2aabe77417..b4f2c700f9 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -1069,7 +1069,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 743262e1a0..bd3095fec9 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -573,7 +573,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index b15ba4ebb6..b426bd1e63 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -596,7 +596,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index 38b2861714..d89a9b2c32 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -1159,7 +1159,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 01a0eb2f47..a8773fb4f7 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -595,7 +595,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index ac184c5075..de1f78b335 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -666,7 +666,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index 02b362c722..581afc86a0 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -1299,7 +1299,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index 00b61e4380..53d83980a6 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -665,7 +665,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index dc82ce2aa9..77eab8aa95 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -663,7 +663,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index 1a016f7379..710866e495 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -1296,7 +1296,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index b5389e8a3f..99fe26dc76 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -662,7 +662,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index ccb8bb7f7b..eab56f9a7c 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -690,7 +690,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index e0e53e543d..e5b4cff7c6 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -1325,7 +1325,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index 980c296c18..6ec56068bd 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -689,7 +689,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index 10d31b6007..0e27b3400c 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -657,7 +657,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index e916f523ac..e588593d91 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -1273,7 +1273,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 434fa7bd95..7cb9663805 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -656,7 +656,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index 80497c5125..c66731ceac 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -662,7 +662,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index e67ae9b280..ec61c328c9 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -1050,7 +1050,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index e67ae9b280..ec61c328c9 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -1050,7 +1050,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index e0a1209cea..8fd837d2c4 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -661,7 +661,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index 03c40996e1..2a78fe6926 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -662,7 +662,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index 3d52b5fda0..cb7bb1513c 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -1049,7 +1049,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index 8c84a54239..7c66d893ae 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -661,7 +661,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index dcce5a827f..1d23c25196 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -840,7 +840,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index d086460c7d..768769a4ef 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -1057,7 +1057,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 19ff721d09..95106cfeab 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -839,7 +839,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index c09f4c56bf..5b777b730b 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -841,7 +841,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index 13c2cc5439..0ea4c2cdb8 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -1032,7 +1032,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index bd6c173c04..506b949225 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -840,7 +840,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index f644b1ac5c..d84324eac6 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -841,7 +841,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index 2107e5b7be..cccf48aafb 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -988,7 +988,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index 5cf479694e..05c06c9b25 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -840,7 +840,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index 5c52c08ee7..e295c808d7 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -874,7 +874,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index 1d41d3ef8c..8b338c75be 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -1013,7 +1013,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index dfb6f741c4..6b2c1f15b5 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -873,7 +873,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index c711064a04..ab82a874b1 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -874,7 +874,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index caf86d2c2b..bf20e3d536 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -1013,7 +1013,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='no' vendor='AMD'>Opteron_G3</model>
+       <blockers model='Opteron_G3'>
+         <feature name='misalignsse'/>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index 16a34ed042..d28d4c1f14 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -873,7 +873,8 @@
+       </blockers>
+       <model usable='yes' vendor='AMD' canonical='Opteron_G1-v1'>Opteron_G1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G1-v1</model>
+-      <model usable='yes' vendor='AMD'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD' canonical='Opteron_G2-v1'>Opteron_G2</model>
++      <model usable='yes' vendor='AMD'>Opteron_G2-v1</model>
+       <model usable='yes' vendor='AMD'>Opteron_G3</model>
+       <model usable='no' vendor='AMD'>Opteron_G4</model>
+       <blockers model='Opteron_G4'>
+-- 
+2.47.1

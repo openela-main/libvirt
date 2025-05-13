@@ -1,0 +1,1417 @@
+From b7570f7b0d6c1637c9f49a88a45fa3f4caf29d4e Mon Sep 17 00:00:00 2001
+Message-ID: <b7570f7b0d6c1637c9f49a88a45fa3f4caf29d4e.1734433246.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:42:16 +0100
+Subject: [PATCH] cpu_map: Add KnightsMill-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8f5e36cbce655086009bc906d63adcd50ddf8925)
+
+https://issues.redhat.com/browse/RHEL-70052
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                         |  1 +
+ src/cpu_map/meson.build                       |  1 +
+ src/cpu_map/x86_KnightsMill-v1.xml            |  6 ++++++
+ .../domaincapsdata/qemu_5.2.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_5.2.0-tcg.x86_64.xml  | 20 ++++++++++++++++++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_6.0.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_6.0.0-tcg.x86_64.xml  | 20 ++++++++++++++++++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_6.1.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_6.1.0-tcg.x86_64.xml  | 20 ++++++++++++++++++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_6.2.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_6.2.0-tcg.x86_64.xml  | 20 ++++++++++++++++++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_7.0.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_7.0.0-tcg.x86_64.xml  | 20 ++++++++++++++++++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_7.1.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_7.1.0-tcg.x86_64.xml  | 20 ++++++++++++++++++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_7.2.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../qemu_7.2.0-tcg.x86_64+hvf.xml             | 16 ++++++++++++++-
+ .../domaincapsdata/qemu_7.2.0-tcg.x86_64.xml  | 16 ++++++++++++++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_8.0.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_8.0.0-tcg.x86_64.xml  | 16 ++++++++++++++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_8.1.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_8.1.0-tcg.x86_64.xml  | 14 ++++++++++++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_8.2.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_8.2.0-tcg.x86_64.xml  | 14 ++++++++++++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_9.0.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_9.0.0-tcg.x86_64.xml  | 13 +++++++++++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_9.1.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_9.1.0-tcg.x86_64.xml  | 13 +++++++++++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml    | 14 ++++++++++++-
+ .../domaincapsdata/qemu_9.2.0-q35.x86_64.xml  | 14 ++++++++++++-
+ .../domaincapsdata/qemu_9.2.0-tcg.x86_64.xml  | 13 +++++++++++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml    | 14 ++++++++++++-
+ 43 files changed, 567 insertions(+), 40 deletions(-)
+ create mode 100644 src/cpu_map/x86_KnightsMill-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index 16ebe36539..a0aa677dee 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -128,6 +128,7 @@
+       <include filename='x86_Denverton-v2.xml'/>
+       <include filename='x86_Denverton-v3.xml'/>
+       <include filename='x86_KnightsMill.xml'/>
++      <include filename='x86_KnightsMill-v1.xml'/>
+     </group>
+ 
+     <group name='AMD CPU models'>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index 4d74431c55..70c7d2091b 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -99,6 +99,7 @@ cpumap_data = [
+   'x86_IvyBridge-v1.xml',
+   'x86_IvyBridge-v2.xml',
+   'x86_IvyBridge.xml',
++  'x86_KnightsMill-v1.xml',
+   'x86_KnightsMill.xml',
+   'x86_kvm32-v1.xml',
+   'x86_kvm32.xml',
+diff --git a/src/cpu_map/x86_KnightsMill-v1.xml b/src/cpu_map/x86_KnightsMill-v1.xml
+new file mode 100644
+index 0000000000..00293d05b8
+--- /dev/null
++++ b/src/cpu_map/x86_KnightsMill-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='KnightsMill-v1'>
++    <decode host='on' guest='off'/>
++    <model name='KnightsMill'/>
++  </model>
++</cpus>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index efd8f06104..43e1ca8861 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -538,7 +538,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -550,6 +550,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index beb923a1f3..0718de04f7 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -1021,7 +1021,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx'/>
+@@ -1039,6 +1039,24 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx'/>
++        <feature name='avx2'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='f16c'/>
++        <feature name='fma'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index d9ae5568be..6eb78e68f0 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -537,7 +537,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -549,6 +549,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index 403b9f6674..3b716faf00 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -560,7 +560,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -572,6 +572,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index f2ad35c6cd..bd8c0a086c 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -1111,7 +1111,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx'/>
+@@ -1129,6 +1129,24 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx'/>
++        <feature name='avx2'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='f16c'/>
++        <feature name='fma'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 07570f5b02..b6ec55cf0c 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -559,7 +559,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -571,6 +571,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index 4cf841b3e9..e6615316f7 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -630,7 +630,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -642,6 +642,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index bbb9cfff7f..50d6395d7f 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -1251,7 +1251,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx'/>
+@@ -1269,6 +1269,24 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx'/>
++        <feature name='avx2'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='f16c'/>
++        <feature name='fma'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index 0c615f1802..974346f980 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -629,7 +629,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -641,6 +641,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index e468a90911..812ebd5e0a 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -627,7 +627,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -639,6 +639,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index b46a515864..24f22dd53f 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -1248,7 +1248,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx'/>
+@@ -1266,6 +1266,24 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx'/>
++        <feature name='avx2'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='f16c'/>
++        <feature name='fma'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index d06e67a5e2..9af219d59d 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -626,7 +626,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -638,6 +638,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index a0c47fd84e..439f609233 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -654,7 +654,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -666,6 +666,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index db68047af7..53c114699c 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -1277,7 +1277,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx'/>
+@@ -1295,6 +1295,24 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx'/>
++        <feature name='avx2'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='f16c'/>
++        <feature name='fma'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index 71999ab677..6d91c4ac75 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -653,7 +653,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -665,6 +665,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index 3a2874f08a..d61b339dd9 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -621,7 +621,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -633,6 +633,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index 2416987852..a758fbabc5 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -1225,7 +1225,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx'/>
+@@ -1243,6 +1243,24 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx'/>
++        <feature name='avx2'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='f16c'/>
++        <feature name='fma'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index eda271a1b2..48e8299c23 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -620,7 +620,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -632,6 +632,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index 2b5cfdae87..6a15994158 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -626,7 +626,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -638,6 +638,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index 6a191f3ce8..4d0def8fc7 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -1010,7 +1010,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx512-4fmaps'/>
+@@ -1024,6 +1024,20 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index 6a191f3ce8..4d0def8fc7 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -1010,7 +1010,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx512-4fmaps'/>
+@@ -1024,6 +1024,20 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index 48b4ced22f..ead8df9815 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -625,7 +625,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -637,6 +637,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index ec1fea19fc..1936c89c70 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -626,7 +626,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -638,6 +638,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index 049bef7aa6..d72b0c93d3 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -1009,7 +1009,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='3dnowprefetch'/>
+         <feature name='avx512-4fmaps'/>
+@@ -1023,6 +1023,20 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='3dnowprefetch'/>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='rdseed'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index 206a3a86a2..4adb6402ae 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -625,7 +625,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -637,6 +637,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index 34fbc59118..c9f53064ff 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -804,7 +804,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -816,6 +816,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index 2a836cbc21..b2e2c3264b 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -1021,7 +1021,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -1033,6 +1033,18 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 3380b8a9aa..c630356571 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -803,7 +803,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -815,6 +815,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index 0ec9ebeafe..17f4f6c4f0 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -805,7 +805,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -817,6 +817,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index b3fd8eb6c6..3ea2911762 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -996,7 +996,7 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -1008,6 +1008,18 @@
+         <feature name='tsc-deadline'/>
+         <feature name='x2apic'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='tsc-deadline'/>
++        <feature name='x2apic'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index 210024bc44..77286e9aef 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -804,7 +804,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -816,6 +816,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index 2aade71dae..d304fbd62b 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -805,7 +805,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -817,6 +817,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index 36cec1ee6b..3e6cc25529 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -954,7 +954,7 @@
+         <feature name='spec-ctrl'/>
+         <feature name='tsc-deadline'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -965,6 +965,17 @@
+         <feature name='avx512pf'/>
+         <feature name='tsc-deadline'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='tsc-deadline'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index 8316b40fce..a6fae9e3f1 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -804,7 +804,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -816,6 +816,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index cabd1c3694..060d96ab09 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -838,7 +838,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -850,6 +850,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index 67a8a5f5e7..75f83cb376 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -979,7 +979,7 @@
+         <feature name='spec-ctrl'/>
+         <feature name='tsc-deadline'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -990,6 +990,17 @@
+         <feature name='avx512pf'/>
+         <feature name='tsc-deadline'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='tsc-deadline'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index 45252b6b81..66dcb81fe6 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -837,7 +837,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -849,6 +849,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index cc5cbfbf19..72df5e5e7d 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -838,7 +838,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -850,6 +850,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index d0761a2c57..6a756782cd 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -979,7 +979,7 @@
+         <feature name='spec-ctrl'/>
+         <feature name='tsc-deadline'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -990,6 +990,17 @@
+         <feature name='avx512pf'/>
+         <feature name='tsc-deadline'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='tsc-deadline'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index df2f9d27ad..ef7b2bb67b 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -837,7 +837,7 @@
+         <feature name='erms'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>KnightsMill</model>
++      <model usable='no' vendor='Intel' canonical='KnightsMill-v1'>KnightsMill</model>
+       <blockers model='KnightsMill'>
+         <feature name='avx512-4fmaps'/>
+         <feature name='avx512-4vnniw'/>
+@@ -849,6 +849,18 @@
+         <feature name='erms'/>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>KnightsMill-v1</model>
++      <blockers model='KnightsMill-v1'>
++        <feature name='avx512-4fmaps'/>
++        <feature name='avx512-4vnniw'/>
++        <feature name='avx512-vpopcntdq'/>
++        <feature name='avx512cd'/>
++        <feature name='avx512er'/>
++        <feature name='avx512f'/>
++        <feature name='avx512pf'/>
++        <feature name='erms'/>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='yes' vendor='Intel' canonical='Nehalem-v1'>Nehalem</model>
+       <model usable='no' vendor='Intel' canonical='Nehalem-v2'>Nehalem-IBRS</model>
+       <blockers model='Nehalem-IBRS'>
+-- 
+2.47.1

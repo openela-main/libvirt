@@ -1,5 +1,5 @@
-From 65d89436894d5bd700b0d48cf69b49f2a375b3b8 Mon Sep 17 00:00:00 2001
-Message-ID: <65d89436894d5bd700b0d48cf69b49f2a375b3b8.1734705550.git.jdenemar@redhat.com>
+From 850e6f2459fa256a80988009a4fedfb9a52b9aed Mon Sep 17 00:00:00 2001
+Message-ID: <850e6f2459fa256a80988009a4fedfb9a52b9aed.1734700218.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Wed, 18 Dec 2024 11:07:26 +0100
 Subject: [PATCH] qemu: Enable I/O APIC even more frequently
@@ -24,16 +24,10 @@ Fixes: 2d222ecf6e73614a400b830ac56e9aaa1bc55ecc
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit 0162f2008e36df489f6f04e4d6002543acfa171d)
-
-https://issues.redhat.com/browse/RHEL-69725
-
-Conflicts:
-src/qemu/qemu_postparse.c: In the downstream, postparse still
-lives in qemu_domain.c because v10.10.0-rc1~144 isn't backported.
-
+https://issues.redhat.com/browse/RHEL-65844
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
- src/qemu/qemu_domain.c                        | 21 +++++++++---
+ src/qemu/qemu_postparse.c                     | 21 +++++++++---
  ...m-autoadd-v2.x86_64-latest.abi-update.args |  1 +
  ...im-autoadd-v2.x86_64-latest.abi-update.xml |  1 +
  .../intel-iommu-eim-autoadd-v2.xml            | 32 +++++++++++++++++++
@@ -43,11 +37,11 @@ Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
  create mode 120000 tests/qemuxmlconfdata/intel-iommu-eim-autoadd-v2.x86_64-latest.abi-update.xml
  create mode 100644 tests/qemuxmlconfdata/intel-iommu-eim-autoadd-v2.xml
 
-diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
-index 1ca1c6ceac..cc3b84b609 100644
---- a/src/qemu/qemu_domain.c
-+++ b/src/qemu/qemu_domain.c
-@@ -4471,6 +4471,15 @@ qemuDomainDefAddDefaultDevices(virQEMUDriver *driver,
+diff --git a/src/qemu/qemu_postparse.c b/src/qemu/qemu_postparse.c
+index f48f172c37..049a6ef2dc 100644
+--- a/src/qemu/qemu_postparse.c
++++ b/src/qemu/qemu_postparse.c
+@@ -783,6 +783,15 @@ qemuDomainPstoreDefPostParse(virDomainPstoreDef *pstore,
  }
  
  
@@ -60,10 +54,21 @@ index 1ca1c6ceac..cc3b84b609 100644
 +}
 +
 +
- /**
-  * qemuDomainDefEnableDefaultFeatures:
-  * @def: domain definition
-@@ -4533,9 +4542,13 @@ qemuDomainDefEnableDefaultFeatures(virDomainDef *def,
+ static int
+ qemuDomainIOMMUDefPostParse(virDomainIOMMUDef *iommu,
+                             const virDomainDef *def,
+@@ -793,9 +802,7 @@ qemuDomainIOMMUDefPostParse(virDomainIOMMUDef *iommu,
+      * (EIM) is not explicitly turned off, let's enable it. If we didn't then
+      * guest will have troubles with interrupts. */
+     if (parseFlags & VIR_DOMAIN_DEF_PARSE_ABI_UPDATE &&
+-        ARCH_IS_X86(def->os.arch) &&
+-        virDomainDefGetVcpusMax(def) > QEMU_MAX_VCPUS_WITHOUT_EIM &&
+-        qemuDomainIsQ35(def) &&
++        qemuDomainNeedsIOMMUWithEIM(def) &&
+         iommu && iommu->model == VIR_DOMAIN_IOMMU_MODEL_INTEL) {
+ 
+         /* eim requires intremap. */
+@@ -1548,9 +1555,13 @@ qemuDomainDefEnableDefaultFeatures(virDomainDef *def,
          def->features[VIR_DOMAIN_FEATURE_GIC] = VIR_TRISTATE_SWITCH_ON;
      }
  
@@ -79,17 +84,6 @@ index 1ca1c6ceac..cc3b84b609 100644
          def->features[VIR_DOMAIN_FEATURE_IOAPIC] == VIR_DOMAIN_IOAPIC_NONE) {
          def->features[VIR_DOMAIN_FEATURE_IOAPIC] = VIR_DOMAIN_IOAPIC_QEMU;
      }
-@@ -6369,9 +6382,7 @@ qemuDomainIOMMUDefPostParse(virDomainIOMMUDef *iommu,
-      * (EIM) is not explicitly turned off, let's enable it. If we didn't then
-      * guest will have troubles with interrupts. */
-     if (parseFlags & VIR_DOMAIN_DEF_PARSE_ABI_UPDATE &&
--        ARCH_IS_X86(def->os.arch) &&
--        virDomainDefGetVcpusMax(def) > QEMU_MAX_VCPUS_WITHOUT_EIM &&
--        qemuDomainIsQ35(def) &&
-+        qemuDomainNeedsIOMMUWithEIM(def) &&
-         iommu && iommu->model == VIR_DOMAIN_IOMMU_MODEL_INTEL) {
- 
-         /* eim requires intremap. */
 diff --git a/tests/qemuxmlconfdata/intel-iommu-eim-autoadd-v2.x86_64-latest.abi-update.args b/tests/qemuxmlconfdata/intel-iommu-eim-autoadd-v2.x86_64-latest.abi-update.args
 new file mode 120000
 index 0000000000..a7fdee3d71
@@ -145,11 +139,11 @@ index 0000000000..b39ee55786
 +  </devices>
 +</domain>
 diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
-index 79a5c1c1e1..3e60116b62 100644
+index f3c8d0ae34..53a0237a42 100644
 --- a/tests/qemuxmlconftest.c
 +++ b/tests/qemuxmlconftest.c
-@@ -2773,6 +2773,7 @@ mymain(void)
-     DO_TEST_CAPS_LATEST("intel-iommu-aw-bits");
+@@ -2771,6 +2771,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("intel-iommu-dma-translation");
      DO_TEST_CAPS_LATEST_PARSE_ERROR("intel-iommu-wrong-machine");
      DO_TEST_CAPS_LATEST_ABI_UPDATE("intel-iommu-eim-autoadd");
 +    DO_TEST_CAPS_LATEST_ABI_UPDATE("intel-iommu-eim-autoadd-v2");

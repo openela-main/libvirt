@@ -1,0 +1,56 @@
+From 4aa0ea0a693e06110333a8f851525d0e5a8fcfed Mon Sep 17 00:00:00 2001
+Message-ID: <4aa0ea0a693e06110333a8f851525d0e5a8fcfed.1741351378.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Wed, 29 Jan 2025 15:37:46 +0000
+Subject: [PATCH] remote: add sysusers file to create 'libvirt' group
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We previously added a sysusers file, but missed the 'libvirt' group.
+This group is referenced in the polkit rules, so we should be
+registering that too. It must be done in a separate sysusers file,
+however, since it is common to all daemons.
+
+Fixes: a2c3e390f7bedf36f4ddc544d09fe3b8772c5c6f
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 18f0160994af80dfac2dcaf46097922e443b283b)
+
+https://issues.redhat.com/browse/RHEL-81740
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ libvirt.spec.in                  | 1 +
+ src/remote/libvirt.sysusers.conf | 1 +
+ src/remote/meson.build           | 7 +++++++
+ 3 files changed, 9 insertions(+)
+ create mode 100644 src/remote/libvirt.sysusers.conf
+
+diff --git a/src/remote/libvirt.sysusers.conf b/src/remote/libvirt.sysusers.conf
+new file mode 100644
+index 0000000000..50c6716cce
+--- /dev/null
++++ b/src/remote/libvirt.sysusers.conf
+@@ -0,0 +1 @@
++g libvirt -
+diff --git a/src/remote/meson.build b/src/remote/meson.build
+index 831acaaa01..a96eaa1047 100644
+--- a/src/remote/meson.build
++++ b/src/remote/meson.build
+@@ -307,6 +307,13 @@ if conf.has('WITH_REMOTE')
+       )
+     endif
+ 
++    # Install the sysuser config for the daemon polkit rules
++    install_data(
++      'libvirt.sysusers.conf',
++      install_dir: sysusersdir,
++      rename: [ 'libvirt.conf' ],
++    )
++
+     virt_helpers += {
+       'name': 'virt-ssh-helper',
+       'sources': [
+-- 
+2.48.1

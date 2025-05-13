@@ -1,0 +1,41 @@
+From e0e1ea834898b77afece7fec6463b6bc74b943d9 Mon Sep 17 00:00:00 2001
+Message-ID: <e0e1ea834898b77afece7fec6463b6bc74b943d9.1739824249.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Sun, 9 Feb 2025 18:23:03 -0500
+Subject: [PATCH] qemu: automatically set model type='virtio' for interface
+ type='vhostuser'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Both vdpa and vhostuser require that the guest device be virtio, and
+for interface type='vdpa', we already set <model type='virtio'/> if it
+is unspecified in the input XML, so let's be just as courteous for
+interface type='vhostuser'.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit c4746418d7e952888c0989db3a5c723d888fc32d)
+
+https://issues.redhat.com/browse/RHEL-69455
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_postparse.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_postparse.c b/src/qemu/qemu_postparse.c
+index 049a6ef2dc..892330646a 100644
+--- a/src/qemu/qemu_postparse.c
++++ b/src/qemu/qemu_postparse.c
+@@ -100,7 +100,8 @@ qemuDomainDeviceNetDefPostParse(virDomainNetDef *net,
+                                 const virDomainDef *def,
+                                 virQEMUCaps *qemuCaps)
+ {
+-    if (net->type == VIR_DOMAIN_NET_TYPE_VDPA &&
++    if ((net->type == VIR_DOMAIN_NET_TYPE_VDPA ||
++         net->type == VIR_DOMAIN_NET_TYPE_VHOSTUSER) &&
+         !virDomainNetGetModelString(net)) {
+         net->model = VIR_DOMAIN_NET_MODEL_VIRTIO;
+     } else if (net->type != VIR_DOMAIN_NET_TYPE_HOSTDEV &&
+-- 
+2.48.1

@@ -1,0 +1,63 @@
+From f8f48ce493edee78cd499c0aa3630d8d678b43a0 Mon Sep 17 00:00:00 2001
+Message-ID: <f8f48ce493edee78cd499c0aa3630d8d678b43a0.1737731143.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 9 Jan 2025 15:18:58 +0100
+Subject: [PATCH] virstoragetest: Add case for qcow2 image with empty string as
+ 'data_file'
+
+Add an example image formatted by:
+
+ qemu-img create -f qcow2 -o data_file=nbd+unix:///datafile?socket=/tmp/nbd,data_file_raw=true /tmp/nbddatastore.qcow2 10M -u
+
+serving as an example when qemu records an empty string as the
+'data_file' field.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e6a4245d2a4db3857cfb38d4d3c4e3e0bcff6587)
+
+https://issues.redhat.com/browse/RHEL-73504
+---
+ tests/virstoragetest.c                         |   5 +++++
+ .../images/datafile-emptystr.qcow2             | Bin 0 -> 327680 bytes
+ 2 files changed, 5 insertions(+)
+ create mode 100644 tests/virstoragetestdata/images/datafile-emptystr.qcow2
+
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 4ec837eefb..78dc644637 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -494,6 +494,11 @@ mymain(void)
+                abs_srcdir "/virstoragetestdata/images/qcow2datafile-datafile.qcow2",
+                VIR_STORAGE_FILE_QCOW2, EXP_PASS);
+ 
++    /* broken qcow2 with a 'data_file' which is an empty string */
++    TEST_CHAIN("qcow2-datafile-broken",
++               abs_srcdir "/virstoragetestdata/images/datafile-emptystr.qcow2",
++               VIR_STORAGE_FILE_QCOW2, EXP_FAIL);
++
+     /* Test various combinations of qcow2 images with missing 'backing_format' */
+     TEST_CHAIN("qcow2-qcow2_qcow2-qcow2_qcow2-auto",
+                abs_srcdir "/virstoragetestdata/images/qcow2_qcow2-qcow2_qcow2-auto.qcow2",
+diff --git a/tests/virstoragetestdata/images/datafile-emptystr.qcow2 b/tests/virstoragetestdata/images/datafile-emptystr.qcow2
+new file mode 100644
+index 0000000000000000000000000000000000000000..18fae8740b4d650252d9a20629ca6e4d04653692
+GIT binary patch
+literal 327680
+zcmeIuK}y3w6b9f)+5>omoWUCuL=fBvg6p(NG0>(VouYNsV+(F1sS&bCUEA*q4D;Un
+znPKMX{^2WxFbiWh=Q16-Nk17<=juF;&BtZGLDy@B{@vnv(am3HpD!UKrx1#&jmK<R
+z#UU~+S?${P(8Ry~k(TeVZ0mfJ6?x3Fb+suc516fX+omn|`)XHb@z_kKLzs8_*F{-m
+zkGEM_$F?f>69*(=lYbnuwp_1vhdNG0dudo!aho?6gFn)w&EK-oorfg=0000000000
+z00000000000000000000000000000000000000000000000000000000000000000
+z0D#NV%Mkzo0000000000000000000000000000000000000000000000000000000
+z000000000000000000000RFk;_X7X`00000000000000000000000000000000000
+z0000000000000000000000000000000000000000;EJ8PyU(xq0RR910000000000
+z00000000000000000000000000000000000000000000000000000000000000000
+z=$*U+000000000000000000000000000000000000000000000000000000000000
+V0000000000000000000Xgm1%)GK2sC
+
+literal 0
+HcmV?d00001
+
+-- 
+2.48.1

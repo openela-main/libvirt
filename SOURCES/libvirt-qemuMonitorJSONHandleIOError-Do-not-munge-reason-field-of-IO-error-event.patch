@@ -1,0 +1,139 @@
+From 321a694cb6e4c401f9b2ea130ebae046a3f0c88b Mon Sep 17 00:00:00 2001
+Message-ID: <321a694cb6e4c401f9b2ea130ebae046a3f0c88b.1738940191.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 27 Jan 2025 13:53:36 +0100
+Subject: [PATCH] qemuMonitorJSONHandleIOError: Do not munge 'reason' field of
+ IO error event
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Leave the interpretation of the event to 'qemuProcessHandleIOError()'
+which will create it's own variant of the messages for the user-facing
+libvirt events. qemuMonitorJSONHandleIOError() will pass through the raw
+data it got from qemu.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit f8f8d5a253633aaae93b04d92bdcbed5b954149f)
+
+https://issues.redhat.com/browse/RHEL-77884
+---
+ src/qemu/qemu_monitor.c      |  3 ++-
+ src/qemu/qemu_monitor.h      |  2 ++
+ src/qemu/qemu_monitor_json.c | 12 ++++++------
+ src/qemu/qemu_process.c      |  9 +++++++--
+ 4 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index e98da5fbff..e0161b8e23 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1130,12 +1130,13 @@ qemuMonitorEmitIOError(qemuMonitor *mon,
+                        const char *device,
+                        const char *nodename,
+                        int action,
++                       bool nospace,
+                        const char *reason)
+ {
+     VIR_DEBUG("mon=%p", mon);
+ 
+     QEMU_MONITOR_CALLBACK(mon, domainIOError, mon->vm,
+-                          device, nodename, action, reason);
++                          device, nodename, action, nospace, reason);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 0ab60f286d..0655802dcc 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -209,6 +209,7 @@ typedef void (*qemuMonitorDomainIOErrorCallback)(qemuMonitor *mon,
+                                                  const char *device,
+                                                  const char *nodename,
+                                                  int action,
++                                                 bool nospace,
+                                                  const char *reason);
+ typedef void (*qemuMonitorDomainGraphicsCallback)(qemuMonitor *mon,
+                                                   virDomainObj *vm,
+@@ -453,6 +454,7 @@ void qemuMonitorEmitIOError(qemuMonitor *mon,
+                             const char *device,
+                             const char *nodename,
+                             int action,
++                            bool nospace,
+                             const char *reason);
+ void qemuMonitorEmitGraphics(qemuMonitor *mon,
+                              int phase,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 345e9383e3..7d202133f7 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -695,8 +695,8 @@ qemuMonitorJSONHandleIOError(qemuMonitor *mon, virJSONValue *data)
+     const char *device;
+     const char *nodename;
+     const char *action;
+-    const char *reason = "";
+-    bool nospc = false;
++    const char *reason;
++    bool nospace = false;
+     int actionID;
+ 
+     /* Throughout here we try our best to carry on upon errors,
+@@ -719,16 +719,16 @@ qemuMonitorJSONHandleIOError(qemuMonitor *mon, virJSONValue *data)
+     }
+ 
+     nodename = virJSONValueObjectGetString(data, "node-name");
+-
+-    if (virJSONValueObjectGetBoolean(data, "nospace", &nospc) == 0 && nospc)
+-        reason = "enospc";
++    reason = virJSONValueObjectGetString(data, "reason");
++    /* 'nospace' flag is relevant only when true */
++    ignore_value(virJSONValueObjectGetBoolean(data, "nospace", &nospace));
+ 
+     if ((actionID = qemuMonitorIOErrorActionTypeFromString(action)) < 0) {
+         VIR_WARN("unknown disk io error action '%s'", action);
+         actionID = VIR_DOMAIN_EVENT_IO_ERROR_NONE;
+     }
+ 
+-    qemuMonitorEmitIOError(mon, device, nodename, actionID, reason);
++    qemuMonitorEmitIOError(mon, device, nodename, actionID, nospace, reason);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 4083188af4..9ae39c0379 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -827,7 +827,8 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+                          const char *device,
+                          const char *nodename,
+                          int action,
+-                         const char *reason)
++                         bool nospace,
++                         const char *reason G_GNUC_UNUSED)
+ {
+     qemuDomainObjPrivate *priv;
+     virObjectEvent *ioErrorEvent = NULL;
+@@ -835,6 +836,7 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+     virObjectEvent *lifecycleEvent = NULL;
+     const char *eventPath = "";
+     const char *eventAlias = "";
++    const char *eventReason = "";
+     virDomainDiskDef *disk;
+ 
+     virObjectLock(vm);
+@@ -852,8 +854,11 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+         eventAlias = disk->info.alias;
+     }
+ 
++    if (nospace)
++        eventReason = "enospc";
++
+     ioErrorEvent = virDomainEventIOErrorNewFromObj(vm, eventPath, eventAlias, action);
+-    ioErrorEvent2 = virDomainEventIOErrorReasonNewFromObj(vm, eventPath, eventAlias, action, reason);
++    ioErrorEvent2 = virDomainEventIOErrorReasonNewFromObj(vm, eventPath, eventAlias, action, eventReason);
+ 
+     if (action == VIR_DOMAIN_EVENT_IO_ERROR_PAUSE &&
+         virDomainObjGetState(vm, NULL) == VIR_DOMAIN_RUNNING) {
+-- 
+2.48.1

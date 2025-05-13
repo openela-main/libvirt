@@ -1,0 +1,47 @@
+From 5def2eb78e1152a78533e27647eda2352f1dbc4b Mon Sep 17 00:00:00 2001
+Message-ID: <5def2eb78e1152a78533e27647eda2352f1dbc4b.1738940191.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 27 Jan 2025 15:50:34 +0100
+Subject: [PATCH] include: libvirt-domain: Reword documentation for @reason of
+ VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Emphasise that it's an enumeration and convert the possibilities to a
+list of values with explanation.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 3a3c5616eb2c50a58896f99f30d887937dab297a)
+
+https://issues.redhat.com/browse/RHEL-77884
+---
+ include/libvirt/libvirt-domain.h | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index 92a32f1cde..1dc7b417c9 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -4775,11 +4775,13 @@ typedef void (*virConnectDomainEventIOErrorCallback)(virConnectPtr conn,
+  * The callback signature to use when registering for an event of type
+  * VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON with virConnectDomainEventRegisterAny()
+  *
+- * If the I/O error is known to be caused by an ENOSPC condition in
+- * the host (where resizing the disk to be larger will allow the guest
+- * to be resumed as if nothing happened), @reason will be "enospc".
+- * Otherwise, @reason will be "", although future strings may be added
+- * if determination of other error types becomes possible.
++ * Although @reason is a string, it is considered to be an enumeration of the
++ * following values:
++ *
++ * - "" (empty string): unknown I/O error reason
++ * - "enospc": The I/O error is known to be caused by an ENOSPC condition in
++ *             the host. Resizing the disk source to be larger will allow the
++ *             guest to be resumed as if nothing happened.
+  *
+  * Since: 0.8.1
+  */
+-- 
+2.48.1

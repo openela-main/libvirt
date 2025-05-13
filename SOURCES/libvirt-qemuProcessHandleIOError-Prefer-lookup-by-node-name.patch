@@ -1,0 +1,64 @@
+From 56a472de55c45c97fd5f201073327c2d7c6d43c3 Mon Sep 17 00:00:00 2001
+Message-ID: <56a472de55c45c97fd5f201073327c2d7c6d43c3.1738940191.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 24 Jan 2025 17:17:51 +0100
+Subject: [PATCH] qemuProcessHandleIOError: Prefer lookup by node name
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When qemu reports a node name for an I/O error we should prefer the
+lookup by node name instead as it gives us the path to the specific
+image which caused the error instead of the top level image path.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 784538a470fe346cb1ab85786b8ece85cbe7ff9f)
+
+https://issues.redhat.com/browse/RHEL-77884
+---
+ src/qemu/qemu_process.c | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 9ae39c0379..b0a20328d4 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -837,22 +837,26 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+     const char *eventPath = "";
+     const char *eventAlias = "";
+     const char *eventReason = "";
+-    virDomainDiskDef *disk;
++    virDomainDiskDef *disk = NULL;
++    virStorageSource *src = NULL;
+ 
+     virObjectLock(vm);
+     priv = QEMU_DOMAIN_PRIVATE(vm);
+ 
+-    if (device)
++    if (nodename)
++        disk = qemuDomainDiskLookupByNodename(vm->def, priv->backup, nodename, &src);
++
++    if (!disk)
+         disk = qemuProcessFindDomainDiskByAliasOrQOM(vm, device, NULL);
+-    else if (nodename)
+-        disk = qemuDomainDiskLookupByNodename(vm->def, NULL, nodename, NULL);
+-    else
+-        disk = NULL;
+ 
+-    if (disk) {
+-        eventPath = virDomainDiskGetSource(disk);
++    if (!src && disk)
++        src = disk->src;
++
++    if (disk)
+         eventAlias = disk->info.alias;
+-    }
++
++    if (src && src->path)
++        eventPath = src->path;
+ 
+     if (nospace)
+         eventReason = "enospc";
+-- 
+2.48.1

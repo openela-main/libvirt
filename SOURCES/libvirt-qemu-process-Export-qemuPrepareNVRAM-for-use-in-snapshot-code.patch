@@ -1,0 +1,109 @@
+From 556d3cac6b834a7f5630e31bac2f4f594392bde6 Mon Sep 17 00:00:00 2001
+Message-ID: <556d3cac6b834a7f5630e31bac2f4f594392bde6.1738940191.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 3 Feb 2025 17:48:05 +0100
+Subject: [PATCH] qemu: process: Export qemuPrepareNVRAM for use in snapshot
+ code
+
+Export qemuPrepareNVRAM so that it doesn't require the VM object. The
+snapshot code needs in the corner case of creating a snapshot of a
+freshly defined VM ensure that the nvram image exists in order to
+snapshot it.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit a377404ed912e8d17e88ef3eb8e71143eff88f7d)
+
+https://issues.redhat.com/browse/RHEL-73315
+---
+ src/qemu/qemu_process.c | 26 ++++++++++++++------------
+ src/qemu/qemu_process.h |  4 ++++
+ 2 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index b9d69649ca..1866c8f4e1 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -4627,10 +4627,9 @@ qemuPrepareNVRAMHelper(int dstFD,
+ 
+ 
+ static int
+-qemuPrepareNVRAMBlock(virDomainObj *vm,
++qemuPrepareNVRAMBlock(virDomainLoaderDef *loader,
+                       bool reset_nvram)
+ {
+-    virDomainLoaderDef *loader = vm->def->os.loader;
+     g_autoptr(virCommand) qemuimg = NULL;
+     const char *templateFormatStr = "raw";
+ 
+@@ -4691,13 +4690,12 @@ qemuPrepareNVRAMBlock(virDomainObj *vm,
+ 
+ 
+ static int
+-qemuPrepareNVRAMFile(virDomainObj *vm,
++qemuPrepareNVRAMFile(virQEMUDriver *driver,
++                     virDomainLoaderDef *loader,
+                      bool reset_nvram)
+ {
+-    qemuDomainObjPrivate *priv = vm->privateData;
+-    g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(priv->driver);
++    g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+     VIR_AUTOCLOSE srcFD = -1;
+-    virDomainLoaderDef *loader = vm->def->os.loader;
+     struct qemuPrepareNVRAMHelperData data;
+ 
+     if (virFileExists(loader->nvram->path) && !reset_nvram)
+@@ -4739,21 +4737,24 @@ qemuPrepareNVRAMFile(virDomainObj *vm,
+ }
+ 
+ 
+-static int
+-qemuPrepareNVRAM(virDomainObj *vm,
++int
++qemuPrepareNVRAM(virQEMUDriver *driver,
++                 virDomainDef *def,
+                  bool reset_nvram)
+ {
+-    virDomainLoaderDef *loader = vm->def->os.loader;
++    virDomainLoaderDef *loader = def->os.loader;
+ 
+     if (!loader || !loader->nvram)
+         return 0;
+ 
++    VIR_DEBUG("nvram='%s'", NULLSTR(loader->nvram->path));
++
+     switch (virStorageSourceGetActualType(loader->nvram)) {
+     case VIR_STORAGE_TYPE_FILE:
+-        return qemuPrepareNVRAMFile(vm, reset_nvram);
++        return qemuPrepareNVRAMFile(driver, loader, reset_nvram);
+ 
+     case VIR_STORAGE_TYPE_BLOCK:
+-        return qemuPrepareNVRAMBlock(vm, reset_nvram);
++        return qemuPrepareNVRAMBlock(loader, reset_nvram);
+ 
+     case VIR_STORAGE_TYPE_DIR:
+     case VIR_STORAGE_TYPE_NETWORK:
+@@ -7408,7 +7409,8 @@ qemuProcessPrepareHost(virQEMUDriver *driver,
+         qemuProcessMakeDir(driver, vm, priv->channelTargetDir) < 0)
+         return -1;
+ 
+-    if (qemuPrepareNVRAM(vm, !!(flags & VIR_QEMU_PROCESS_START_RESET_NVRAM)) < 0)
++    if (qemuPrepareNVRAM(driver, vm->def,
++                         !!(flags & VIR_QEMU_PROCESS_START_RESET_NVRAM)) < 0)
+         return -1;
+ 
+     if (vm->def->vsock) {
+diff --git a/src/qemu/qemu_process.h b/src/qemu/qemu_process.h
+index 12781673c5..fee00ce53b 100644
+--- a/src/qemu/qemu_process.h
++++ b/src/qemu/qemu_process.h
+@@ -258,3 +258,7 @@ int qemuProcessSetupEmulator(virDomainObj *vm);
+ 
+ void qemuProcessHandleNbdkitExit(qemuNbdkitProcess *nbdkit,
+                                  virDomainObj *vm);
++
++int qemuPrepareNVRAM(virQEMUDriver *driver,
++                     virDomainDef *def,
++                     bool reset_nvram);
+-- 
+2.48.1

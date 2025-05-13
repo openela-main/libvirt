@@ -1,0 +1,51 @@
+From 3d9f51a59292b1a910b11fac00f9cb52210169d1 Mon Sep 17 00:00:00 2001
+Message-ID: <3d9f51a59292b1a910b11fac00f9cb52210169d1.1739824249.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Wed, 12 Feb 2025 12:12:04 -0500
+Subject: [PATCH] qemu: make qemuPasstCreateSocketPath() public
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When passt is used with vhostuser, the vhostuser code that builds the
+qemu commandline will need to have the same socket path that is given
+to the passt command, so this patch makes it visible outside of
+qemu_passt.c.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 7b7c56c3b81c0f525c6b2f1c89e0ef070bb4fb19)
+
+https://issues.redhat.com/browse/RHEL-69455
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_passt.c | 2 +-
+ src/qemu/qemu_passt.h | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_passt.c b/src/qemu/qemu_passt.c
+index dd4a8bb997..8a3ac4e988 100644
+--- a/src/qemu/qemu_passt.c
++++ b/src/qemu/qemu_passt.c
+@@ -54,7 +54,7 @@ qemuPasstCreatePidFilename(virDomainObj *vm,
+ }
+ 
+ 
+-static char *
++char *
+ qemuPasstCreateSocketPath(virDomainObj *vm,
+                           virDomainNetDef *net)
+ {
+diff --git a/src/qemu/qemu_passt.h b/src/qemu/qemu_passt.h
+index 623b494b7a..e0b9aaac8d 100644
+--- a/src/qemu/qemu_passt.h
++++ b/src/qemu/qemu_passt.h
+@@ -36,3 +36,6 @@ void qemuPasstStop(virDomainObj *vm,
+ int qemuPasstSetupCgroup(virDomainObj *vm,
+                          virDomainNetDef *net,
+                          virCgroup *cgroup);
++
++char *qemuPasstCreateSocketPath(virDomainObj *vm,
++                                virDomainNetDef *net);
+-- 
+2.48.1

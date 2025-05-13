@@ -1,0 +1,827 @@
+From 0d09852c46c6acfac300098f853f9f6f53ef0104 Mon Sep 17 00:00:00 2001
+Message-ID: <0d09852c46c6acfac300098f853f9f6f53ef0104.1734433246.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:32:57 +0100
+Subject: [PATCH] cpu_map: Add core2duo-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit a3cab1ae67c4d0657a1ebfeaaa0e6d41d951d780)
+
+https://issues.redhat.com/browse/RHEL-70052
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                                 | 1 +
+ src/cpu_map/meson.build                               | 1 +
+ src/cpu_map/x86_core2duo-v1.xml                       | 6 ++++++
+ tests/cputestdata/x86_64-cpuid-Pentium-P6100-host.xml | 2 +-
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml    | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml            | 6 +++++-
+ tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml        | 6 +++++-
+ tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml        | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml            | 6 +++++-
+ 44 files changed, 167 insertions(+), 41 deletions(-)
+ create mode 100644 src/cpu_map/x86_core2duo-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index 9534e5f308..eb847341da 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -21,6 +21,7 @@
+       <include filename='x86_n270.xml'/>
+       <include filename='x86_n270-v1.xml'/>
+       <include filename='x86_core2duo.xml'/>
++      <include filename='x86_core2duo-v1.xml'/>
+     </group>
+ 
+     <group name='Generic QEMU CPU models'>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index 5e85e24eb9..b179fb442c 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -44,6 +44,7 @@ cpumap_data = [
+   'x86_Cooperlake-v1.xml',
+   'x86_Cooperlake-v2.xml',
+   'x86_Cooperlake.xml',
++  'x86_core2duo-v1.xml',
+   'x86_core2duo.xml',
+   'x86_coreduo-v1.xml',
+   'x86_coreduo.xml',
+diff --git a/src/cpu_map/x86_core2duo-v1.xml b/src/cpu_map/x86_core2duo-v1.xml
+new file mode 100644
+index 0000000000..e23855ae75
+--- /dev/null
++++ b/src/cpu_map/x86_core2duo-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='core2duo-v1'>
++    <decode host='on' guest='off'/>
++    <model name='core2duo'/>
++  </model>
++</cpus>
+diff --git a/tests/cputestdata/x86_64-cpuid-Pentium-P6100-host.xml b/tests/cputestdata/x86_64-cpuid-Pentium-P6100-host.xml
+index a1a42d4b83..1bad0b11d3 100644
+--- a/tests/cputestdata/x86_64-cpuid-Pentium-P6100-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Pentium-P6100-host.xml
+@@ -1,6 +1,6 @@
+ <cpu>
+   <arch>x86_64</arch>
+-  <model>core2duo</model>
++  <model>core2duo-v1</model>
+   <vendor>Intel</vendor>
+   <signature family='6' model='37' stepping='5'/>
+   <feature name='dtes64'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index 1ba8a7eb11..d4853706b3 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -779,10 +779,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index 1abbfcc4bb..03c88241c8 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -1412,7 +1412,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 3040deeb50..75592e124e 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -778,10 +778,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index cb59946b78..de38e87010 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -801,10 +801,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index e6165eab77..29aa3f9adc 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -1502,7 +1502,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 5aae9a3fca..6469251e47 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -800,10 +800,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index 2898e56b41..3918fd5101 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -902,10 +902,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index 2b5baf0a02..5d5b18cfdf 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -1699,7 +1699,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index 0fd3e38ee6..98bcfec2bb 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -901,10 +901,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index 690959d35a..ed4a66a4ca 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -908,10 +908,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index 6153d8a9ee..a748c623bc 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -1714,7 +1714,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index 15edc7e73d..f9a0221e7b 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -907,10 +907,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index a1f68beb2a..6b97ff8ba7 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -935,10 +935,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index 9eda36d3c8..2e27e674f2 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -1738,7 +1738,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index 249baa1342..99d8cf9558 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -934,10 +934,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index b65196f979..e101305e83 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -902,10 +902,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index 84df14bc63..24f90ed830 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -1686,7 +1686,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 2e41f4a73a..0f993e3763 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -901,10 +901,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index ca8391756b..bfea565a00 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -907,10 +907,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index 258212d852..91fc6133e4 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -1399,7 +1399,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index 258212d852..91fc6133e4 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -1399,7 +1399,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index 819010acff..1e8f10d17f 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -906,10 +906,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index 68b1192153..8dfbc2b21a 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -989,10 +989,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index ea0bc81bea..6982dc8035 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -1494,7 +1494,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index bddb1413a1..a739ec6b73 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -988,10 +988,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index 7f1f4a2082..4d6e8c8a7f 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -1218,10 +1218,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index e2fc678bb6..0009fb007d 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -1480,7 +1480,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 4b0aed148d..74f9fe6dbe 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -1217,10 +1217,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index ab371ea688..d4d7a9e079 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -1219,10 +1219,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index a256fed6d7..b948f32538 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -1447,7 +1447,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index 3f952bb379..3e22f5e9b3 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -1218,10 +1218,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index 21358e340a..7a30c27b83 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -1219,10 +1219,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index d34524193a..ee71c658cb 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -1377,7 +1377,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index 9bbb95c0cb..8509032a62 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -1218,10 +1218,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index c5cbe2d855..b43b607c39 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -1355,10 +1355,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index 3ec8575cf4..b79140038c 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -1482,7 +1482,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index 513f4486cb..509b5a6c33 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -1354,10 +1354,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index 089ab497e0..9114ece766 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -1355,10 +1355,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index 64e893116a..e2e40d7ca2 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -1482,7 +1482,8 @@
+         <feature name='spec-ctrl'/>
+       </blockers>
+       <model usable='yes' vendor='AMD'>athlon</model>
+-      <model usable='yes' vendor='Intel'>core2duo</model>
++      <model usable='yes' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
++      <model usable='yes' vendor='Intel'>core2duo-v1</model>
+       <model usable='yes' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <model usable='yes' vendor='Intel'>coreduo-v1</model>
+       <model usable='yes' vendor='unknown'>kvm32</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index 6e4f518b23..4a5a09c488 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -1354,10 +1354,14 @@
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
+-      <model usable='no' vendor='Intel'>core2duo</model>
++      <model usable='no' vendor='Intel' canonical='core2duo-v1'>core2duo</model>
+       <blockers model='core2duo'>
+         <feature name='ss'/>
+       </blockers>
++      <model usable='no' vendor='Intel'>core2duo-v1</model>
++      <blockers model='core2duo-v1'>
++        <feature name='ss'/>
++      </blockers>
+       <model usable='no' vendor='Intel' canonical='coreduo-v1'>coreduo</model>
+       <blockers model='coreduo'>
+         <feature name='ss'/>
+-- 
+2.47.1

@@ -1,0 +1,658 @@
+From f0ff972e084c4bc36624cfc965674a9d9ac91615 Mon Sep 17 00:00:00 2001
+Message-ID: <f0ff972e084c4bc36624cfc965674a9d9ac91615.1734433245.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:23:04 +0100
+Subject: [PATCH] cpu_map: Add pentium-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 70a4ec29a780d47b34ed0026f968cc4a66f3a2ee)
+
+https://issues.redhat.com/browse/RHEL-70052
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                              | 1 +
+ src/cpu_map/meson.build                            | 1 +
+ src/cpu_map/x86_pentium-v1.xml                     | 6 ++++++
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml         | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml     | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml         | 3 ++-
+ 43 files changed, 88 insertions(+), 40 deletions(-)
+ create mode 100644 src/cpu_map/x86_pentium-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index e9fb278fd3..a12c32eec6 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -10,6 +10,7 @@
+ 
+     <group name='Intel-based QEMU generic CPU models'>
+       <include filename='x86_pentium.xml'/>
++      <include filename='x86_pentium-v1.xml'/>
+       <include filename='x86_pentium2.xml'/>
+       <include filename='x86_pentium3.xml'/>
+       <include filename='x86_pentiumpro.xml'/>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index b335278b08..2c76b32280 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -110,6 +110,7 @@ cpumap_data = [
+   'x86_Opteron_G4.xml',
+   'x86_Opteron_G5.xml',
+   'x86_Penryn.xml',
++  'x86_pentium-v1.xml',
+   'x86_pentium.xml',
+   'x86_pentium2.xml',
+   'x86_pentium3.xml',
+diff --git a/src/cpu_map/x86_pentium-v1.xml b/src/cpu_map/x86_pentium-v1.xml
+new file mode 100644
+index 0000000000..2b690dab19
+--- /dev/null
++++ b/src/cpu_map/x86_pentium-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='pentium-v1'>
++    <decode host='on' guest='off'/>
++    <model name='pentium'/>
++  </model>
++</cpus>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index 46f1bd7d4f..783df2e45f 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -793,7 +793,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index 7153fe3925..b0c660dda2 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -1417,7 +1417,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 93df9af8f6..d600d744f4 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -792,7 +792,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index 25b16b34bb..5076c5f864 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -815,7 +815,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index c9a124cda2..d47632f95f 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -1507,7 +1507,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index a99c89e98b..1a5ba3ed86 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -814,7 +814,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index c4f95a282b..6f444b15ec 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -916,7 +916,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index b6f01ffbce..d1a8a432d3 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -1704,7 +1704,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index 5d3c1ab1aa..9c83624e20 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -915,7 +915,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index c24b88f412..b696860c36 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -922,7 +922,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index eb8f5e3f22..686d89e864 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -1719,7 +1719,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index b1f198d62b..c1ed9f13e9 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -921,7 +921,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index 7a4830b126..1a0860f81a 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -949,7 +949,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index d624842aab..b8f950e7f3 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -1743,7 +1743,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index 43bcca9b52..9b7046a713 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -948,7 +948,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index 275ce525fe..087c90344e 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -916,7 +916,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index 6500ceac17..521eae41ce 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -1691,7 +1691,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 1e54981f3c..5d6438d440 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -915,7 +915,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index 5b1bb3ad55..b7175be7dc 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -921,7 +921,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index 339c622684..08534be348 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -1404,7 +1404,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index 339c622684..08534be348 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -1404,7 +1404,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index a016f77b09..f8b95431ac 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -920,7 +920,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index 9a42375791..30cf441d89 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -1003,7 +1003,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index 677ebbf2e6..940f1338e9 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -1499,7 +1499,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index 1eb4af3fdc..7ba288f0b2 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -1002,7 +1002,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index e2fa9da460..f5f6afb094 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -1232,7 +1232,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index 787fc9d870..3fabd84691 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -1485,7 +1485,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 3fa195c6aa..b52d6d68d6 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -1231,7 +1231,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index 5fe9ab775c..b67425cd20 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -1233,7 +1233,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index 5c9f1c92a5..69be0c7ffe 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -1452,7 +1452,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index 73f129706d..29e6285b17 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -1232,7 +1232,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index 2315bda338..c75666a7fd 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -1233,7 +1233,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index 90c9862321..de856ff33b 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -1382,7 +1382,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index 983597be92..b6d210838c 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -1232,7 +1232,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index 578dea23a5..054b233cfc 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -1369,7 +1369,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index 2009920390..d847b56680 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -1487,7 +1487,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index 505ea9978f..6a4918211c 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -1368,7 +1368,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index e78f6a9dd3..fe8e7c6a8d 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -1369,7 +1369,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index da9f2a1193..58ee6816e7 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -1487,7 +1487,8 @@
+       <model usable='yes' vendor='unknown'>kvm32</model>
+       <model usable='yes' vendor='unknown'>kvm64</model>
+       <model usable='yes' vendor='Intel'>n270</model>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index 74d1094511..7aae7a2904 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -1368,7 +1368,8 @@
+       <blockers model='n270'>
+         <feature name='ss'/>
+       </blockers>
+-      <model usable='yes' vendor='unknown'>pentium</model>
++      <model usable='yes' vendor='unknown' canonical='pentium-v1'>pentium</model>
++      <model usable='yes' vendor='unknown'>pentium-v1</model>
+       <model usable='yes' vendor='unknown'>pentium2</model>
+       <model usable='yes' vendor='unknown'>pentium3</model>
+       <model usable='no' vendor='AMD'>phenom</model>
+-- 
+2.47.1

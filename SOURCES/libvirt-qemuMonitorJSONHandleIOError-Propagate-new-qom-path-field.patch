@@ -1,0 +1,118 @@
+From c987c88930aa84b0b96d06bbd84287a7e62cc812 Mon Sep 17 00:00:00 2001
+Message-ID: <c987c88930aa84b0b96d06bbd84287a7e62cc812.1738940191.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 28 Jan 2025 10:39:52 +0100
+Subject: [PATCH] qemuMonitorJSONHandleIOError: Propagate new 'qom-path' field
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+QEMU commit v9.1.0-1065-ge67b7aef7c added 'qom-path' as an optional
+field for the BLOCK_IO_ERROR event. Extract and propagate it as an
+alternative to lookup via 'node-name' and 'device' (alias).
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 0525323175253b1fe1a161181e58bd348d9c605b)
+
+https://issues.redhat.com/browse/RHEL-77884
+---
+ src/qemu/qemu_monitor.c      | 3 ++-
+ src/qemu/qemu_monitor.h      | 2 ++
+ src/qemu/qemu_monitor_json.c | 4 +++-
+ src/qemu/qemu_process.c      | 3 ++-
+ 4 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index e0161b8e23..79ff4e2e87 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1128,6 +1128,7 @@ qemuMonitorEmitWatchdog(qemuMonitor *mon, int action)
+ void
+ qemuMonitorEmitIOError(qemuMonitor *mon,
+                        const char *device,
++                       const char *qompath,
+                        const char *nodename,
+                        int action,
+                        bool nospace,
+@@ -1136,7 +1137,7 @@ qemuMonitorEmitIOError(qemuMonitor *mon,
+     VIR_DEBUG("mon=%p", mon);
+ 
+     QEMU_MONITOR_CALLBACK(mon, domainIOError, mon->vm,
+-                          device, nodename, action, nospace, reason);
++                          device, qompath, nodename, action, nospace, reason);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 0655802dcc..a4818a6aa1 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -207,6 +207,7 @@ typedef void (*qemuMonitorDomainWatchdogCallback)(qemuMonitor *mon,
+ typedef void (*qemuMonitorDomainIOErrorCallback)(qemuMonitor *mon,
+                                                  virDomainObj *vm,
+                                                  const char *device,
++                                                 const char *qompath,
+                                                  const char *nodename,
+                                                  int action,
+                                                  bool nospace,
+@@ -452,6 +453,7 @@ void qemuMonitorEmitRTCChange(qemuMonitor *mon, long long offset);
+ void qemuMonitorEmitWatchdog(qemuMonitor *mon, int action);
+ void qemuMonitorEmitIOError(qemuMonitor *mon,
+                             const char *device,
++                            const char *qompath,
+                             const char *nodename,
+                             int action,
+                             bool nospace,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 7d202133f7..53648dea8b 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -693,6 +693,7 @@ static void
+ qemuMonitorJSONHandleIOError(qemuMonitor *mon, virJSONValue *data)
+ {
+     const char *device;
++    const char *qompath;
+     const char *nodename;
+     const char *action;
+     const char *reason;
+@@ -718,6 +719,7 @@ qemuMonitorJSONHandleIOError(qemuMonitor *mon, virJSONValue *data)
+             device = NULL;
+     }
+ 
++    qompath = virJSONValueObjectGetString(data, "qom-path");
+     nodename = virJSONValueObjectGetString(data, "node-name");
+     reason = virJSONValueObjectGetString(data, "reason");
+     /* 'nospace' flag is relevant only when true */
+@@ -728,7 +730,7 @@ qemuMonitorJSONHandleIOError(qemuMonitor *mon, virJSONValue *data)
+         actionID = VIR_DOMAIN_EVENT_IO_ERROR_NONE;
+     }
+ 
+-    qemuMonitorEmitIOError(mon, device, nodename, actionID, nospace, reason);
++    qemuMonitorEmitIOError(mon, device, qompath, nodename, actionID, nospace, reason);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index b0a20328d4..c95b1ecd82 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -825,6 +825,7 @@ static void
+ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+                          virDomainObj *vm,
+                          const char *device,
++                         const char *qompath,
+                          const char *nodename,
+                          int action,
+                          bool nospace,
+@@ -847,7 +848,7 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+         disk = qemuDomainDiskLookupByNodename(vm->def, priv->backup, nodename, &src);
+ 
+     if (!disk)
+-        disk = qemuProcessFindDomainDiskByAliasOrQOM(vm, device, NULL);
++        disk = qemuProcessFindDomainDiskByAliasOrQOM(vm, device, qompath);
+ 
+     if (!src && disk)
+         src = disk->src;
+-- 
+2.48.1
