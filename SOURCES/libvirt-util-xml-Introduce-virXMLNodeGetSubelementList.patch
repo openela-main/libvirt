@@ -1,0 +1,104 @@
+From 534bb6a049e7ad227d143457ddcfe828238cea18 Mon Sep 17 00:00:00 2001
+Message-ID: <534bb6a049e7ad227d143457ddcfe828238cea18.1749113303.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 13 Feb 2023 15:53:23 +0100
+Subject: [PATCH] util: xml: Introduce virXMLNodeGetSubelementList
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The new helper is similar to virXPathNodeSet list but for cases where we
+want to get subelements directly rather than using XPath.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit dcd49d2cd65c9fe58d3df536fa258fc70c633d7e)
+
+JIRA: https://issues.redhat.com/browse/RHEL-88716
+Conflicts:
+    Trivial contextual conflicts in all files
+    (due to missing other patches in downstream)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/libvirt_private.syms |  1 +
+ src/util/virxml.c        | 35 +++++++++++++++++++++++++++++++++++
+ src/util/virxml.h        |  6 ++++++
+ 3 files changed, 42 insertions(+)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 7c558ad364..3af1b33a6c 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -3619,6 +3619,7 @@ virXMLFormatElementEmpty;
+ virXMLFormatMetadata;
+ virXMLNewNode;
+ virXMLNodeContentString;
++virXMLNodeGetSubelementList;
+ virXMLNodeNameEqual;
+ virXMLNodeSanitizeNamespaces;
+ virXMLNodeToString;
+diff --git a/src/util/virxml.c b/src/util/virxml.c
+index 4b09374107..b57462e2d0 100644
+--- a/src/util/virxml.c
++++ b/src/util/virxml.c
+@@ -838,6 +838,41 @@ virXPathBoolean(const char *xpath,
+     return obj->boolval;
+ }
+ 
++
++/**
++ * virXMLNodeGetSubelementList:
++ * @node: node to get subelement of
++ * @name: name of subelement to fetch (NULL to fetch all sub-elements)
++ * @list: If non-NULL, filled with a list of pointers to the nodes. Caller is
++ *        responsible for freeing the list but not the members.
++ *
++ * Find and return a sub-elements node of @node named @name in a list.
++ * Returns the number of subelements with @name
++ */
++size_t
++virXMLNodeGetSubelementList(xmlNodePtr node,
++                            const char *name,
++                            xmlNodePtr **list)
++{
++    xmlNodePtr n;
++    size_t nelems = 0;
++
++    for (n = node->children; n; n = n->next) {
++        if (n->type == XML_ELEMENT_NODE) {
++            if (name && !virXMLNodeNameEqual(n, name))
++                continue;
++
++            if (list)
++                VIR_APPEND_ELEMENT_COPY(*list, nelems, n);
++            else
++                nelems++;
++        }
++    }
++
++    return nelems;
++}
++
++
+ /**
+  * virXPathNode:
+  * @xpath: the XPath string to evaluate
+diff --git a/src/util/virxml.h b/src/util/virxml.h
+index c39eae6282..7b60551898 100644
+--- a/src/util/virxml.h
++++ b/src/util/virxml.h
+@@ -83,6 +83,12 @@ int
+ virXPathULongHex(const char *xpath,
+                  xmlXPathContextPtr ctxt,
+                  unsigned long *value);
++
++size_t
++virXMLNodeGetSubelementList(xmlNodePtr node,
++                            const char *name,
++                            xmlNodePtr **list);
++
+ xmlNodePtr
+ virXPathNode(const char *xpath,
+              xmlXPathContextPtr ctxt);
+-- 
+2.49.0

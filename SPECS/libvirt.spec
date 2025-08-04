@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 23.3%{?dist}%{?extra_release}
+Release: 23.4%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -322,6 +322,15 @@ Patch99: libvirt-remote-check-for-negative-array-lengths-before-allocation.patch
 Patch100: libvirt-util-Fix-error-return-for-virProcessKillPainfullyDelay.patch
 Patch101: libvirt-rpc-ensure-temporary-GSource-is-removed-from-client-event-loop.patch
 Patch102: libvirt-virStorageBackendLogicalCheckPool-Properly-mark-empty-logical-pools-as-active.patch
+Patch103: libvirt-util-xml-Introduce-virXMLNodeGetSubelementList.patch
+Patch104: libvirt-util-xml-Return-GPtrArray-from-virXMLNodeGetSubelement-partial.patch
+Patch105: libvirt-qemuMonitorJSONGetCPUModelExpansion-refactor-parsing-functions.patch
+Patch106: libvirt-qemu-parse-deprecated-props-from-query-cpu-model-expansion-response.patch
+Patch107: libvirt-qemu_capabilities-query-deprecated-features-for-host-model.patch
+Patch108: libvirt-libvirt-domain-introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES.patch
+Patch109: libvirt-qemu_capabilities-filter-deprecated-features-if-requested.patch
+Patch110: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.patch
+Patch111: libvirt-conf-add-deprecated_features-attribute.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2201,6 +2210,17 @@ exit 0
 
 
 %changelog
+* Thu Jun  5 2025 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.4.el8
+- util: xml: Introduce virXMLNodeGetSubelementList (RHEL-88716)
+- util: xml: Return GPtrArray from virXMLNodeGetSubelement [partial] (RHEL-88716)
+- qemuMonitorJSONGetCPUModelExpansion: refactor parsing functions (RHEL-88716)
+- qemu: parse deprecated-props from query-cpu-model-expansion response (RHEL-88716)
+- qemu_capabilities: query deprecated features for host-model (RHEL-88716)
+- libvirt-domain: introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES (RHEL-88716)
+- qemu_capabilities: filter deprecated features if requested (RHEL-88716)
+- virsh: add --disable-deprecated-features flag to domcapabilities (RHEL-88716)
+- conf: add deprecated_features attribute (RHEL-88716)
+
 * Wed Nov  6 2024 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.3.el8
 - virStorageBackendLogicalCheckPool: Properly mark empty logical pools as active (RHEL-65771)
 

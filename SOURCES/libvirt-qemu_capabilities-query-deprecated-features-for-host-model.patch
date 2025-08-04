@@ -1,0 +1,128 @@
+From 4ad452d843406b9bb8423a47987f4180d565f11a Mon Sep 17 00:00:00 2001
+Message-ID: <4ad452d843406b9bb8423a47987f4180d565f11a.1749113303.git.jdenemar@redhat.com>
+From: Collin Walling <walling@linux.ibm.com>
+Date: Mon, 16 Dec 2024 18:03:54 -0500
+Subject: [PATCH] qemu_capabilities: query deprecated features for host-model
+
+Add QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS for detecting
+if query-cpu-model-expansion can report deprecated CPU model properties.
+QEMU introduced this capability in 9.1 release.  Add flag and deprecated
+features to the capabilities test data for QEMU 9.1 and 9.2 replies/XML
+since it can now be accounted for.
+
+When probing for the host CPU, perform a full CPU model expansion to
+retrieve the list of features deprecated across the entire architecture.
+The list and count are stored in the host's CPU model info within the
+QEMU capabilities.  Other info resulting from this query (e.g. model
+name, etc) is ignored.
+
+The new capabilities flag is used to fence off the extra query for
+architectures/QEMU binaries that do not report deprecated CPU model
+features.
+
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 51c098347d7f2af9b4386ac0adc4431997d06f3d)
+
+JIRA: https://issues.redhat.com/browse/RHEL-88716
+Conflicts:
+    src/qemu/qemu_capabilities.c
+    src/qemu/qemu_capabilities.h
+    (Contextual conflicts due to missing other patches in downstream
+     and qemuMonitorGetCPUModelExpansion() having one parameter less
+     in downstream)
+    tests/qemucapabilitiesdata/caps_9.*
+    (dropped the changes to these files since they are of no use in
+     downstream - upstream testing code changed too much, so it's
+     not possible to get the related tests to work in downstream)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 38 ++++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_capabilities.h |  1 +
+ 2 files changed, 39 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index d616273406..98773d2a0a 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -658,6 +658,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               /* 420 */
+               "blockdev-reopen.__com.redhat_rhel-av-8_2_0-api", /* QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API */
+               "memory-backend-file.prealloc-threads", /* QEMU_CAPS_MEMORY_BACKEND_PREALLOC_THREADS */
++              "query-cpu-model-expansion.deprecated-props", /* QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS */
+     );
+ 
+ 
+@@ -1579,6 +1580,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+     { "screendump/arg-type/device", QEMU_CAPS_SCREENDUMP_DEVICE },
+     { "set-numa-node/arg-type/+hmat-lb", QEMU_CAPS_NUMA_HMAT },
+     { "object-add/arg-type/+sev-guest/kernel-hashes", QEMU_CAPS_SEV_GUEST_KERNEL_HASHES },
++    { "query-cpu-model-expansion/ret-type/deprecated-props", QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS },
+ };
+ 
+ typedef struct _virQEMUCapsObjectTypeProps virQEMUCapsObjectTypeProps;
+@@ -2982,6 +2984,38 @@ virQEMUCapsProbeCPUDefinitionsTest(virQEMUCaps *qemuCaps,
+ }
+ 
+ 
++/**
++ * virQEMUCapsProbeFullDeprecatedProperties
++ * @mon: QEMU monitor
++ * @cpu: CPU definition to be expanded
++ * @props: the array to be filled with deprecated features
++ *
++ * Performs a full CPU model expansion to retrieve an array of deprecated
++ * properties. If the expansion succeeds, then data previously stored in
++ * @props is freed.
++ *
++ * Returns: -1 if the expansion failed; otherwise 0.
++ */
++static int
++virQEMUCapsProbeFullDeprecatedProperties(qemuMonitor *mon,
++                                         virCPUDef *cpu,
++                                         GStrv *props)
++{
++    g_autoptr(qemuMonitorCPUModelInfo) propsInfo = NULL;
++
++    if (qemuMonitorGetCPUModelExpansion(mon, QEMU_MONITOR_CPU_MODEL_EXPANSION_FULL,
++                                        cpu, true, false, &propsInfo) < 0)
++        return -1;
++
++    if (propsInfo && propsInfo->deprecated_props) {
++        g_free(*props);
++        *props = g_steal_pointer(&propsInfo->deprecated_props);
++    }
++
++    return 0;
++}
++
++
+ static int
+ virQEMUCapsProbeQMPHostCPU(virQEMUCaps *qemuCaps,
+                            virQEMUCapsAccel *accel,
+@@ -3065,6 +3099,10 @@ virQEMUCapsProbeQMPHostCPU(virQEMUCaps *qemuCaps,
+         modelInfo->migratability = true;
+     }
+ 
++    if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS) &&
++        virQEMUCapsProbeFullDeprecatedProperties(mon, cpu, &modelInfo->deprecated_props) < 0)
++        return -1;
++
+     accel->hostCPU.info = g_steal_pointer(&modelInfo);
+     return 0;
+ }
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 8e65635e0d..4a7fb2c726 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -637,6 +637,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     /* 420 */
+     QEMU_CAPS_BLOCKDEV_REOPEN_COM_REDHAT_AV_8_2_0_API, /* downstream support for blockdev reopen in rhel-av-8.2.0 */
+     QEMU_CAPS_MEMORY_BACKEND_PREALLOC_THREADS, /* -object memory-backend-*.prealloc-threads */
++    QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS, /* query-cpu-model-expansion may report deprecated CPU properties */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+-- 
+2.49.0

@@ -1,0 +1,92 @@
+From f3c75e44ad85fb01473c78adfc2a6d2c53f4f358 Mon Sep 17 00:00:00 2001
+Message-ID: <f3c75e44ad85fb01473c78adfc2a6d2c53f4f358.1749113303.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 13 Feb 2023 15:53:23 +0100
+Subject: [PATCH] util: xml: Return GPtrArray from virXMLNodeGetSubelement
+ [partial]
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Rework the helper to use a GPtrArray structure to simplify callers.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 08a7fc834c7c505e73bfcfa11c4a841a972d4f5d)
+
+JIRA: https://issues.redhat.com/browse/RHEL-88716
+Conflicts:
+    src/conf/*.c
+    Dropped the hunks that modify the callers
+    (since these are not available in downstream yet)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/util/virxml.c | 21 ++++++++-------------
+ src/util/virxml.h |  5 ++---
+ 2 files changed, 10 insertions(+), 16 deletions(-)
+
+diff --git a/src/util/virxml.c b/src/util/virxml.c
+index b57462e2d0..46afcf2146 100644
+--- a/src/util/virxml.c
++++ b/src/util/virxml.c
+@@ -843,33 +843,28 @@ virXPathBoolean(const char *xpath,
+  * virXMLNodeGetSubelementList:
+  * @node: node to get subelement of
+  * @name: name of subelement to fetch (NULL to fetch all sub-elements)
+- * @list: If non-NULL, filled with a list of pointers to the nodes. Caller is
+- *        responsible for freeing the list but not the members.
+  *
+- * Find and return a sub-elements node of @node named @name in a list.
+- * Returns the number of subelements with @name
++ * Find and return a sub-elements node of @node named @name in a GPtrArray
++ * populated with the xmlNodePtr objects. Caller is responsible for freeing the
++ * array but not the contained xmlNode objects.
+  */
+-size_t
++GPtrArray *
+ virXMLNodeGetSubelementList(xmlNodePtr node,
+-                            const char *name,
+-                            xmlNodePtr **list)
++                            const char *name)
+ {
++    GPtrArray *ret = g_ptr_array_new();
+     xmlNodePtr n;
+-    size_t nelems = 0;
+ 
+     for (n = node->children; n; n = n->next) {
+         if (n->type == XML_ELEMENT_NODE) {
+             if (name && !virXMLNodeNameEqual(n, name))
+                 continue;
+ 
+-            if (list)
+-                VIR_APPEND_ELEMENT_COPY(*list, nelems, n);
+-            else
+-                nelems++;
++            g_ptr_array_add(ret, n);
+         }
+     }
+ 
+-    return nelems;
++    return ret;
+ }
+ 
+ 
+diff --git a/src/util/virxml.h b/src/util/virxml.h
+index 7b60551898..03677afc33 100644
+--- a/src/util/virxml.h
++++ b/src/util/virxml.h
+@@ -84,10 +84,9 @@ virXPathULongHex(const char *xpath,
+                  xmlXPathContextPtr ctxt,
+                  unsigned long *value);
+ 
+-size_t
++GPtrArray *
+ virXMLNodeGetSubelementList(xmlNodePtr node,
+-                            const char *name,
+-                            xmlNodePtr **list);
++                            const char *name);
+ 
+ xmlNodePtr
+ virXPathNode(const char *xpath,
+-- 
+2.49.0

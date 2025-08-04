@@ -1,0 +1,135 @@
+From 7a412cc71a4764f7e80bf475c39d999a584f41aa Mon Sep 17 00:00:00 2001
+Message-ID: <7a412cc71a4764f7e80bf475c39d999a584f41aa.1749113304.git.jdenemar@redhat.com>
+From: Collin Walling <walling@linux.ibm.com>
+Date: Mon, 16 Dec 2024 18:03:58 -0500
+Subject: [PATCH] conf: add deprecated_features attribute
+
+Add a new a attribute, deprecated_features='on|off' to the <cpu>
+element.  This is used to toggle features flagged as deprecated on the
+CPU model on or off.  When this attribute is paired with 'on',
+deprecated features will not be filtered.  When paired with 'off', any
+CPU features that are flagged as deprecated will be listed under the
+CPU model with the 'disable' policy.
+
+Example:
+
+  <cpu mode='host-model' check='partial' deprecated_features='off'/>
+
+The absence of this attribute is equivalent to the 'on' option.
+
+The deprecated features that will populate the domain XML are the same
+features that result in the virsh domcapabilities command with the
+--disable-deprecated-features argument present.
+
+It is recommended to define a domain XML with this attribute set to
+'off' to ensure migration to machines that may outright drop these
+features in the future.
+
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 62658bbf060784c757f96c9de3935f27885834aa)
+
+JIRA: https://issues.redhat.com/browse/RHEL-88716
+Conflicts:
+    src/qemu/qemu_process.c
+    (contextual conflict)
+    tests/*
+    (dropped the changes to these files since they are of no use in
+     downstream - upstream testing code changed too much, so it's
+     not possible to get the related tests to work in downstream)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ docs/schemas/cputypes.rng |  5 +++++
+ src/conf/cpu_conf.c       | 11 +++++++++++
+ src/conf/cpu_conf.h       |  1 +
+ src/qemu/qemu_process.c   | 11 +++++++++++
+ 4 files changed, 28 insertions(+)
+
+diff --git a/docs/schemas/cputypes.rng b/docs/schemas/cputypes.rng
+index 056e66e1b4..2d831b423c 100644
+--- a/docs/schemas/cputypes.rng
++++ b/docs/schemas/cputypes.rng
+@@ -395,6 +395,11 @@
+       <optional>
+         <ref name="cpuCheck"/>
+       </optional>
++      <optional>
++        <attribute name="deprecated_features">
++          <ref name="virOnOff"/>
++        </attribute>
++      </optional>
+       <optional>
+         <attribute name="migratable">
+           <ref name="virOnOff"/>
+diff --git a/src/conf/cpu_conf.c b/src/conf/cpu_conf.c
+index fbceac1657..1db0c978e2 100644
+--- a/src/conf/cpu_conf.c
++++ b/src/conf/cpu_conf.c
+@@ -238,6 +238,7 @@ virCPUDefCopyWithoutModel(const virCPUDef *cpu)
+     copy->mode = cpu->mode;
+     copy->match = cpu->match;
+     copy->check = cpu->check;
++    copy->deprecated_feats = cpu->deprecated_feats;
+     copy->fallback = cpu->fallback;
+     copy->sockets = cpu->sockets;
+     copy->dies = cpu->dies;
+@@ -431,6 +432,11 @@ virCPUDefParseXML(xmlXPathContextPtr ctxt,
+         if (virXMLPropEnum(ctxt->node, "check", virCPUCheckTypeFromString,
+                            VIR_XML_PROP_NONE, &def->check) < 0)
+             return -1;
++
++        if (virXMLPropTristateSwitch(ctxt->node, "deprecated_features",
++                                     VIR_XML_PROP_NONE,
++                                     &def->deprecated_feats) < 0)
++            return -1;
+     }
+ 
+     if (def->type == VIR_CPU_TYPE_HOST) {
+@@ -707,6 +713,11 @@ virCPUDefFormatBufFull(virBuffer *buf,
+             virBufferAsprintf(&attributeBuf, " migratable='%s'",
+                               virTristateSwitchTypeToString(def->migratable));
+         }
++
++        if (def->deprecated_feats) {
++            virBufferAsprintf(&attributeBuf, " deprecated_features='%s'",
++                              virTristateSwitchTypeToString(def->deprecated_feats));
++        }
+     }
+ 
+     /* Format children */
+diff --git a/src/conf/cpu_conf.h b/src/conf/cpu_conf.h
+index b0a81895be..a69ff724ca 100644
+--- a/src/conf/cpu_conf.h
++++ b/src/conf/cpu_conf.h
+@@ -140,6 +140,7 @@ struct _virCPUDef {
+     virCPUCacheDef *cache;
+     virHostCPUTscInfo *tsc;
+     virTristateSwitch migratable; /* for host-passthrough mode */
++    virTristateSwitch deprecated_feats;
+ };
+ 
+ virCPUDef *virCPUDefNew(void);
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 73d54f01cd..54afcbe53e 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6143,6 +6143,17 @@ qemuProcessUpdateGuestCPU(virDomainDef *def,
+             return -1;
+     }
+ 
++    if (def->cpu->deprecated_feats &&
++        !virQEMUCapsGet(qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS)) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("toggling deprecated features for CPU model is unsupported"));
++        return -1;
++    }
++
++    if (def->cpu->deprecated_feats == VIR_TRISTATE_SWITCH_OFF) {
++        virQEMUCapsUpdateCPUDeprecatedFeatures(qemuCaps, def->virtType, def->cpu);
++    }
++
+     return 0;
+ }
+ 
+-- 
+2.49.0

@@ -1,0 +1,214 @@
+From 5289208127468cd34b5cb6ea7bb45bbeff45d537 Mon Sep 17 00:00:00 2001
+Message-ID: <5289208127468cd34b5cb6ea7bb45bbeff45d537.1749113303.git.jdenemar@redhat.com>
+From: Collin Walling <walling@linux.ibm.com>
+Date: Mon, 16 Dec 2024 18:03:53 -0500
+Subject: [PATCH] qemu: parse deprecated-props from query-cpu-model-expansion
+ response
+
+query-cpu-model-expansion may report an array of deprecated properties.
+This array is optional, and may not be supported for a particular
+architecture or reported for a particular CPU model. If the output is
+present, then capture it and store in a qemuMonitorCPUModelInfo struct
+for later use.
+
+The deprecated features will be retained in qemuCaps->kvm->hostCPU.info
+and will be stored in the capabilities cache file under the <hostCPU>
+element using the following format:
+
+        <deprecatedFeatures>
+                <property name='bpb'/>
+                <property name='csske'/>
+                <property name='cte'/>
+                <property name='te'/>
+        </deprecatedFeatures>
+
+At this time the data is only queried, parsed, and cached.  The data
+will be utilized in a subsequent patch.
+
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 45140d293007c1b29f7563bf6ee9640e27769b96)
+
+JIRA: https://issues.redhat.com/browse/RHEL-88716
+Conflicts:
+    tests/qemucapabilitiesdata/caps_9.1.0.s390x.xml
+    tests/qemucapabilitiesdata/caps_9.2.0.s390x.xml
+    (dropped the changes to these files since they are of no use in
+     downstream - upstream testing code changed too much, so it's
+     not possible to get the related tests to work in downstream)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 31 +++++++++++++++++++++++++++++++
+ src/qemu/qemu_monitor.c      |  3 +++
+ src/qemu/qemu_monitor.h      |  1 +
+ src/qemu/qemu_monitor_json.c | 18 ++++++++++++++++++
+ 4 files changed, 53 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index c4f7db55c8..d616273406 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -3766,6 +3766,7 @@ virQEMUCapsLoadHostCPUModelInfo(virQEMUCapsAccel *caps,
+ {
+     g_autofree char *migratability = NULL;
+     xmlNodePtr hostCPUNode;
++    xmlNodePtr deprecated_props;
+     g_autofree xmlNodePtr *nodes = NULL;
+     VIR_XPATH_NODE_AUTORESTORE(ctxt)
+     g_autoptr(qemuMonitorCPUModelInfo) hostCPU = NULL;
+@@ -3870,6 +3871,24 @@ virQEMUCapsLoadHostCPUModelInfo(virQEMUCapsAccel *caps,
+         }
+     }
+ 
++    ctxt->node = hostCPUNode;
++
++    if ((deprecated_props = virXPathNode("./deprecatedFeatures", ctxt))) {
++        g_autoptr(GPtrArray) props = virXMLNodeGetSubelementList(deprecated_props, NULL);
++
++        hostCPU->deprecated_props = g_new0(char *, props->len + 1);
++
++        for (i = 0; i < props->len; i++) {
++            xmlNodePtr prop = g_ptr_array_index(props, i);
++
++            if (!(hostCPU->deprecated_props[i] = virXMLPropString(prop, "name"))) {
++                virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                               _("missing 'name' attribute for a host CPU model deprecated property in QEMU capabilities cache"));
++                return -1;
++            }
++        }
++    }
++
+     caps->hostCPU.info = g_steal_pointer(&hostCPU);
+     return 0;
+ }
+@@ -4500,6 +4519,18 @@ virQEMUCapsFormatHostCPUModelInfo(virQEMUCapsAccel *caps,
+         virBufferAddLit(buf, "/>\n");
+     }
+ 
++    if (model->deprecated_props) {
++        virBufferAddLit(buf, "<deprecatedFeatures>\n");
++        virBufferAdjustIndent(buf, 2);
++
++        for (i = 0; i < g_strv_length(model->deprecated_props); i++)
++            virBufferAsprintf(buf, "<property name='%s'/>\n",
++                              model->deprecated_props[i]);
++
++        virBufferAdjustIndent(buf, -2);
++        virBufferAddLit(buf, "</deprecatedFeatures>\n");
++    }
++
+     virBufferAdjustIndent(buf, -2);
+     virBufferAddLit(buf, "</hostCPU>\n");
+ }
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 99667fdf2f..8f72fc5bd9 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -3487,6 +3487,7 @@ qemuMonitorCPUModelInfoFree(qemuMonitorCPUModelInfo *model_info)
+             g_free(model_info->props[i].value.string);
+     }
+ 
++    g_strfreev(model_info->deprecated_props);
+     g_free(model_info->props);
+     g_free(model_info->name);
+     g_free(model_info);
+@@ -3531,6 +3532,8 @@ qemuMonitorCPUModelInfoCopy(const qemuMonitorCPUModelInfo *orig)
+         }
+     }
+ 
++    copy->deprecated_props = g_strdupv(orig->deprecated_props);
++
+     return copy;
+ }
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index d00967d84f..5b9ea336ec 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -1238,6 +1238,7 @@ struct _qemuMonitorCPUModelInfo {
+     char *name;
+     size_t nprops;
+     qemuMonitorCPUProperty *props;
++    GStrv deprecated_props;
+     bool migratability;
+ };
+ 
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 487f8028d9..9a3ca3d186 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -5500,6 +5500,7 @@ qemuMonitorJSONParseCPUModelExpansionData(virJSONValue *data,
+                                           bool fail_no_props,
+                                           virJSONValue **cpu_model,
+                                           virJSONValue **cpu_props,
++                                          virJSONValue **cpu_deprecated_props,
+                                           const char **cpu_name)
+ {
+     if (qemuMonitorJSONParseCPUModelData(data, "query-cpu-model-expansion",
+@@ -5507,6 +5508,12 @@ qemuMonitorJSONParseCPUModelExpansionData(virJSONValue *data,
+                                          cpu_name) < 0)
+         return -1;
+ 
++    /*
++     * Unconditionally check for the deprecated-props array, as
++     * it is not a guarantee response even if QEMU supports it.
++     */
++    *cpu_deprecated_props = virJSONValueObjectGetArray(data, "deprecated-props");
++
+     return 0;
+ }
+ 
+@@ -5514,6 +5521,7 @@ qemuMonitorJSONParseCPUModelExpansionData(virJSONValue *data,
+ static int
+ qemuMonitorJSONParseCPUModelExpansion(const char *cpu_name,
+                                       virJSONValue *cpu_props,
++                                      virJSONValue *cpu_deprecated_props,
+                                       qemuMonitorCPUModelInfo **model_info)
+ {
+     g_autoptr(qemuMonitorCPUModelInfo) expanded_model = NULL;
+@@ -5521,6 +5529,12 @@ qemuMonitorJSONParseCPUModelExpansion(const char *cpu_name,
+     if (qemuMonitorJSONParseCPUModel(cpu_name, cpu_props, &expanded_model) < 0)
+         return -1;
+ 
++    if (cpu_deprecated_props &&
++        virJSONValueArraySize(cpu_deprecated_props) &&
++        (!(expanded_model->deprecated_props = virJSONValueArrayToStringList(cpu_deprecated_props)))) {
++        return -1;
++    }
++
+     *model_info = g_steal_pointer(&expanded_model);
+     return 0;
+ }
+@@ -5584,6 +5598,7 @@ qemuMonitorJSONGetCPUModelExpansion(qemuMonitor *mon,
+     g_autoptr(virJSONValue) fullData = NULL;
+     virJSONValue *cpu_model;
+     virJSONValue *cpu_props = NULL;
++    virJSONValue *cpu_deprecated_props = NULL;
+     const char *cpu_name = "";
+     int rc;
+ 
+@@ -5597,6 +5612,7 @@ qemuMonitorJSONGetCPUModelExpansion(qemuMonitor *mon,
+ 
+     if (qemuMonitorJSONParseCPUModelExpansionData(data, fail_no_props,
+                                                   &cpu_model, &cpu_props,
++                                                  &cpu_deprecated_props,
+                                                   &cpu_name) < 0)
+         return -1;
+ 
+@@ -5615,11 +5631,13 @@ qemuMonitorJSONGetCPUModelExpansion(qemuMonitor *mon,
+ 
+         if (qemuMonitorJSONParseCPUModelExpansionData(fullData, fail_no_props,
+                                                       &cpu_model, &cpu_props,
++                                                      &cpu_deprecated_props,
+                                                       &cpu_name) < 0)
+             return -1;
+     }
+ 
+     return qemuMonitorJSONParseCPUModelExpansion(cpu_name, cpu_props,
++                                                 cpu_deprecated_props,
+                                                  model_info);
+ }
+ 
+-- 
+2.49.0
