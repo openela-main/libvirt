@@ -1,0 +1,79 @@
+From 4294a300d6284c0678b165596bee433eac1a4da1 Mon Sep 17 00:00:00 2001
+Message-ID: <4294a300d6284c0678b165596bee433eac1a4da1.1749027246.git.jdenemar@redhat.com>
+From: Collin Walling <walling@linux.ibm.com>
+Date: Mon, 16 Dec 2024 18:03:57 -0500
+Subject: [PATCH] virsh: add --disable-deprecated-features flag to
+ domcapabilities
+
+Add a new flag, --disable-deprecated-features, to the domcapabilities
+command.  This will modify the output to show the 'host-model' CPU
+with features flagged as deprecated paired with the 'disable' policy.
+
+virsh domcapabilities --disable-deprecated-features
+
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 15d45964e453e04f1761e527266af45554f58fcc)
+JIRA: https://issues.redhat.com/browse/RHEL-89977
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ docs/manpages/virsh.rst | 6 ++++++
+ tools/virsh-host.c      | 9 ++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 77798af7d3..d3acec7f01 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -568,6 +568,7 @@ domcapabilities
+ 
+    domcapabilities [virttype] [emulatorbin] [arch] [machine]
+                    [--xpath EXPRESSION] [--wrap]
++                   [--disable-deprecated-features]
+ 
+ 
+ Print an XML document describing the domain capabilities for the
+@@ -609,6 +610,11 @@ a standalone document, however, for ease of additional processing,
+ the **--wrap** argument will cause the matching node to be wrapped
+ in a common root node.
+ 
++The **--disable-deprecated-features** argument will modify the contents
++of host-model CPU XML, updating the features list with any features
++flagged as deprecated for the CPU model by the hypervisor. These
++features will be paired with the "disable" policy.
++
+ 
+ pool-capabilities
+ -----------------
+diff --git a/tools/virsh-host.c b/tools/virsh-host.c
+index 2fe64e415f..f4e7324f42 100644
+--- a/tools/virsh-host.c
++++ b/tools/virsh-host.c
+@@ -114,6 +114,10 @@ static const vshCmdOptDef opts_domcapabilities[] = {
+      .type = VSH_OT_BOOL,
+      .help = N_("wrap xpath results in an common root element"),
+     },
++    {.name = "disable-deprecated-features",
++     .type = VSH_OT_BOOL,
++     .help = N_("report host CPU model with deprecated features disabled"),
++    },
+     {.name = NULL}
+ };
+ 
+@@ -126,10 +130,13 @@ cmdDomCapabilities(vshControl *ctl, const vshCmd *cmd)
+     const char *arch = NULL;
+     const char *machine = NULL;
+     const char *xpath = NULL;
+-    const unsigned int flags = 0; /* No flags so far */
++    unsigned int flags = 0;
+     bool wrap = vshCommandOptBool(cmd, "wrap");
+     virshControl *priv = ctl->privData;
+ 
++    if (vshCommandOptBool(cmd, "disable-deprecated-features"))
++        flags |= VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES;
++
+     if (vshCommandOptString(ctl, cmd, "virttype", &virttype) < 0 ||
+         vshCommandOptString(ctl, cmd, "emulatorbin", &emulatorbin) < 0 ||
+         vshCommandOptString(ctl, cmd, "arch", &arch) < 0 ||
+-- 
+2.49.0

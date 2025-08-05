@@ -1,0 +1,95 @@
+From 100a38a10efa35bc78ae4874f10bca79616fac18 Mon Sep 17 00:00:00 2001
+Message-ID: <100a38a10efa35bc78ae4874f10bca79616fac18.1749027246.git.jdenemar@redhat.com>
+From: Collin Walling <walling@linux.ibm.com>
+Date: Mon, 16 Dec 2024 18:03:56 -0500
+Subject: [PATCH] qemu_capabilities: filter deprecated features if requested
+
+If flag VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES
+is passed to qemuConnectGetDomainCapabilities, then the domain's CPU
+model features will be updated to set any deprecated features to the
+'disabled' policy.
+
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit cd1e837c22182dcadfe17b469c931f9fc9745a46)
+JIRA: https://issues.redhat.com/browse/RHEL-89977
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 20 ++++++++++++++++++++
+ src/qemu/qemu_capabilities.h |  3 +++
+ src/qemu/qemu_driver.c       |  8 +++++++-
+ 3 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 30af8721ee..651a4e7e54 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -3334,6 +3334,26 @@ virQEMUCapsGetCPUFeatures(virQEMUCaps *qemuCaps,
+ }
+ 
+ 
++void
++virQEMUCapsUpdateCPUDeprecatedFeatures(virQEMUCaps *qemuCaps,
++                                       virDomainVirtType virtType,
++                                       virCPUDef *cpu)
++{
++    qemuMonitorCPUModelInfo *modelInfo;
++    size_t i;
++
++    modelInfo = virQEMUCapsGetCPUModelInfo(qemuCaps, virtType);
++
++    if (!modelInfo || !modelInfo->deprecated_props)
++        return;
++
++    for (i = 0; i < g_strv_length(modelInfo->deprecated_props); i++) {
++        virCPUDefUpdateFeature(cpu, modelInfo->deprecated_props[i],
++                               VIR_CPU_FEATURE_DISABLE);
++    }
++}
++
++
+ struct tpmTypeToCaps {
+     int type;
+     virQEMUCapsFlags caps;
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index b37f1f0b14..c4b0229f0b 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -767,6 +767,9 @@ int virQEMUCapsGetCPUFeatures(virQEMUCaps *qemuCaps,
+                               virDomainVirtType virtType,
+                               bool migratable,
+                               char ***features);
++void virQEMUCapsUpdateCPUDeprecatedFeatures(virQEMUCaps *qemuCaps,
++                                            virDomainVirtType virtType,
++                                            virCPUDef *cpu);
+ 
+ virDomainVirtType virQEMUCapsGetVirtType(virQEMUCaps *qemuCaps);
+ 
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 3e194999fe..e31c4e613c 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -16543,7 +16543,8 @@ qemuConnectGetDomainCapabilities(virConnectPtr conn,
+     virDomainVirtType virttype;
+     g_autoptr(virDomainCaps) domCaps = NULL;
+ 
+-    virCheckFlags(0, NULL);
++    virCheckFlags(VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES,
++                  NULL);
+ 
+     if (virConnectGetDomainCapabilitiesEnsureACL(conn) < 0)
+         return NULL;
+@@ -16562,6 +16563,11 @@ qemuConnectGetDomainCapabilities(virConnectPtr conn,
+                                                        arch, virttype)))
+         return NULL;
+ 
++    if (flags & VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES) {
++        virQEMUCapsUpdateCPUDeprecatedFeatures(qemuCaps, virttype,
++                                               domCaps->cpu.hostModel);
++    }
++
+     return virDomainCapsFormat(domCaps);
+ }
+ 
+-- 
+2.49.0

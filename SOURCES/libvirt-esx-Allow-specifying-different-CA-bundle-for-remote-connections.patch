@@ -1,0 +1,119 @@
+From 018bb4a28e986278bb9a6e8d9bec93cb8047b7ce Mon Sep 17 00:00:00 2001
+Message-ID: <018bb4a28e986278bb9a6e8d9bec93cb8047b7ce.1752834529.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Mon, 9 Jun 2025 15:40:12 +0200
+Subject: [PATCH] esx: Allow specifying different CA bundle for remote
+ connections
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add new URI parameter which allows for using non-system CA certificates
+to verify remote peers.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 6c9a0beeca1c6a54eda5d15ba27925c734d51279)
+
+Resolves: https://issues.redhat.com/browse/RHEL-98292
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/drvesx.rst    | 16 ++++++++++++++--
+ src/esx/esx_util.c |  4 ++++
+ src/esx/esx_util.h |  1 +
+ src/esx/esx_vi.c   |  3 +++
+ 4 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/docs/drvesx.rst b/docs/drvesx.rst
+index 13c2bc37e5..84416562ba 100644
+--- a/docs/drvesx.rst
++++ b/docs/drvesx.rst
+@@ -91,7 +91,7 @@ Multiple parameters are separated by ``&``.
+ 
+ ::
+ 
+-   ?no_verify=1&auto_answer=1&proxy=socks://example-proxy.com:23456
++   ?no_verify=1&auto_answer=1&proxy=socks://example-proxy.com:23456&cacert=certs/ca-bundle.pem
+ 
+ The driver understands the extra parameters shown below.
+ 
+@@ -146,6 +146,16 @@ The driver understands the extra parameters shown below.
+ |                 |                             | ``port`` allows to override |
+ |                 |                             | the default port 1080.      |
+ +-----------------+-----------------------------+-----------------------------+
++| ``cacert``      | Path to a file with one     | The specified file will be  |
++|                 | or more certificates        | used for verifying the      |
++|                 |                             | remote host certificate     |
++|                 |                             | instead of the default      |
++|                 |                             | system one.                 |
++|                 |                             | :since:`Since 11.5.0`.      |
++|                 |                             | Does nothing if             |
++|                 |                             | ``no_verify`` is set        |
++|                 |                             | to ``1``.                   |
+++-----------------+-----------------------------+-----------------------------+
+ 
+ Authentication
+ ~~~~~~~~~~~~~~
+@@ -181,8 +191,10 @@ error like this one:
+ 
+    error: internal error curl_easy_perform() returned an error: Peer certificate cannot be authenticated with known CA certificates (60)
+ 
+-Where are two ways to solve this problem:
++Where are three ways to solve this problem:
+ 
++-  Use the ``cacert`` `Extra parameters`_ to point to a certificate bundle
++   with the CA that signed the SSL certificate used on the ESX server.
+ -  Use the ``no_verify=1`` `Extra parameters`_ to disable server
+    certificate verification.
+ -  Generate new SSL certificates signed by a CA known to your client computer
+diff --git a/src/esx/esx_util.c b/src/esx/esx_util.c
+index cb9638f360..7ee0e5f7c0 100644
+--- a/src/esx/esx_util.c
++++ b/src/esx/esx_util.c
+@@ -135,6 +135,9 @@ esxUtil_ParseUri(esxUtil_ParsedUri **parsedUri, virURI *uri)
+                     goto cleanup;
+                 }
+             }
++        } else if (STRCASEEQ(queryParam->name, "cacert")) {
++            g_clear_pointer(&(*parsedUri)->cacert, g_free);
++            (*parsedUri)->cacert = g_strdup(queryParam->value);
+         } else {
+             VIR_WARN("Ignoring unexpected query parameter '%s'",
+                      queryParam->name);
+@@ -168,6 +171,7 @@ esxUtil_FreeParsedUri(esxUtil_ParsedUri **parsedUri)
+     g_free((*parsedUri)->vCenter);
+     g_free((*parsedUri)->proxy_hostname);
+     g_free((*parsedUri)->path);
++    g_free((*parsedUri)->cacert);
+ 
+     g_free(*parsedUri);
+ }
+diff --git a/src/esx/esx_util.h b/src/esx/esx_util.h
+index 088c943e64..58bc44e744 100644
+--- a/src/esx/esx_util.h
++++ b/src/esx/esx_util.h
+@@ -44,6 +44,7 @@ struct _esxUtil_ParsedUri {
+     char *proxy_hostname;
+     int proxy_port;
+     char *path;
++    char *cacert;
+ };
+ 
+ int esxUtil_ParseUri(esxUtil_ParsedUri **parsedUri, virURI *uri);
+diff --git a/src/esx/esx_vi.c b/src/esx/esx_vi.c
+index 3ecd406e1d..d49daa5bc6 100644
+--- a/src/esx/esx_vi.c
++++ b/src/esx/esx_vi.c
+@@ -343,6 +343,9 @@ esxVI_CURL_Connect(esxVI_CURL *curl, esxUtil_ParsedUri *parsedUri)
+                          parsedUri->proxy_port);
+     }
+ 
++    if (parsedUri->cacert)
++        curl_easy_setopt(curl->handle, CURLOPT_CAINFO, parsedUri->cacert);
++
+     if (virMutexInit(&curl->lock) < 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                        _("Could not initialize CURL mutex"));
+-- 
+2.50.1

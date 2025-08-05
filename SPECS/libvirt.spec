@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 7.3%{?dist}%{?extra_release}
+Release: 7.6%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -397,6 +397,15 @@ Patch97: libvirt-Add-load-average-information-type-into-virDomainGetGuestInfo.pa
 Patch98: libvirt-qemu_agent-Add-qemuAgentGetLoadAvg.patch
 Patch99: libvirt-qemu-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
 Patch100: libvirt-virsh-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
+Patch101: libvirt-qemuMonitorJSONGetCPUModelExpansion-refactor-parsing-functions.patch
+Patch102: libvirt-qemu-parse-deprecated-props-from-query-cpu-model-expansion-response.patch
+Patch103: libvirt-qemu_capabilities-query-deprecated-features-for-host-model.patch
+Patch104: libvirt-libvirt-domain-introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES.patch
+Patch105: libvirt-qemu_capabilities-filter-deprecated-features-if-requested.patch
+Patch106: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.patch
+Patch107: libvirt-conf-add-deprecated_features-attribute.patch
+Patch108: libvirt-qemuPrepareNVRAMFile-Fix-NVRAM-image-conversion-check.patch
+Patch109: libvirt-esx-Allow-specifying-different-CA-bundle-for-remote-connections.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2722,6 +2731,21 @@ exit 0
 %endif
 
 %changelog
+* Fri Jul 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.6.el9_6
+- esx: Allow specifying different CA bundle for remote connections (RHEL-98292)
+
+* Wed Jun 25 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.5.el9_6
+- qemuPrepareNVRAMFile: Fix NVRAM image conversion check (RHEL-97757)
+
+* Wed Jun  4 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.4.el9_6
+- qemuMonitorJSONGetCPUModelExpansion: refactor parsing functions (RHEL-89977)
+- qemu: parse deprecated-props from query-cpu-model-expansion response (RHEL-89977)
+- qemu_capabilities: query deprecated features for host-model (RHEL-89977)
+- libvirt-domain: introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES (RHEL-89977)
+- qemu_capabilities: filter deprecated features if requested (RHEL-89977)
+- virsh: add --disable-deprecated-features flag to domcapabilities (RHEL-89977)
+- conf: add deprecated_features attribute (RHEL-89977)
+
 * Tue Apr 29 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.3.el9_6
 - Add load average information type into virDomainGetGuestInfo (RHEL-88449)
 - qemu_agent: Add qemuAgentGetLoadAvg() (RHEL-88449)
