@@ -1,0 +1,144 @@
+From 4b43cc2ee96aefe625ca2f377cab56132b15b84f Mon Sep 17 00:00:00 2001
+Message-ID: <4b43cc2ee96aefe625ca2f377cab56132b15b84f.1754419286.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 11 Mar 2025 09:01:03 +0100
+Subject: [PATCH] qemuxmlconftest: Include shared memory 'net-vhostuser' test
+ cases
+
+The vhost-user protocol requires shared memory support to work properly.
+
+Our test XMLs didn't have it configured as for interface the check if
+shared memory is present only produces a warning instead of a proper
+error.
+
+Upcoming patches will be moving the check to become fatal so the test
+cases need to be fixed first.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 779a975355dcb34898abaefdf8968c214a66ebf1)
+
+https://issues.redhat.com/browse/RHEL-106504
+---
+ tests/qemuxmlconfdata/net-vhostuser-fail.x86_64-latest.xml    | 3 +++
+ tests/qemuxmlconfdata/net-vhostuser-fail.xml                  | 3 +++
+ tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.args | 2 +-
+ tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.xml  | 3 +++
+ tests/qemuxmlconfdata/net-vhostuser-multiq.xml                | 3 +++
+ tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.args        | 2 +-
+ tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.xml         | 3 +++
+ tests/qemuxmlconfdata/net-vhostuser.xml                       | 3 +++
+ 8 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-fail.x86_64-latest.xml b/tests/qemuxmlconfdata/net-vhostuser-fail.x86_64-latest.xml
+index 60e591001d..ce1ebf9462 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-fail.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser-fail.x86_64-latest.xml
+@@ -3,6 +3,9 @@
+   <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+   <memory unit='KiB'>219136</memory>
+   <currentMemory unit='KiB'>219136</currentMemory>
++  <memoryBacking>
++    <access mode='shared'/>
++  </memoryBacking>
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc'>hvm</type>
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-fail.xml b/tests/qemuxmlconfdata/net-vhostuser-fail.xml
+index d50589af6f..b6b0b977d5 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-fail.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser-fail.xml
+@@ -3,6 +3,9 @@
+   <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+   <memory unit='KiB'>219136</memory>
+   <currentMemory unit='KiB'>219136</currentMemory>
++  <memoryBacking>
++    <access mode='shared'/>
++  </memoryBacking>
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc'>hvm</type>
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.args b/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.args
+index 922758a034..4ea3d4eebd 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.args
+@@ -14,7 +14,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -accel tcg \
+ -cpu qemu64 \
+ -m size=219136k \
+--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
++-object '{"qom-type":"memory-backend-file","id":"pc.ram","mem-path":"/var/lib/libvirt/qemu/ram/-1-QEMUGuest1/pc.ram","share":true,"x-use-canonical-path-for-ramblock-id":false,"size":224395264}' \
+ -overcommit mem-lock=off \
+ -smp 1,sockets=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.xml b/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.xml
+index 5c2cf70a4b..93524c2864 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser-multiq.x86_64-latest.xml
+@@ -3,6 +3,9 @@
+   <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+   <memory unit='KiB'>219136</memory>
+   <currentMemory unit='KiB'>219136</currentMemory>
++  <memoryBacking>
++    <access mode='shared'/>
++  </memoryBacking>
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc'>hvm</type>
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-multiq.xml b/tests/qemuxmlconfdata/net-vhostuser-multiq.xml
+index ed492ea41a..fa324c9d17 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-multiq.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser-multiq.xml
+@@ -3,6 +3,9 @@
+   <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+   <memory unit='KiB'>219136</memory>
+   <currentMemory unit='KiB'>219136</currentMemory>
++  <memoryBacking>
++    <access mode='shared'/>
++  </memoryBacking>
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc'>hvm</type>
+diff --git a/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.args b/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.args
+index bc1de8c8ed..f5925c77fe 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.args
+@@ -14,7 +14,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -accel tcg \
+ -cpu qemu64 \
+ -m size=219136k \
+--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
++-object '{"qom-type":"memory-backend-file","id":"pc.ram","mem-path":"/var/lib/libvirt/qemu/ram/-1-QEMUGuest1/pc.ram","share":true,"x-use-canonical-path-for-ramblock-id":false,"size":224395264}' \
+ -overcommit mem-lock=off \
+ -smp 1,sockets=1,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.xml b/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.xml
+index c77d46147e..44bebef2c8 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser.x86_64-latest.xml
+@@ -3,6 +3,9 @@
+   <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+   <memory unit='KiB'>219136</memory>
+   <currentMemory unit='KiB'>219136</currentMemory>
++  <memoryBacking>
++    <access mode='shared'/>
++  </memoryBacking>
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc'>hvm</type>
+diff --git a/tests/qemuxmlconfdata/net-vhostuser.xml b/tests/qemuxmlconfdata/net-vhostuser.xml
+index e55a30a54f..91d1abc027 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser.xml
+@@ -3,6 +3,9 @@
+   <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+   <memory unit='KiB'>219136</memory>
+   <currentMemory unit='KiB'>219136</currentMemory>
++  <memoryBacking>
++    <access mode='shared'/>
++  </memoryBacking>
+   <vcpu placement='static'>1</vcpu>
+   <os>
+     <type arch='x86_64' machine='pc'>hvm</type>
+-- 
+2.50.1

@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 7.6%{?dist}%{?extra_release}
+Release: 7.7%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -406,6 +406,12 @@ Patch106: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.
 Patch107: libvirt-conf-add-deprecated_features-attribute.patch
 Patch108: libvirt-qemuPrepareNVRAMFile-Fix-NVRAM-image-conversion-check.patch
 Patch109: libvirt-esx-Allow-specifying-different-CA-bundle-for-remote-connections.patch
+Patch110: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
+Patch111: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
+Patch112: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
+Patch113: libvirt-qemuxmlconftest-Include-shared-memory-net-vhostuser-test-cases.patch
+Patch114: libvirt-qemuValidateDomainDeviceDefNetwork-Require-shared-memory-for-all-vhost-user-interfaces.patch
+Patch115: libvirt-qemu-process-Remove-un-updated-qemuProcessStartWarnShmem.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2731,6 +2737,14 @@ exit 0
 %endif
 
 %changelog
+* Tue Aug  5 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.7.el9_6
+- qemu: fix order of VNC TLS config entries (RHEL-106277)
+- qemu: sanitize blank lines in config file (RHEL-106277)
+- qemu: add ability to set TLS priority string with QEMU (RHEL-106277)
+- qemuxmlconftest: Include shared memory 'net-vhostuser' test cases (RHEL-106504)
+- qemuValidateDomainDeviceDefNetwork: Require shared memory for all vhost-user interfaces (RHEL-106504)
+- qemu: process: Remove un-updated 'qemuProcessStartWarnShmem' (RHEL-106504)
+
 * Fri Jul 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.6.el9_6
 - esx: Allow specifying different CA bundle for remote connections (RHEL-98292)
 

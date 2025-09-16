@@ -1,0 +1,94 @@
+From bc9aaea59652adb0156b68e8cd198759c9eae5b3 Mon Sep 17 00:00:00 2001
+Message-ID: <bc9aaea59652adb0156b68e8cd198759c9eae5b3.1754419286.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 11 Mar 2025 09:04:18 +0100
+Subject: [PATCH] qemu: process: Remove un-updated 'qemuProcessStartWarnShmem'
+
+The checks in qemuProcessStartWarnShmem are no longer current. Since
+previous patch made it fatal for vhost-user interfaces to be configured
+without shared memory this warning code can be deleted.
+
+Resolves: https://issues.redhat.com/browse/RHEL-80533
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 080c7fd341619a3d1986a00265addaf45b63aacf)
+
+https://issues.redhat.com/browse/RHEL-106504
+---
+ src/qemu/qemu_process.c | 54 -----------------------------------------
+ 1 file changed, 54 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 8bddb415ac..24d0049c43 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5427,56 +5427,6 @@ qemuProcessMakeDir(virQEMUDriver *driver,
+ }
+ 
+ 
+-static void
+-qemuProcessStartWarnShmem(virDomainObj *vm)
+-{
+-    size_t i;
+-    bool check_shmem = false;
+-    bool shmem = vm->def->nshmems;
+-
+-    /*
+-     * For vhost-user to work, the domain has to have some type of
+-     * shared memory configured.  We're not the proper ones to judge
+-     * whether shared hugepages or shm are enough and will be in the
+-     * future, so we'll just warn in case neither is configured.
+-     * Moreover failing would give the false illusion that libvirt is
+-     * really checking that everything works before running the domain
+-     * and not only we are unable to do that, but it's also not our
+-     * aim to do so.
+-     */
+-    for (i = 0; i < vm->def->nnets; i++) {
+-        if (virDomainNetGetActualType(vm->def->nets[i]) ==
+-                                      VIR_DOMAIN_NET_TYPE_VHOSTUSER) {
+-            check_shmem = true;
+-            break;
+-        }
+-    }
+-
+-    if (!check_shmem)
+-        return;
+-
+-    /*
+-     * This check is by no means complete.  We merely check
+-     * whether there are *some* hugepages enabled and *some* NUMA
+-     * nodes with shared memory access.
+-     */
+-    if (!shmem && vm->def->mem.nhugepages) {
+-        for (i = 0; i < virDomainNumaGetNodeCount(vm->def->numa); i++) {
+-            if (virDomainNumaGetNodeMemoryAccessMode(vm->def->numa, i) ==
+-                VIR_DOMAIN_MEMORY_ACCESS_SHARED) {
+-                shmem = true;
+-                break;
+-            }
+-        }
+-    }
+-
+-    if (!shmem) {
+-        VIR_WARN("Detected vhost-user interface without any shared memory, "
+-                 "the interface might not be operational");
+-    }
+-}
+-
+-
+ static int
+ qemuProcessStartValidateGraphics(virDomainObj *vm)
+ {
+@@ -5711,10 +5661,6 @@ qemuProcessStartValidate(virQEMUDriver *driver,
+     if (qemuProcessStartValidateTSC(driver, vm) < 0)
+         return -1;
+ 
+-    VIR_DEBUG("Checking for any possible (non-fatal) issues");
+-
+-    qemuProcessStartWarnShmem(vm);
+-
+     return 0;
+ }
+ 
+-- 
+2.50.1
