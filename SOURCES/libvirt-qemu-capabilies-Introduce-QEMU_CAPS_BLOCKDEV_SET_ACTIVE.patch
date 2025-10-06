@@ -1,0 +1,76 @@
+From a26297c129ec05c129fda6da57ef8b8330d626be Mon Sep 17 00:00:00 2001
+Message-ID: <a26297c129ec05c129fda6da57ef8b8330d626be.1739815540.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 10 Feb 2025 17:57:01 +0100
+Subject: [PATCH] qemu: capabilies: Introduce QEMU_CAPS_BLOCKDEV_SET_ACTIVE
+
+The flag signals presence of the 'blockdev-set-active' QMP command.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit b402e167b640bcd242ba518cfd7cbc469dba52e9)
+
+ Conflicts:
+	src/qemu/qemu_capabilities.c
+	src/qemu/qemu_capabilities.h
+	tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
+
+         Some capabilities were not backported:
+            - QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS
+            - QEMU_CAPS_MIGRATE_INCOMING_EXIT_ON_ERROR
+            - QEMU_CAPS_MACHINE_VIRT_AIA
+            - QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW
+
+https://issues.redhat.com/browse/RHEL-78398
+---
+ src/qemu/qemu_capabilities.c                      | 2 ++
+ src/qemu/qemu_capabilities.h                      | 1 +
+ tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml | 1 +
+ 3 files changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index dec3199fce..65e19965dd 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -721,6 +721,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "chardev-reconnect-miliseconds", /* QEMU_CAPS_CHARDEV_RECONNECT_MILISECONDS */
+               "virtio-ccw.loadparm", /* QEMU_CAPS_VIRTIO_CCW_DEVICE_LOADPARM */
+               "netdev-stream-reconnect-miliseconds", /* QEMU_CAPS_NETDEV_STREAM_RECONNECT_MILISECONDS */
++              "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
+     );
+ 
+ 
+@@ -1242,6 +1243,7 @@ struct virQEMUCapsStringFlags virQEMUCapsCommands[] = {
+     { "query-stats-schemas", QEMU_CAPS_QUERY_STATS_SCHEMAS },
+     { "display-reload", QEMU_CAPS_DISPLAY_RELOAD },
+     { "snapshot-save", QEMU_CAPS_SNAPSHOT_INTERNAL_QMP },
++    { "blockdev-set-active", QEMU_CAPS_BLOCKDEV_SET_ACTIVE },
+ };
+ 
+ struct virQEMUCapsStringFlags virQEMUCapsMigration[] = {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 48e4530c95..e93e6a01cc 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -700,6 +700,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_CHARDEV_RECONNECT_MILISECONDS, /* 'reconnect-ms' option for chardevs supported */
+     QEMU_CAPS_VIRTIO_CCW_DEVICE_LOADPARM, /* loadparm available on CCW device for multi device boot */
+     QEMU_CAPS_NETDEV_STREAM_RECONNECT_MILISECONDS, /* 'reconnect-ms' option for netdev stream supported */
++    QEMU_CAPS_BLOCKDEV_SET_ACTIVE, /* blockdev-set-active QMP command supported */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
+index aed0a58fa7..e09b6e6e1a 100644
+--- a/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
+@@ -210,6 +210,7 @@
+   <flag name='snapshot-internal-qmp'/>
+   <flag name='chardev-reconnect-miliseconds'/>
+   <flag name='netdev-stream-reconnect-miliseconds'/>
++  <flag name='blockdev-set-active'/>
+   <version>9002050</version>
+   <microcodeVersion>43100285</microcodeVersion>
+   <package>v9.2.0-1636-gffaf7f0376</package>
+-- 
+2.48.1

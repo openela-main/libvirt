@@ -1,0 +1,37 @@
+From af2f592ed93320d281291623622e9b2a52d33475 Mon Sep 17 00:00:00 2001
+Message-ID: <af2f592ed93320d281291623622e9b2a52d33475.1734429553.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 28 Nov 2024 13:40:16 +0100
+Subject: [PATCH] sync_qemu_models_i386: Generate missing -v1 variants
+
+QEMU supports -v1 variant of any CPU model even though the list of
+versions is not defined (i.e., even if { .version = 1 } item is
+missing).
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8bc6ebb495f82ce8edb206eb4d5133e206fd8f2e)
+
+https://issues.redhat.com/browse/RHEL-70129
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/sync_qemu_models_i386.py | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/cpu_map/sync_qemu_models_i386.py b/src/cpu_map/sync_qemu_models_i386.py
+index 11fe1f7435..3e14136e07 100755
+--- a/src/cpu_map/sync_qemu_models_i386.py
++++ b/src/cpu_map/sync_qemu_models_i386.py
+@@ -484,6 +484,9 @@ def expand_model(outdir, model):
+     print(result['name'])
+     yield result
+ 
++    if len(versions) == 0:
++        versions.append({".version": "1"})
++
+     name = result["name"]
+     for version in versions:
+         result = copy.deepcopy(result)
+-- 
+2.47.1

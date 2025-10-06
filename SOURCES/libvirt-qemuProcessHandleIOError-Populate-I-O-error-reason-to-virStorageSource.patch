@@ -1,0 +1,55 @@
+From 61829441be56a5d24f727056cde31907ef3cfdeb Mon Sep 17 00:00:00 2001
+Message-ID: <61829441be56a5d24f727056cde31907ef3cfdeb.1738937224.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 27 Jan 2025 19:17:16 +0100
+Subject: [PATCH] qemuProcessHandleIOError: Populate I/O error reason to
+ virStorageSource
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Record the last I/O error reason and timestamp which happened with the
+corresponding virStorageSource struct.
+
+This will later allow querying the last error e.g. via the
+virDomainGetMessages() API.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 300f7e9bd4ee4e043cac1a84059fe4a60b101cf1)
+
+https://issues.redhat.com/browse/RHEL-76802
+---
+ src/qemu/qemu_process.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index c95b1ecd82..6b8a2af4ed 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -840,6 +840,7 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+     const char *eventReason = "";
+     virDomainDiskDef *disk = NULL;
+     virStorageSource *src = NULL;
++    g_autofree char *timestamp = NULL;
+ 
+     virObjectLock(vm);
+     priv = QEMU_DOMAIN_PRIVATE(vm);
+@@ -865,6 +866,15 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+     ioErrorEvent = virDomainEventIOErrorNewFromObj(vm, eventPath, eventAlias, action);
+     ioErrorEvent2 = virDomainEventIOErrorReasonNewFromObj(vm, eventPath, eventAlias, action, eventReason);
+ 
++    if ((timestamp = virTimeStringNow()) != NULL) {
++        if (src) {
++            g_free(src->ioerror_timestamp);
++            g_free(src->ioerror_message);
++            src->ioerror_timestamp = g_steal_pointer(&timestamp);
++            src->ioerror_message = g_strdup(reason);
++        }
++    }
++
+     if (action == VIR_DOMAIN_EVENT_IO_ERROR_PAUSE &&
+         virDomainObjGetState(vm, NULL) == VIR_DOMAIN_RUNNING) {
+         VIR_WARN("Transitioned guest %s to paused state due to IO error", vm->def->name);
+-- 
+2.48.1

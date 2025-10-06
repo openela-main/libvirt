@@ -1,0 +1,85 @@
+From 76ca496fe71d36346389f6e3e8959f360c4eead2 Mon Sep 17 00:00:00 2001
+Message-ID: <76ca496fe71d36346389f6e3e8959f360c4eead2.1738937224.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 6 Feb 2025 16:20:45 +0100
+Subject: [PATCH] qemu: domain: Initialize FD passthrough for a
+ virStorageSource before using it
+
+The call to 'qemuBlockStorageSourceNeedsFormatLayer()' bases the
+decision also on the state of the passed FD, so we must initialize the
+passthrough data via 'qemuDomainPrepareStorageSourceFDs()' before the
+aforementioned call.
+
+In the test change it's visible that we didn't add the necessary 'raw'
+driver which allows the 'protocol' blockdev to be opened in 'rw' mode so
+that qemu picks the proper file descriptior while keeping the device
+read-only.
+
+Resolves: https://issues.redhat.com/browse/RHEL-37519
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 5830e564bbeb798cccce2988094d1218f6dc5a60)
+
+https://issues.redhat.com/browse/RHEL-78353
+---
+ src/qemu/qemu_domain.c                                 |  6 +++---
+ .../qemuxmlconfdata/disk-source-fd.x86_64-latest.args  | 10 ++++++----
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 1fc4e2f33f..92035dd281 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -9677,6 +9677,9 @@ qemuDomainPrepareStorageSourceBlockdevNodename(virDomainDiskDef *disk,
+     /* qemuBlockStorageSourceSetStorageNodename steals 'nodestorage' */
+     qemuBlockStorageSourceSetStorageNodename(src, nodestorage);
+ 
++    if (qemuDomainPrepareStorageSourceFDs(src, priv) < 0)
++        return -1;
++
+     if (qemuBlockStorageSourceNeedsFormatLayer(src, priv->qemuCaps)) {
+         char *nodeformat = g_strdup_printf("%s-format", nodenameprefix);
+ 
+@@ -9717,9 +9720,6 @@ qemuDomainPrepareStorageSourceBlockdevNodename(virDomainDiskDef *disk,
+     if (qemuDomainPrepareStorageSourceNFS(src) < 0)
+         return -1;
+ 
+-    if (qemuDomainPrepareStorageSourceFDs(src, priv) < 0)
+-        return -1;
+-
+     return 0;
+ }
+ 
+diff --git a/tests/qemuxmlconfdata/disk-source-fd.x86_64-latest.args b/tests/qemuxmlconfdata/disk-source-fd.x86_64-latest.args
+index d77b3ca505..27d852cf32 100644
+--- a/tests/qemuxmlconfdata/disk-source-fd.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/disk-source-fd.x86_64-latest.args
+@@ -33,11 +33,12 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -blockdev '{"node-name":"libvirt-6-format","read-only":false,"driver":"qcow2","file":"libvirt-6-storage"}' \
+ -device '{"driver":"virtio-blk-pci","bus":"pci.0","addr":"0x2","drive":"libvirt-6-format","id":"virtio-disk4","bootindex":1}' \
+ -add-fd set=4,fd=209,opaque=libvirt-5-storage0 \
+--blockdev '{"driver":"file","filename":"/dev/fdset/4","node-name":"libvirt-5-storage","read-only":true}' \
++-blockdev '{"driver":"file","filename":"/dev/fdset/4","node-name":"libvirt-5-storage","read-only":false,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-5-format","read-only":true,"driver":"raw","file":"libvirt-5-storage"}' \
+ -add-fd set=3,fd=247,opaque=libvirt-4-storage0 \
+ -add-fd set=3,fd=248,opaque=libvirt-4-storage1 \
+ -blockdev '{"driver":"file","filename":"/dev/fdset/3","node-name":"libvirt-4-storage","auto-read-only":true,"discard":"unmap"}' \
+--blockdev '{"node-name":"libvirt-4-format","read-only":true,"driver":"qcow2","file":"libvirt-4-storage","backing":"libvirt-5-storage"}' \
++-blockdev '{"node-name":"libvirt-4-format","read-only":true,"driver":"qcow2","file":"libvirt-4-storage","backing":"libvirt-5-format"}' \
+ -add-fd set=2,fd=204,opaque=libvirt-3-storage0 \
+ -blockdev '{"driver":"file","filename":"/dev/fdset/2","node-name":"libvirt-3-storage","read-only":false,"discard":"unmap"}' \
+ -blockdev '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":"libvirt-4-format"}' \
+@@ -46,8 +47,9 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -blockdev '{"driver":"file","filename":"/dev/fdset/1","node-name":"libvirt-2-storage","read-only":true}' \
+ -device '{"driver":"ide-cd","bus":"ide.0","unit":0,"drive":"libvirt-2-storage","id":"ide0-0-0"}' \
+ -add-fd set=0,fd=208,opaque=libvirt-1-storage0 \
+--blockdev '{"driver":"file","filename":"/dev/fdset/0","node-name":"libvirt-1-storage","read-only":true}' \
+--device '{"driver":"ide-cd","bus":"ide.0","unit":1,"drive":"libvirt-1-storage","id":"ide0-0-1"}' \
++-blockdev '{"driver":"file","filename":"/dev/fdset/0","node-name":"libvirt-1-storage","read-only":false,"discard":"unmap"}' \
++-blockdev '{"node-name":"libvirt-1-format","read-only":true,"driver":"raw","file":"libvirt-1-storage"}' \
++-device '{"driver":"ide-cd","bus":"ide.0","unit":1,"drive":"libvirt-1-format","id":"ide0-0-1"}' \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -device '{"driver":"virtio-balloon-pci","id":"balloon0","bus":"pci.0","addr":"0x4"}' \
+ -sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+-- 
+2.48.1

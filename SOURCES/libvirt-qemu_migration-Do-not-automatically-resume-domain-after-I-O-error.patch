@@ -1,0 +1,38 @@
+From 33c6c5a2061321e75fa1455a5ad9fa192b1a7825 Mon Sep 17 00:00:00 2001
+Message-ID: <33c6c5a2061321e75fa1455a5ad9fa192b1a7825.1739815540.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 15 Jan 2025 16:02:00 +0100
+Subject: [PATCH] qemu_migration: Do not automatically resume domain after I/O
+ error
+
+When an I/O error happens (causing a domain to be paused) during live
+migration which is later cancelled by a user, trying to resume the
+domain doesn't make sense.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 3766891c5954c53370d7eb9c7a0a8e6ba3854ca4)
+
+https://issues.redhat.com/browse/RHEL-1071
+---
+ src/qemu/qemu_migration.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index fe0b9fc672..4112e95a1e 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -241,6 +241,11 @@ qemuMigrationSrcRestoreDomainState(virQEMUDriver *driver, virDomainObj *vm)
+         reason == VIR_DOMAIN_PAUSED_POSTCOPY_FAILED)
+         return;
+ 
++    if (reason == VIR_DOMAIN_PAUSED_IOERROR) {
++        VIR_DEBUG("Domain is paused due to I/O error, skipping resume");
++        return;
++    }
++
+     VIR_DEBUG("Restoring pre-migration state due to migration error");
+ 
+     /* we got here through some sort of failure; start the domain again */
+-- 
+2.48.1

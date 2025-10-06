@@ -1,0 +1,106 @@
+From 8b0154a6537420e47ea35fa1dd4fabd7dcd4c0fc Mon Sep 17 00:00:00 2001
+Message-ID: <8b0154a6537420e47ea35fa1dd4fabd7dcd4c0fc.1744363085.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Thu, 6 Mar 2025 19:19:12 -0500
+Subject: [PATCH] conf: parse interface/source/@dev for all interface types
+ (with backend type='passt')
+
+The original implementation of the passt backend for vhost-user
+interfaces erroneously forgot to parse:
+
+  <source dev='blah'/>
+
+for interface type='vhostuser', so it wasn't being added to the passt
+commandline, and also wasn't being saved to the domain config. Now we
+parse it whenever the <backend> type='passt', no matter what the
+interface type, and then throw an error during validation if
+source/@dev was specified for interface type = 'user|vhostuser' and
+backend type != 'passt'.
+
+Fixes: 1e9054b9c79d721a55f413c2983c5370044f8f60
+Resolves: https://issues.redhat.com/browse/RHEL-82539
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 4c979edaa545c8425f7a856c06ebc0de939d4b9f)
+
+https://issues.redhat.com/browse/RHEL-84690
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c                                    | 8 +++++---
+ src/conf/domain_validate.c                                | 8 +++++++-
+ .../qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.xml | 2 ++
+ 3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 095b9bbaa2..94e26bf82a 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -9900,9 +9900,6 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
+         break;
+ 
+     case VIR_DOMAIN_NET_TYPE_USER:
+-        def->sourceDev = virXMLPropString(source_node, "dev");
+-        break;
+-
+     case VIR_DOMAIN_NET_TYPE_NULL:
+     case VIR_DOMAIN_NET_TYPE_LAST:
+         break;
+@@ -10017,6 +10014,11 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
+         return NULL;
+     }
+ 
++    if (def->backend.type == VIR_DOMAIN_NET_BACKEND_PASST) {
++        def->sourceDev = virXMLPropString(source_node, "dev");
++    }
++
++
+     def->linkstate = VIR_DOMAIN_NET_INTERFACE_LINK_STATE_DEFAULT;
+     if (linkstate != NULL) {
+         if ((def->linkstate = virDomainNetInterfaceLinkStateTypeFromString(linkstate)) <= 0) {
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index 597ae3d938..9cedc8d6d2 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -2160,12 +2160,18 @@ virDomainNetDefValidate(const virDomainNetDef *net)
+     if (net->type != VIR_DOMAIN_NET_TYPE_USER &&
+         net->type != VIR_DOMAIN_NET_TYPE_VHOSTUSER) {
+         if (net->backend.type == VIR_DOMAIN_NET_BACKEND_PASST) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                            _("The 'passt' backend can only be used with interface type='user' or type='vhostuser'"));
+             return -1;
+         }
+     }
+ 
++    if (net->sourceDev && net->backend.type != VIR_DOMAIN_NET_BACKEND_PASST) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("The 'dev' attribute of the <source> element can only be used with <interface> type='user' or type='vhostuser' if the <backend> type='passt'"));
++        return -1;
++    }
++
+     if (net->nPortForwards > 0) {
+         size_t p;
+ 
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.xml b/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.xml
+index a1f9366722..529aff11f8 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.xml
+@@ -33,6 +33,7 @@
+     <controller type='pci' index='0' model='pci-root'/>
+     <interface type='vhostuser'>
+       <mac address='00:11:22:33:44:55'/>
++      <source dev='eth42'/>
+       <ip address='172.17.2.0' family='ipv4' prefix='24'/>
+       <ip address='2001:db8:ac10:fd01::feed' family='ipv6'/>
+       <portForward proto='tcp' address='2001:db8:ac10:fd01::1:10'>
+@@ -63,6 +64,7 @@
+     </interface>
+     <interface type='vhostuser'>
+       <mac address='00:11:22:33:44:11'/>
++      <source dev='eth43'/>
+       <model type='virtio'/>
+       <backend type='passt'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+-- 
+2.49.0

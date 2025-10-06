@@ -1,0 +1,66 @@
+From 53a7b2cc3a550791f69d6b78d12cadb02a43d247 Mon Sep 17 00:00:00 2001
+Message-ID: <53a7b2cc3a550791f69d6b78d12cadb02a43d247.1738937224.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 27 Jan 2025 13:03:58 +0100
+Subject: [PATCH] qemu: Handle quirks of 'device' field of BLOCK_IO_ERROR event
+ in monitor code
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+BLOCK_IO_ERROR's 'device' field is an empty string in case when it isn't
+applicable as it was originally mandatory in the qemu API docs.
+
+Move the logic that convert's empty string back to NULL from
+'qemuProcessHandleIOError()' to 'qemuMonitorJSONHandleIOError()'
+
+This also fixes a hypothetical NULL-dereference if qemu would indeed
+report an IO error without the 'device' field present.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 2f8359f827ce92e0b454eca55640a928367131fd)
+
+https://issues.redhat.com/browse/RHEL-76802
+---
+ src/qemu/qemu_monitor_json.c | 9 ++++++++-
+ src/qemu/qemu_process.c      | 3 ---
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 1b4288b744..345e9383e3 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -708,8 +708,15 @@ qemuMonitorJSONHandleIOError(qemuMonitor *mon, virJSONValue *data)
+         action = "ignore";
+     }
+ 
+-    if ((device = virJSONValueObjectGetString(data, "device")) == NULL)
++    if ((device = virJSONValueObjectGetString(data, "device")) == NULL) {
+         VIR_WARN("missing device in disk io error event");
++    } else {
++        /* 'device' was documented as mandatory in the qemu event, but later became
++         * optional, in which case an empty string is sent by qemu. Convert it back
++         * to NULL */
++        if (*device == '\0')
++            device = NULL;
++    }
+ 
+     nodename = virJSONValueObjectGetString(data, "node-name");
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index c618fbf69c..b4f6d358f3 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -840,9 +840,6 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+     virObjectLock(vm);
+     priv = QEMU_DOMAIN_PRIVATE(vm);
+ 
+-    if (*diskAlias == '\0')
+-        diskAlias = NULL;
+-
+     if (diskAlias)
+         disk = qemuProcessFindDomainDiskByAliasOrQOM(vm, diskAlias, NULL);
+     else if (nodename)
+-- 
+2.48.1

@@ -1,0 +1,213 @@
+From fe06935a2497f26850fce25e3e461cd020697b4c Mon Sep 17 00:00:00 2001
+Message-ID: <fe06935a2497f26850fce25e3e461cd020697b4c.1737018560.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 20 Dec 2024 12:27:22 +0100
+Subject: [PATCH] conf, docs: Add support for direct and extended tlbflush
+ features
+
+Similarly to stimer-direct these are subelements of <tlbflush/> in the
+domain XML.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit ac08b362da724f1dd7aa6f05c0a9e7a960a7f024)
+
+https://issues.redhat.com/browse/RHEL-73088
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/formatdomain.rst             | 13 ++++++++-----
+ src/conf/domain_conf.c            | 26 +++++++++++++++++++++++++-
+ src/conf/domain_conf.h            |  2 ++
+ src/conf/schemas/domaincommon.rng | 21 ++++++++++++++++++++-
+ src/cpu/cpu_x86.c                 |  7 +++++++
+ src/cpu/cpu_x86_data.h            |  2 ++
+ 6 files changed, 64 insertions(+), 7 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 60bee8bd4f..8d787ef59a 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -1993,7 +1993,10 @@ Hypervisors may allow certain CPU / machine features to be toggled on/off.
+        <vendor_id state='on' value='KVM Hv'/>
+        <frequencies state='on'/>
+        <reenlightenment state='on'/>
+-       <tlbflush state='on'/>
++       <tlbflush state='on'>
++         <direct state='on'/>
++         <extended state='on'/>
++       </tlbflush>
+        <ipi state='on'/>
+        <evmcs state='on'/>
+        <emsr_bitmap state='on'/>
+@@ -2068,9 +2071,9 @@ are:
+    Enable various features improving behavior of guests running Microsoft
+    Windows.
+ 
+-   =============== ====================================================================== ============================================ =======================================================
++   =============== ====================================================================== ============================================ ========================================================================
+    Feature         Description                                                            Value                                        Since
+-   =============== ====================================================================== ============================================ =======================================================
++   =============== ====================================================================== ============================================ ========================================================================
+    relaxed         Relax constraints on timers                                            on, off                                      :since:`1.0.0 (QEMU 2.0)`
+    vapic           Enable virtual APIC                                                    on, off                                      :since:`1.1.0 (QEMU 2.0)`
+    spinlocks       Enable spinlock support                                                on, off; retries - at least 4095             :since:`1.1.0 (QEMU 2.0)`
+@@ -2082,13 +2085,13 @@ are:
+    vendor_id       Set hypervisor vendor id                                               on, off; value - string, up to 12 characters :since:`1.3.3 (QEMU 2.5)`
+    frequencies     Expose frequency MSRs                                                  on, off                                      :since:`4.7.0 (QEMU 2.12)`
+    reenlightenment Enable re-enlightenment notification on migration                      on, off                                      :since:`4.7.0 (QEMU 3.0)`
+-   tlbflush        Enable PV TLB flush support                                            on, off                                      :since:`4.7.0 (QEMU 3.0)`
++   tlbflush        Enable PV TLB flush support                                            on, off; direct - on,off; extended - on,off  :since:`4.7.0 (QEMU 3.0), direct and extended modes 11.0.0 (QEMU 7.1.0)`
+    ipi             Enable PV IPI support                                                  on, off                                      :since:`4.10.0 (QEMU 3.1)`
+    evmcs           Enable Enlightened VMCS                                                on, off                                      :since:`4.10.0 (QEMU 3.1)`
+    avic            Enable use Hyper-V SynIC with hardware APICv/AVIC                      on, off                                      :since:`8.10.0 (QEMU 6.2)`
+    emsr_bitmap     Avoid unnecessary updates to L2 MSR Bitmap upon vmexits.               on, off                                      :since:`10.7.0 (QEMU 7.1)`
+    xmm_input       Enable XMM Fast Hypercall Input                                        on, off                                      :since:`10.7.0 (QEMU 7.1)`
+-   =============== ====================================================================== ============================================ =======================================================
++   =============== ====================================================================== ============================================ ========================================================================
+ 
+    :since:`Since 8.0.0`, the hypervisor can be configured further by setting
+    the ``mode`` attribute to one of the following values:
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 4ad8289b89..c2164f6377 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -16672,7 +16672,6 @@ virDomainFeaturesHyperVDefParse(virDomainDef *def,
+         case VIR_DOMAIN_HYPERV_RESET:
+         case VIR_DOMAIN_HYPERV_FREQUENCIES:
+         case VIR_DOMAIN_HYPERV_REENLIGHTENMENT:
+-        case VIR_DOMAIN_HYPERV_TLBFLUSH:
+         case VIR_DOMAIN_HYPERV_IPI:
+         case VIR_DOMAIN_HYPERV_EVMCS:
+         case VIR_DOMAIN_HYPERV_AVIC:
+@@ -16680,6 +16679,31 @@ virDomainFeaturesHyperVDefParse(virDomainDef *def,
+         case VIR_DOMAIN_HYPERV_XMM_INPUT:
+             break;
+ 
++        case VIR_DOMAIN_HYPERV_TLBFLUSH:
++            if (value != VIR_TRISTATE_SWITCH_ON)
++                break;
++
++            child = xmlFirstElementChild(node);
++            while (child) {
++                if (STREQ((const char *)child->name, "direct")) {
++                    if (virXMLPropTristateSwitch(child, "state", VIR_XML_PROP_REQUIRED,
++                                                 &def->hyperv_tlbflush_direct) < 0)
++                        return -1;
++                } else if (STREQ((const char *)child->name, "extended")) {
++                    if (virXMLPropTristateSwitch(child, "state", VIR_XML_PROP_REQUIRED,
++                                                 &def->hyperv_tlbflush_extended) < 0)
++                        return -1;
++                } else {
++                    virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                                   _("unsupported Hyper-V tlbflush feature: %1$s"),
++                                   child->name);
++                    return -1;
++                }
++
++                child = xmlNextElementSibling(child);
++            }
++            break;
++
+         case VIR_DOMAIN_HYPERV_STIMER:
+             if (value != VIR_TRISTATE_SWITCH_ON)
+                 break;
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index a187ab4083..9f7c28343f 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -3101,6 +3101,8 @@ struct _virDomainDef {
+     virDomainXenPassthroughMode xen_passthrough_mode;
+     unsigned int hyperv_spinlocks;
+     virTristateSwitch hyperv_stimer_direct;
++    virTristateSwitch hyperv_tlbflush_direct;
++    virTristateSwitch hyperv_tlbflush_extended;
+     virGICVersion gic_version;
+     virDomainHPTResizing hpt_resizing;
+     unsigned long long hpt_maxpagesize; /* Stored in KiB */
+diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
+index b3fdbf7ffb..7121519ca3 100644
+--- a/src/conf/schemas/domaincommon.rng
++++ b/src/conf/schemas/domaincommon.rng
+@@ -8027,7 +8027,7 @@
+             </optional>
+             <optional>
+               <element name="tlbflush">
+-                <ref name="featurestate"/>
++                <ref name="tlbflush"/>
+               </element>
+             </optional>
+             <optional>
+@@ -8075,6 +8075,25 @@
+     </interleave>
+   </define>
+ 
++  <!-- Hyper-V tlbflush features -->
++  <define name="tlbflush">
++    <interleave>
++      <optional>
++        <ref name="featurestate"/>
++      </optional>
++      <optional>
++        <element name="direct">
++          <ref name="featurestate"/>
++        </element>
++      </optional>
++      <optional>
++        <element name="extended">
++          <ref name="featurestate"/>
++        </element>
++      </optional>
++    </interleave>
++  </define>
++
+   <!-- Optional KVM features -->
+   <define name="kvm">
+     <element name="kvm">
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 13695802da..6d72d446c9 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -99,6 +99,8 @@ KVM_FEATURE_DEF(VIR_CPU_x86_HV_REENLIGHTENMENT,
+ 
+ KVM_FEATURE_DEF(VIR_CPU_x86_HV_STIMER_DIRECT,
+                 0x40000003, 0x0, 0x00080000);
++KVM_FEATURE_DEF(VIR_CPU_x86_HV_TLBFLUSH_DIRECT,
++                0x40000003, 0x0, 0x00004000);
+ 
+ KVM_FEATURE_DEF(VIR_CPU_x86_HV_TLBFLUSH,
+                 0x40000004, 0x00000004, 0x0);
+@@ -109,6 +111,9 @@ KVM_FEATURE_DEF(VIR_CPU_x86_HV_IPI,
+ KVM_FEATURE_DEF(VIR_CPU_x86_HV_EVMCS,
+                 0x40000004, 0x00004000, 0x0);
+ 
++KVM_FEATURE_DEF(VIR_CPU_x86_HV_TLBFLUSH_EXT,
++                0x40000004, 0x0, 0x00004000);
++
+ KVM_FEATURE_DEF(VIR_CPU_x86_HV_EMSR_BITMAP,
+                 0x4000000A, 0x00080000, 0x0);
+ static virCPUx86Feature x86_kvm_features[] =
+@@ -130,6 +135,8 @@ static virCPUx86Feature x86_kvm_features[] =
+     KVM_FEATURE(VIR_CPU_x86_HV_EVMCS),
+     KVM_FEATURE(VIR_CPU_x86_HV_STIMER_DIRECT),
+     KVM_FEATURE(VIR_CPU_x86_HV_EMSR_BITMAP),
++    KVM_FEATURE(VIR_CPU_x86_HV_TLBFLUSH_DIRECT),
++    KVM_FEATURE(VIR_CPU_x86_HV_TLBFLUSH_EXT),
+ };
+ 
+ typedef struct _virCPUx86Signature virCPUx86Signature;
+diff --git a/src/cpu/cpu_x86_data.h b/src/cpu/cpu_x86_data.h
+index 43ad2faeb1..448acbbeb2 100644
+--- a/src/cpu/cpu_x86_data.h
++++ b/src/cpu/cpu_x86_data.h
+@@ -60,6 +60,8 @@ struct _virCPUx86MSR {
+ #define VIR_CPU_x86_HV_FREQUENCIES "hv-frequencies"
+ #define VIR_CPU_x86_HV_REENLIGHTENMENT "hv-reenlightenment"
+ #define VIR_CPU_x86_HV_TLBFLUSH  "hv-tlbflush"
++#define VIR_CPU_x86_HV_TLBFLUSH_EXT "hv-tlbflush-ext"
++#define VIR_CPU_x86_HV_TLBFLUSH_DIRECT "hv-tlbflush-direct"
+ #define VIR_CPU_x86_HV_IPI       "hv-ipi"
+ #define VIR_CPU_x86_HV_EVMCS     "hv-evmcs"
+ #define VIR_CPU_x86_HV_AVIC      "hv-avic"
+-- 
+2.47.1

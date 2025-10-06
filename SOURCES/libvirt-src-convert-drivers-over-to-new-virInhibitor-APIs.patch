@@ -1,0 +1,549 @@
+From ee7c4530172c907022c62cc42d5561747891ad98 Mon Sep 17 00:00:00 2001
+Message-ID: <ee7c4530172c907022c62cc42d5561747891ad98.1744363085.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Mon, 16 Dec 2024 16:28:48 +0000
+Subject: [PATCH] src: convert drivers over to new virInhibitor APIs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This initial conversion of the drivers switches them over to use
+the virInhibitor APIs in local daemon only mode. Communication to
+logind is still handled by the virNetDaemon class logic.
+
+This mostly just replaces upto 3 fields in the driver state
+with a single new virInhibitor object, but otherwise should not
+change functionality besides replacing atomics with mutex protected
+APIs.
+
+The exception is the LXC driver which has been trying to inhibit
+shutdown shutdown but silently failing to, since nothing ever
+remembered to set the 'inhibitCallback' pointer in the driver
+state struct.
+
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 48f0b6dfa12563f0006d2de4b0f85599e20f9449)
+Resolves: https://issues.redhat.com/browse/RHEL-83067
+---
+ src/libxl/libxl_conf.h           |  9 +++----
+ src/libxl/libxl_domain.c         |  6 ++---
+ src/libxl/libxl_driver.c         | 15 +++++++----
+ src/lxc/lxc_conf.h               |  9 +++----
+ src/lxc/lxc_driver.c             | 13 +++++++--
+ src/lxc/lxc_process.c            |  9 +++----
+ src/network/bridge_driver.c      | 20 +++++++-------
+ src/network/bridge_driver_conf.h |  9 +++----
+ src/qemu/qemu_conf.h             |  9 +++----
+ src/qemu/qemu_driver.c           | 12 ++++++---
+ src/qemu/qemu_process.c          |  9 +++----
+ src/secret/secret_driver.c       | 46 +++++++++++++-------------------
+ 12 files changed, 80 insertions(+), 86 deletions(-)
+
+diff --git a/src/libxl/libxl_conf.h b/src/libxl/libxl_conf.h
+index 7087b41079..0edcde079d 100644
+--- a/src/libxl/libxl_conf.h
++++ b/src/libxl/libxl_conf.h
+@@ -35,6 +35,7 @@
+ #include "virfirmware.h"
+ #include "libxl_capabilities.h"
+ #include "libxl_logger.h"
++#include "virinhibitor.h"
+ 
+ #define LIBXL_DRIVER_EXTERNAL_NAME "Xen"
+ /*
+@@ -117,12 +118,8 @@ struct _libxlDriverPrivate {
+     /* pid file FD, ensures two copies of the driver can't use the same root */
+     int lockFD;
+ 
+-    /* Atomic inc/dec only */
+-    unsigned int nactive;
+-
+-    /* Immutable pointers. Caller must provide locking */
+-    virStateInhibitCallback inhibitCallback;
+-    void *inhibitOpaque;
++    /* Immutable pointer, self-locking APIs */
++    virInhibitor *inhibitor;
+ 
+     /* Immutable pointer, self-locking APIs */
+     virDomainObjList *domains;
+diff --git a/src/libxl/libxl_domain.c b/src/libxl/libxl_domain.c
+index 711e22b8df..6805160923 100644
+--- a/src/libxl/libxl_domain.c
++++ b/src/libxl/libxl_domain.c
+@@ -873,8 +873,7 @@ libxlDomainCleanup(libxlDriverPrivate *driver,
+         priv->deathW = NULL;
+     }
+ 
+-    if (g_atomic_int_dec_and_test(&driver->nactive) && driver->inhibitCallback)
+-        driver->inhibitCallback(false, driver->inhibitOpaque);
++    virInhibitorRelease(driver->inhibitor);
+ 
+     /* Release auto-allocated graphics ports */
+     for (i = 0; i < vm->def->ngraphics; i++) {
+@@ -1418,8 +1417,7 @@ libxlDomainStart(libxlDriverPrivate *driver,
+         return -1;
+     }
+ 
+-    if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-        driver->inhibitCallback(true, driver->inhibitOpaque);
++    virInhibitorHold(driver->inhibitor);
+ 
+     event = virDomainEventLifecycleNewFromObj(vm, VIR_DOMAIN_EVENT_STARTED,
+                                               restore_fd < 0 ?
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index b670e697c6..ecd6ea9fa8 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -437,8 +437,7 @@ libxlReconnectDomain(virDomainObj *vm,
+         virDomainObjSetState(vm, VIR_DOMAIN_RUNNING,
+                              VIR_DOMAIN_RUNNING_UNKNOWN);
+ 
+-    if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-        driver->inhibitCallback(true, driver->inhibitOpaque);
++    virInhibitorHold(driver->inhibitor);
+ 
+     /* Enable domain death events */
+     libxl_evenable_domain_death(cfg->ctx, vm->def->id, 0, &priv->deathW);
+@@ -514,6 +513,7 @@ libxlStateCleanup(void)
+ 
+     virObjectUnref(libxl_driver->domainEventState);
+     virSysinfoDefFree(libxl_driver->hostsysinfo);
++    virInhibitorFree(libxl_driver->inhibitor);
+ 
+     if (libxl_driver->lockFD != -1)
+         virPidFileRelease(libxl_driver->config->stateDir, "driver", libxl_driver->lockFD);
+@@ -675,9 +675,6 @@ libxlStateInitialize(bool privileged,
+         return VIR_DRV_STATE_INIT_ERROR;
+     }
+ 
+-    libxl_driver->inhibitCallback = callback;
+-    libxl_driver->inhibitOpaque = opaque;
+-
+     /* Allocate bitmap for vnc port reservation */
+     if (!(libxl_driver->reservedGraphicsPorts =
+           virPortAllocatorRangeNew(_("VNC"),
+@@ -709,6 +706,14 @@ libxlStateInitialize(bool privileged,
+     if (libxlDriverConfigLoadFile(cfg, driverConf) < 0)
+         goto error;
+ 
++    libxl_driver->inhibitor = virInhibitorNew(
++        VIR_INHIBITOR_WHAT_NONE,
++        _("Libvirt Xen"),
++        _("Xen virtual machines are running"),
++        VIR_INHIBITOR_MODE_DELAY,
++        callback,
++        opaque);
++
+     /* Register the callbacks providing access to libvirt's event loop */
+     libxl_osevent_register_hooks(cfg->ctx, &libxl_osevent_callbacks, cfg->ctx);
+ 
+diff --git a/src/lxc/lxc_conf.h b/src/lxc/lxc_conf.h
+index c0967ac63b..73c60c7ebf 100644
+--- a/src/lxc/lxc_conf.h
++++ b/src/lxc/lxc_conf.h
+@@ -30,6 +30,7 @@
+ #include "virsysinfo.h"
+ #include "virclosecallbacks.h"
+ #include "virhostdev.h"
++#include "virinhibitor.h"
+ 
+ #define LXC_DRIVER_NAME "LXC"
+ 
+@@ -76,12 +77,8 @@ struct _virLXCDriver {
+     /* Immutable pointer, lockless APIs */
+     virSysinfoDef *hostsysinfo;
+ 
+-    /* Atomic inc/dec only */
+-    unsigned int nactive;
+-
+-    /* Immutable pointers. Caller must provide locking */
+-    virStateInhibitCallback inhibitCallback;
+-    void *inhibitOpaque;
++    /* Immutable pointer, self-locking APIs */
++    virInhibitor *inhibitor;
+ 
+     /* Immutable pointer, self-locking APIs */
+     virDomainObjList *domains;
+diff --git a/src/lxc/lxc_driver.c b/src/lxc/lxc_driver.c
+index 9609d7d10c..9ee771c62a 100644
+--- a/src/lxc/lxc_driver.c
++++ b/src/lxc/lxc_driver.c
+@@ -1433,8 +1433,8 @@ static virDrvStateInitResult
+ lxcStateInitialize(bool privileged,
+                    const char *root,
+                    bool monolithic G_GNUC_UNUSED,
+-                   virStateInhibitCallback callback G_GNUC_UNUSED,
+-                   void *opaque G_GNUC_UNUSED)
++                   virStateInhibitCallback callback,
++                   void *opaque)
+ {
+     virLXCDriverConfig *cfg = NULL;
+     bool autostart = true;
+@@ -1487,6 +1487,14 @@ lxcStateInitialize(bool privileged,
+     if (virLXCLoadDriverConfig(cfg, SYSCONFDIR "/libvirt/lxc.conf") < 0)
+         goto cleanup;
+ 
++    lxc_driver->inhibitor = virInhibitorNew(
++        VIR_INHIBITOR_WHAT_NONE,
++        _("Libvirt LXC"),
++        _("LXC containers are running"),
++        VIR_INHIBITOR_MODE_DELAY,
++        callback,
++        opaque);
++
+     if (!(lxc_driver->securityManager = lxcSecurityInit(cfg)))
+         goto cleanup;
+ 
+@@ -1591,6 +1599,7 @@ static int lxcStateCleanup(void)
+     virObjectUnref(lxc_driver->caps);
+     virObjectUnref(lxc_driver->securityManager);
+     virObjectUnref(lxc_driver->xmlopt);
++    virInhibitorFree(lxc_driver->inhibitor);
+ 
+     if (lxc_driver->lockFD != -1)
+         virPidFileRelease(lxc_driver->config->stateDir, "driver", lxc_driver->lockFD);
+diff --git a/src/lxc/lxc_process.c b/src/lxc/lxc_process.c
+index cd8bcfc282..c2982244f0 100644
+--- a/src/lxc/lxc_process.c
++++ b/src/lxc/lxc_process.c
+@@ -203,8 +203,7 @@ static void virLXCProcessCleanup(virLXCDriver *driver,
+     vm->pid = 0;
+     vm->def->id = -1;
+ 
+-    if (g_atomic_int_dec_and_test(&driver->nactive) && driver->inhibitCallback)
+-        driver->inhibitCallback(false, driver->inhibitOpaque);
++    virInhibitorRelease(driver->inhibitor);
+ 
+     virLXCDomainReAttachHostDevices(driver, vm->def);
+ 
+@@ -1466,8 +1465,7 @@ int virLXCProcessStart(virLXCDriver * driver,
+     if (virCommandHandshakeNotify(cmd) < 0)
+         goto cleanup;
+ 
+-    if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-        driver->inhibitCallback(true, driver->inhibitOpaque);
++    virInhibitorHold(driver->inhibitor);
+ 
+     /* The first synchronization point is when the controller creates CGroups. */
+     if (lxcContainerWaitForContinue(handshakefds[0]) < 0) {
+@@ -1665,8 +1663,7 @@ virLXCProcessReconnectDomain(virDomainObj *vm,
+         virDomainObjSetState(vm, VIR_DOMAIN_RUNNING,
+                              VIR_DOMAIN_RUNNING_UNKNOWN);
+ 
+-        if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-            driver->inhibitCallback(true, driver->inhibitOpaque);
++        virInhibitorHold(driver->inhibitor);
+ 
+         if (!(priv->monitor = virLXCProcessConnectMonitor(driver, vm)))
+             goto error;
+diff --git a/src/network/bridge_driver.c b/src/network/bridge_driver.c
+index e700a614a9..ce793c12ef 100644
+--- a/src/network/bridge_driver.c
++++ b/src/network/bridge_driver.c
+@@ -504,8 +504,7 @@ networkUpdateState(virNetworkObj *obj,
+     if (virNetworkObjIsActive(obj)) {
+         virNetworkObjPortForEach(obj, networkUpdatePort, obj);
+ 
+-        if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-            driver->inhibitCallback(true, driver->inhibitOpaque);
++        virInhibitorHold(driver->inhibitor);
+     }
+ 
+     /* Try and read dnsmasq pids of both active and inactive networks, just in
+@@ -644,9 +643,6 @@ networkStateInitialize(bool privileged,
+         goto error;
+     }
+ 
+-    network_driver->inhibitCallback = callback;
+-    network_driver->inhibitOpaque = opaque;
+-
+     network_driver->privileged = privileged;
+ 
+     if (!(network_driver->xmlopt = networkDnsmasqCreateXMLConf()))
+@@ -655,6 +651,14 @@ networkStateInitialize(bool privileged,
+     if (!(network_driver->config = cfg = virNetworkDriverConfigNew(privileged)))
+         goto error;
+ 
++    network_driver->inhibitor = virInhibitorNew(
++        VIR_INHIBITOR_WHAT_NONE,
++        _("Libvirt Network"),
++        _("Virtual networks are active"),
++        VIR_INHIBITOR_MODE_DELAY,
++        callback,
++        opaque);
++
+     if ((network_driver->lockFD =
+          virPidFileAcquire(cfg->stateDir, "driver", getpid())) < 0)
+         goto error;
+@@ -2432,8 +2436,7 @@ networkStartNetwork(virNetworkDriverState *driver,
+                                 obj, network_driver->xmlopt) < 0)
+         goto cleanup;
+ 
+-    if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-        driver->inhibitCallback(true, driver->inhibitOpaque);
++    virInhibitorHold(driver->inhibitor);
+ 
+     virNetworkObjSetActive(obj, true);
+     VIR_INFO("Network '%s' started up", def->name);
+@@ -2509,8 +2512,7 @@ networkShutdownNetwork(virNetworkDriverState *driver,
+ 
+     virNetworkObjSetActive(obj, false);
+ 
+-    if (g_atomic_int_dec_and_test(&driver->nactive) && driver->inhibitCallback)
+-        driver->inhibitCallback(false, driver->inhibitOpaque);
++    virInhibitorRelease(driver->inhibitor);
+ 
+     virNetworkObjUnsetDefTransient(obj);
+     return ret;
+diff --git a/src/network/bridge_driver_conf.h b/src/network/bridge_driver_conf.h
+index 1beed01efb..2a2e2bc16d 100644
+--- a/src/network/bridge_driver_conf.h
++++ b/src/network/bridge_driver_conf.h
+@@ -27,6 +27,7 @@
+ #include "virnetworkobj.h"
+ #include "object_event.h"
+ #include "virfirewall.h"
++#include "virinhibitor.h"
+ 
+ typedef struct _virNetworkDriverConfig virNetworkDriverConfig;
+ struct _virNetworkDriverConfig {
+@@ -49,12 +50,8 @@ typedef struct _virNetworkDriverState virNetworkDriverState;
+ struct _virNetworkDriverState {
+     virMutex lock;
+ 
+-    /* Atomic inc/dec only */
+-    unsigned int nactive;
+-
+-    /* Immutable pointers. Caller must provide locking */
+-    virStateInhibitCallback inhibitCallback;
+-    void *inhibitOpaque;
++    /* Immutable pointer, self-locking APIs */
++    virInhibitor *inhibitor;
+ 
+     /* Read-only */
+     bool privileged;
+diff --git a/src/qemu/qemu_conf.h b/src/qemu/qemu_conf.h
+index 23a900193e..42cdb6f883 100644
+--- a/src/qemu/qemu_conf.h
++++ b/src/qemu/qemu_conf.h
+@@ -42,6 +42,7 @@
+ #include "virfile.h"
+ #include "virfilecache.h"
+ #include "virfirmware.h"
++#include "virinhibitor.h"
+ 
+ #define QEMU_DRIVER_NAME "QEMU"
+ 
+@@ -257,16 +258,12 @@ struct _virQEMUDriver {
+     /* Atomic increment only */
+     int lastvmid;
+ 
+-    /* Atomic inc/dec only */
+-    unsigned int nactive;
+-
+     /* Immutable values */
+     bool privileged;
+     char *embeddedRoot;
+ 
+-    /* Immutable pointers. Caller must provide locking */
+-    virStateInhibitCallback inhibitCallback;
+-    void *inhibitOpaque;
++    /* Immutable pointer, self-locking APIs */
++    virInhibitor *inhibitor;
+ 
+     /* Immutable pointer, self-locking APIs */
+     virDomainObjList *domains;
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 379f9fb74f..5b911d5221 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -573,9 +573,6 @@ qemuStateInitialize(bool privileged,
+         return VIR_DRV_STATE_INIT_ERROR;
+     }
+ 
+-    qemu_driver->inhibitCallback = callback;
+-    qemu_driver->inhibitOpaque = opaque;
+-
+     qemu_driver->privileged = privileged;
+     qemu_driver->hostarch = virArchFromHost();
+     if (root != NULL)
+@@ -675,6 +672,14 @@ qemuStateInitialize(bool privileged,
+         goto error;
+     }
+ 
++    qemu_driver->inhibitor = virInhibitorNew(
++        VIR_INHIBITOR_WHAT_NONE,
++        _("Libvirt QEMU"),
++        _("QEMU/KVM virtual machines are running"),
++        VIR_INHIBITOR_MODE_DELAY,
++        callback,
++        opaque);
++
+     if ((qemu_driver->lockFD =
+          virPidFileAcquire(cfg->stateDir, "driver", getpid())) < 0)
+         goto error;
+@@ -1065,6 +1070,7 @@ qemuStateCleanup(void)
+     ebtablesContextFree(qemu_driver->ebtables);
+     virObjectUnref(qemu_driver->domains);
+     virObjectUnref(qemu_driver->nbdkitCapsCache);
++    virInhibitorFree(qemu_driver->inhibitor);
+ 
+     if (qemu_driver->lockFD != -1)
+         virPidFileRelease(qemu_driver->config->stateDir, "driver", qemu_driver->lockFD);
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 7285fd5ce9..722e982b9e 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5853,8 +5853,7 @@ qemuProcessInit(virQEMUDriver *driver,
+         qemuDomainSetFakeReboot(vm, false);
+         virDomainObjSetState(vm, VIR_DOMAIN_PAUSED, VIR_DOMAIN_PAUSED_STARTING_UP);
+ 
+-        if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-            driver->inhibitCallback(true, driver->inhibitOpaque);
++        virInhibitorHold(driver->inhibitor);
+ 
+         /* Run an early hook to set-up missing devices */
+         if (qemuProcessStartHook(driver, vm,
+@@ -8885,8 +8884,7 @@ void qemuProcessStop(virQEMUDriver *driver,
+     if (priv->eventThread)
+         g_object_unref(g_steal_pointer(&priv->eventThread));
+ 
+-    if (g_atomic_int_dec_and_test(&driver->nactive) && driver->inhibitCallback)
+-        driver->inhibitCallback(false, driver->inhibitOpaque);
++    virInhibitorRelease(driver->inhibitor);
+ 
+     /* Clear network bandwidth */
+     virDomainClearNetBandwidth(vm->def);
+@@ -9644,8 +9642,7 @@ qemuProcessReconnect(void *opaque)
+             goto error;
+     }
+ 
+-    if (g_atomic_int_add(&driver->nactive, 1) == 0 && driver->inhibitCallback)
+-        driver->inhibitCallback(true, driver->inhibitOpaque);
++    virInhibitorHold(driver->inhibitor);
+ 
+  cleanup:
+     if (jobStarted)
+diff --git a/src/secret/secret_driver.c b/src/secret/secret_driver.c
+index a2d6b879d0..04c3ca49f1 100644
+--- a/src/secret/secret_driver.c
++++ b/src/secret/secret_driver.c
+@@ -41,6 +41,7 @@
+ #include "viraccessapicheck.h"
+ #include "secret_event.h"
+ #include "virutil.h"
++#include "virinhibitor.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_SECRET
+ 
+@@ -67,9 +68,8 @@ struct _virSecretDriverState {
+     /* Immutable pointer, self-locking APIs */
+     virObjectEventState *secretEventState;
+ 
+-    /* Immutable pointers. Caller must provide locking */
+-    virStateInhibitCallback inhibitCallback;
+-    void *inhibitOpaque;
++    /* Immutable pointer, self-locking APIs */
++    virInhibitor *inhibitor;
+ };
+ 
+ static virSecretDriverState *driver;
+@@ -90,23 +90,6 @@ secretObjFromSecret(virSecretPtr secret)
+ }
+ 
+ 
+-static bool
+-secretNumOfEphemeralSecretsHelper(virConnectPtr conn G_GNUC_UNUSED,
+-                                  virSecretDef *def)
+-{
+-    return def->isephemeral;
+-}
+-
+-
+-static int
+-secretNumOfEphemeralSecrets(void)
+-{
+-    return virSecretObjListNumOfSecrets(driver->secrets,
+-                                        secretNumOfEphemeralSecretsHelper,
+-                                        NULL);
+-}
+-
+-
+ /* Driver functions */
+ 
+ static int
+@@ -271,6 +254,10 @@ secretDefineXML(virConnectPtr conn,
+                        objDef->uuid,
+                        objDef->usage_type,
+                        objDef->usage_id);
++
++    if (objDef->isephemeral)
++        virInhibitorHold(driver->inhibitor);
++
+     goto cleanup;
+ 
+  restore_backup:
+@@ -288,8 +275,6 @@ secretDefineXML(virConnectPtr conn,
+     virSecretDefFree(def);
+     virSecretObjEndAPI(&obj);
+ 
+-    if (secretNumOfEphemeralSecrets() > 0)
+-        driver->inhibitCallback(true, driver->inhibitOpaque);
+ 
+     virObjectEventStateQueue(driver->secretEventState, event);
+ 
+@@ -440,6 +425,9 @@ secretUndefine(virSecretPtr secret)
+                                        VIR_SECRET_EVENT_UNDEFINED,
+                                        0);
+ 
++    if (def->isephemeral)
++        virInhibitorRelease(driver->inhibitor);
++
+     virSecretObjDeleteData(obj);
+ 
+     virSecretObjListRemove(driver->secrets, obj);
+@@ -450,9 +438,6 @@ secretUndefine(virSecretPtr secret)
+  cleanup:
+     virSecretObjEndAPI(&obj);
+ 
+-    if (secretNumOfEphemeralSecrets() == 0)
+-        driver->inhibitCallback(false, driver->inhibitOpaque);
+-
+     virObjectEventStateQueue(driver->secretEventState, event);
+ 
+     return ret;
+@@ -469,6 +454,7 @@ secretStateCleanupLocked(void)
+     VIR_FREE(driver->configDir);
+ 
+     virObjectUnref(driver->secretEventState);
++    virInhibitorFree(driver->inhibitor);
+ 
+     if (driver->lockFD != -1)
+         virPidFileRelease(driver->stateDir, "driver", driver->lockFD);
+@@ -502,8 +488,6 @@ secretStateInitialize(bool privileged,
+     driver->lockFD = -1;
+     driver->secretEventState = virObjectEventStateNew();
+     driver->privileged = privileged;
+-    driver->inhibitCallback = callback;
+-    driver->inhibitOpaque = opaque;
+ 
+     if (root) {
+         driver->embeddedRoot = g_strdup(root);
+@@ -535,6 +519,14 @@ secretStateInitialize(bool privileged,
+         goto error;
+     }
+ 
++    driver->inhibitor = virInhibitorNew(
++        VIR_INHIBITOR_WHAT_NONE,
++        _("Libvirt Secret"),
++        _("Ephemeral secrets are loaded"),
++        VIR_INHIBITOR_MODE_DELAY,
++        callback,
++        opaque);
++
+     if ((driver->lockFD =
+          virPidFileAcquire(driver->stateDir, "driver", getpid())) < 0)
+         goto error;
+-- 
+2.49.0

@@ -1,0 +1,59 @@
+From eaf365d8e054543ff33489a93f5fe25cc41939d7 Mon Sep 17 00:00:00 2001
+Message-ID: <eaf365d8e054543ff33489a93f5fe25cc41939d7.1738937224.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 27 Jan 2025 13:07:24 +0100
+Subject: [PATCH] qemuProcessHandleIOError: Rename local variables
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Prefix the helper variables used to supply data to the event by
+'event'. Declare them with the default value of an empty string rather
+than doing it later.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 590a5765c190230ab3df87e7eda42f621766347b)
+
+https://issues.redhat.com/browse/RHEL-76802
+---
+ src/qemu/qemu_process.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 3861d91228..4083188af4 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -833,8 +833,8 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+     virObjectEvent *ioErrorEvent = NULL;
+     virObjectEvent *ioErrorEvent2 = NULL;
+     virObjectEvent *lifecycleEvent = NULL;
+-    const char *srcPath;
+-    const char *devAlias;
++    const char *eventPath = "";
++    const char *eventAlias = "";
+     virDomainDiskDef *disk;
+ 
+     virObjectLock(vm);
+@@ -848,15 +848,12 @@ qemuProcessHandleIOError(qemuMonitor *mon G_GNUC_UNUSED,
+         disk = NULL;
+ 
+     if (disk) {
+-        srcPath = virDomainDiskGetSource(disk);
+-        devAlias = disk->info.alias;
+-    } else {
+-        srcPath = "";
+-        devAlias = "";
++        eventPath = virDomainDiskGetSource(disk);
++        eventAlias = disk->info.alias;
+     }
+ 
+-    ioErrorEvent = virDomainEventIOErrorNewFromObj(vm, srcPath, devAlias, action);
+-    ioErrorEvent2 = virDomainEventIOErrorReasonNewFromObj(vm, srcPath, devAlias, action, reason);
++    ioErrorEvent = virDomainEventIOErrorNewFromObj(vm, eventPath, eventAlias, action);
++    ioErrorEvent2 = virDomainEventIOErrorReasonNewFromObj(vm, eventPath, eventAlias, action, reason);
+ 
+     if (action == VIR_DOMAIN_EVENT_IO_ERROR_PAUSE &&
+         virDomainObjGetState(vm, NULL) == VIR_DOMAIN_RUNNING) {
+-- 
+2.48.1

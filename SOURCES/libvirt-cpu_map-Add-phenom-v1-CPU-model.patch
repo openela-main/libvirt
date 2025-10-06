@@ -1,0 +1,950 @@
+From 177e3fafb68267a59abedfd9e17b1dc6aa700088 Mon Sep 17 00:00:00 2001
+Message-ID: <177e3fafb68267a59abedfd9e17b1dc6aa700088.1734429554.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:44:29 +0100
+Subject: [PATCH] cpu_map: Add phenom-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 332136e49ab4d122d053b11646c292a1a72e732a)
+
+https://issues.redhat.com/browse/RHEL-70129
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                              | 1 +
+ src/cpu_map/meson.build                            | 1 +
+ src/cpu_map/x86_phenom-v1.xml                      | 6 ++++++
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml | 6 +++++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml         | 7 ++++++-
+ tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml     | 7 ++++++-
+ tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml     | 6 +++++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml         | 7 ++++++-
+ 43 files changed, 234 insertions(+), 40 deletions(-)
+ create mode 100644 src/cpu_map/x86_phenom-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index 5f42fdc7fd..74b315c661 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -135,6 +135,7 @@
+       <include filename='x86_athlon.xml'/>
+       <include filename='x86_athlon-v1.xml'/>
+       <include filename='x86_phenom.xml'/>
++      <include filename='x86_phenom-v1.xml'/>
+       <include filename='x86_Opteron_G1.xml'/>
+       <include filename='x86_Opteron_G2.xml'/>
+       <include filename='x86_Opteron_G3.xml'/>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index 8d45feee00..47c93deace 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -126,6 +126,7 @@ cpumap_data = [
+   'x86_pentium3-v1.xml',
+   'x86_pentium3.xml',
+   'x86_pentiumpro.xml',
++  'x86_phenom-v1.xml',
+   'x86_phenom.xml',
+   'x86_qemu32-v1.xml',
+   'x86_qemu32.xml',
+diff --git a/src/cpu_map/x86_phenom-v1.xml b/src/cpu_map/x86_phenom-v1.xml
+new file mode 100644
+index 0000000000..f465c0e1d3
+--- /dev/null
++++ b/src/cpu_map/x86_phenom-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='phenom-v1'>
++    <decode host='on' guest='off'/>
++    <model name='phenom'/>
++  </model>
++</cpus>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index c71286deb2..27d36feccf 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -832,11 +832,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index 26f3eed92b..b06febb821 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -1449,10 +1449,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 6e67479e25..21b4ab8c5c 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -831,11 +831,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index d5b703e09a..83bb914c7d 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -854,11 +854,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index 5928a72da9..47ab7240fb 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -1539,10 +1539,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 69c1eb816f..cc212722f5 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -853,11 +853,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index c65db67a41..ec7abc3903 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -955,11 +955,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index e85937b36d..87fe22edd7 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -1736,10 +1736,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index b1b76ad6fd..35bba84033 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -954,11 +954,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index fa27ff520a..b448d7bdb8 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -961,11 +961,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index 33ff630126..a8a96f2bb4 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -1751,10 +1751,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index 0cf8733f1e..303b714aa7 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -960,11 +960,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index ba3669f4b2..9da8e156e2 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -988,11 +988,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index 43b6a68e24..a5b9edaeb6 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -1775,10 +1775,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index a7d454b330..3029403bac 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -987,11 +987,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index 08c27dbab8..259613d7fe 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -955,11 +955,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index 8e974ebfde..d3ecad143c 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -1723,10 +1723,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 71cb90d172..7f08dd995d 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -954,11 +954,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index 2d346b5a15..1057fc58d3 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -960,11 +960,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index 31a774af8a..fa4e9cfb8c 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -1432,10 +1432,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index 31a774af8a..fa4e9cfb8c 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -1432,10 +1432,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index 46b0e223c7..0c0f363d2b 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -959,11 +959,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index 95d809d412..b1de96fadd 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -1042,11 +1042,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index 95c413a22f..c83819435d 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -1527,10 +1527,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index 4cd5d8e640..8f195f0e39 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -1041,11 +1041,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index 94def05942..5495883fe9 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -1271,11 +1271,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index 958b250336..87fc57da66 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -1511,10 +1511,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index 4480ff39cd..43703fefab 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -1270,11 +1270,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index 9f91f9ef93..2eab4e49b1 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -1272,11 +1272,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index cf6ce11821..08b45ba90b 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -1478,10 +1478,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index 07034ee9a7..28b233d35d 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -1271,11 +1271,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index 020ad5bdba..16a3cdacb5 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -1272,11 +1272,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index b0a25f5ea6..549e21c273 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -1407,10 +1407,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index f6e47f704a..16e0d61c51 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -1271,11 +1271,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index b501544f11..2b33304882 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -1408,11 +1408,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index 1704b3b265..f91fcdd4e5 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -1512,10 +1512,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index 3a1642af94..82fe2b3b1a 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -1407,11 +1407,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index 91eab35039..0c896766cb 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -1408,11 +1408,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index e807b965f6..94c6914767 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -1512,10 +1512,14 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='fxsr_opt'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='fxsr_opt'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index a876e7b98f..1f73e3903c 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -1407,11 +1407,16 @@
+       <model usable='yes' vendor='unknown'>pentium2-v1</model>
+       <model usable='yes' vendor='unknown' canonical='pentium3-v1'>pentium3</model>
+       <model usable='yes' vendor='unknown'>pentium3-v1</model>
+-      <model usable='no' vendor='AMD'>phenom</model>
++      <model usable='no' vendor='AMD' canonical='phenom-v1'>phenom</model>
+       <blockers model='phenom'>
+         <feature name='3dnow'/>
+         <feature name='3dnowext'/>
+       </blockers>
++      <model usable='no' vendor='AMD'>phenom-v1</model>
++      <blockers model='phenom-v1'>
++        <feature name='3dnow'/>
++        <feature name='3dnowext'/>
++      </blockers>
+       <model usable='yes' vendor='unknown' canonical='qemu32-v1'>qemu32</model>
+       <model usable='yes' vendor='unknown'>qemu32-v1</model>
+       <model usable='yes' vendor='unknown' canonical='qemu64-v1'>qemu64</model>
+-- 
+2.47.1

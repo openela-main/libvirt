@@ -1,0 +1,696 @@
+From 931664a0b5a03990113887ac1dc5fec06b3a5ae6 Mon Sep 17 00:00:00 2001
+Message-ID: <931664a0b5a03990113887ac1dc5fec06b3a5ae6.1754469801.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Wed, 16 Jul 2025 16:40:01 +0100
+Subject: [PATCH] qemu: add ability to set TLS priority string with QEMU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+QEMU will either use the GNUTLS default priority string of "NORMAL",
+or on Fedora/RHEL related distros, "@QEMU,SYSTEM", which resolves to
+a configuration in /etc/crypto-policies/back-ends/gnutls.config.
+
+The latter gives the sysadmin the ability to change the priority
+string used for GNUTLS at deployment time, either system side, or
+exclusively for QEMU, avoiding the hardcoded GNUTLS defaults.
+
+There are still some limitations to this:
+
+ * Priorities cannot be set for different areas of QEMU
+   functionality (migration, vnc, nbd, etc)
+
+ * Priorities are fixed at the time when QEMU first
+   triggers GNUTLS to load its config file, often
+   immediately at startup.
+
+We recently uncovered a QEMU bug that causes crashes in live
+migration with TLS-1.3, where the easiest workaround is to
+change the TLS priorities. We can't change this on the running
+QEMU, but fortunately it is possible to change it on the target
+QEMU and the TLS handshake will make it take effect on both
+src and dst.
+
+The problem is, while fixing the immediate incoming and outgoing
+live migration problems, the workaround will apply to everything
+else that QEMU does for the rest of the time that process exists.
+
+We want to make it possible to set the TLS priorities only for
+the current migrations, such that if the target QEMU has a fixed
+GNUTLS, it will not have its TLS priorities hobbled for the next
+live migration.
+
+To achieve this we need libvirt to be able to (optionally) set
+the TLS priority string with QEMU. While live migration is the
+most pressing need, the new qemu.conf parameters are wired up
+for every subsystem for greater selectivity in future.
+
+With this we can activate the GNUTLS workaround for running
+QEMU processes by editting qemu.conf and restarting virtqemud,
+and later undo this the same way.
+
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 14e41ac9f365b148e69088c5ffeb565a0f9ba326)
+- Added dummy vxhsTLSpriority field and adapted old test data files
+
+Resolves: https://issues.redhat.com/browse/RHEL-106278
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+---
+ src/conf/storage_source_conf.c                |  2 +
+ src/conf/storage_source_conf.h                |  1 +
+ src/qemu/libvirtd_qemu.aug                    |  6 +++
+ src/qemu/qemu.conf.in                         | 37 +++++++++++++++++++
+ src/qemu/qemu_backup.c                        |  5 ++-
+ src/qemu/qemu_blockjob.c                      |  1 +
+ src/qemu/qemu_command.c                       | 15 ++++++--
+ src/qemu/qemu_command.h                       |  1 +
+ src/qemu/qemu_conf.c                          | 22 +++++++++++
+ src/qemu/qemu_conf.h                          |  8 ++++
+ src/qemu/qemu_domain.c                        |  3 ++
+ src/qemu/qemu_domain.h                        |  1 +
+ src/qemu/qemu_hotplug.c                       |  4 +-
+ src/qemu/qemu_hotplug.h                       |  1 +
+ src/qemu/qemu_migration_params.c              |  1 +
+ src/qemu/test_libvirtd_qemu.aug.in            |  6 +++
+ ...rk-tlsx509-nbd-hostname.x86_64-latest.args |  2 +-
+ .../graphics-vnc-tls-secret.x86_64-5.2.0.args |  2 +-
+ ...graphics-vnc-tls-secret.x86_64-latest.args |  2 +-
+ ...-tlsx509-secret-chardev.x86_64-latest.args |  2 +-
+ tests/qemuxmlconftest.c                       |  6 +++
+ 21 files changed, 117 insertions(+), 11 deletions(-)
+
+diff --git a/src/conf/storage_source_conf.c b/src/conf/storage_source_conf.c
+index ca956a1b7c..dc6e6bde32 100644
+--- a/src/conf/storage_source_conf.c
++++ b/src/conf/storage_source_conf.c
+@@ -838,6 +838,7 @@ virStorageSourceCopy(const virStorageSource *src,
+     def->compat = g_strdup(src->compat);
+     def->tlsAlias = g_strdup(src->tlsAlias);
+     def->tlsCertdir = g_strdup(src->tlsCertdir);
++    def->tlsPriority = g_strdup(src->tlsPriority);
+     def->tlsHostname = g_strdup(src->tlsHostname);
+     def->query = g_strdup(src->query);
+     def->vdpadev = g_strdup(src->vdpadev);
+@@ -1191,6 +1192,7 @@ virStorageSourceClear(virStorageSource *def)
+ 
+     VIR_FREE(def->tlsAlias);
+     VIR_FREE(def->tlsCertdir);
++    VIR_FREE(def->tlsPriority);
+     VIR_FREE(def->tlsHostname);
+ 
+     VIR_FREE(def->ssh_user);
+diff --git a/src/conf/storage_source_conf.h b/src/conf/storage_source_conf.h
+index e6cbb93c06..760b60bd40 100644
+--- a/src/conf/storage_source_conf.h
++++ b/src/conf/storage_source_conf.h
+@@ -392,6 +392,7 @@ struct _virStorageSource {
+      * certificate directory with listen and verify bools. */
+     char *tlsAlias;
+     char *tlsCertdir;
++    char *tlsPriority;
+ 
+     /* TLS hostname override */
+     char *tlsHostname;
+diff --git a/src/qemu/libvirtd_qemu.aug b/src/qemu/libvirtd_qemu.aug
+index 3f018f39a0..711806b2a8 100644
+--- a/src/qemu/libvirtd_qemu.aug
++++ b/src/qemu/libvirtd_qemu.aug
+@@ -30,6 +30,7 @@ module Libvirtd_qemu =
+    let default_tls_entry = str_entry "default_tls_x509_cert_dir"
+                  | bool_entry "default_tls_x509_verify"
+                  | str_entry "default_tls_x509_secret_uuid"
++                 | str_entry "default_tls_priority"
+ 
+    let vnc_entry = str_entry "vnc_listen"
+                  | bool_entry "vnc_auto_unix_socket"
+@@ -37,6 +38,7 @@ module Libvirtd_qemu =
+                  | str_entry "vnc_tls_x509_cert_dir"
+                  | bool_entry "vnc_tls_x509_verify"
+                  | str_entry "vnc_tls_x509_secret_uuid"
++                 | str_entry "vnc_tls_priority"
+                  | str_entry "vnc_password"
+                  | bool_entry "vnc_sasl"
+                  | str_entry "vnc_sasl_dir"
+@@ -54,15 +56,18 @@ module Libvirtd_qemu =
+                  | str_entry "chardev_tls_x509_cert_dir"
+                  | bool_entry "chardev_tls_x509_verify"
+                  | str_entry "chardev_tls_x509_secret_uuid"
++                 | str_entry "chardev_tls_priority"
+ 
+    let migrate_entry = str_entry "migrate_tls_x509_cert_dir"
+                  | bool_entry "migrate_tls_x509_verify"
+                  | str_entry "migrate_tls_x509_secret_uuid"
++                 | str_entry "migrate_tls_priority"
+                  | bool_entry "migrate_tls_force"
+ 
+    let backup_entry = str_entry "backup_tls_x509_cert_dir"
+                  | bool_entry "backup_tls_x509_verify"
+                  | str_entry "backup_tls_x509_secret_uuid"
++                 | str_entry "backup_tls_priority"
+ 
+    let vxhs_entry = bool_entry "vxhs_tls"
+                  | str_entry "vxhs_tls_x509_cert_dir"
+@@ -71,6 +76,7 @@ module Libvirtd_qemu =
+    let nbd_entry = bool_entry "nbd_tls"
+                  | str_entry "nbd_tls_x509_cert_dir"
+                  | str_entry "nbd_tls_x509_secret_uuid"
++                 | str_entry "nbd_tls_priority"
+ 
+    let nogfx_entry = bool_entry "nographics_allow_host_audio"
+ 
+diff --git a/src/qemu/qemu.conf.in b/src/qemu/qemu.conf.in
+index 988d176a28..de324be208 100644
+--- a/src/qemu/qemu.conf.in
++++ b/src/qemu/qemu.conf.in
+@@ -62,6 +62,18 @@
+ #default_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+ 
+ 
++# Libvirt allows QEMU to use its built-in TLS priority by default,
++# however, this allows overriding it at runtime. This is especially
++# useful if TLS priority needs to be changed for an operation run
++# against an existing running QEMU.
++#
++# This must be a valid GNUTLS priority string:
++#
++#   https://gnutls.org/manual/html_node/Priority-Strings.html
++#
++#default_tls_priority = "@SYSTEM"
++
++
+ # VNC is configured to listen on 127.0.0.1 by default.
+ # To make it listen on all public interfaces, uncomment
+ # this next option.
+@@ -127,6 +139,11 @@
+ #vnc_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+ 
+ 
++# Override QEMU default GNUTLS priority string for VNC
++#
++#vnc_tls_priority = "@SYSTEM"
++
++
+ # The default VNC password. Only 8 bytes are significant for
+ # VNC passwords. This parameter is only used if the per-domain
+ # XML config does not already provide a password. To allow
+@@ -278,12 +295,17 @@
+ #chardev_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+ 
+ 
++# Override QEMU default GNUTLS priority string for character devices
++#
++#chardev_tls_priority = "@SYSTEM"
++
+ # Enable use of TLS encryption for all VxHS network block devices that
+ # don't specifically disable.
+ #
+ # When the VxHS network block device server is set up appropriately,
+ # x509 certificates are required for authentication between the clients
+ # (qemu processes) and the remote VxHS server.
++# Override QEMU default GNUTLS priority string for character devices
+ #
+ # It is necessary to setup CA and issue the client certificate before
+ # enabling this.
+@@ -366,6 +388,11 @@
+ #nbd_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+ 
+ 
++# Override QEMU default GNUTLS priority string for NBD
++#
++#nbd_tls_priority = "@SYSTEM"
++
++
+ # In order to override the default TLS certificate location for migration
+ # certificates, supply a valid path to the certificate directory. If the
+ # provided path does not exist, libvirtd will fail to start. If the path is
+@@ -405,6 +432,11 @@
+ #migrate_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+ 
+ 
++# Override QEMU default GNUTLS priority string for live migration
++#
++#migrate_tls_priority = "@SYSTEM"
++
++
+ # By default TLS is requested using the VIR_MIGRATE_TLS flag, thus not requested
+ # automatically. Setting 'migate_tls_force' to "1" will prevent any migration
+ # which is not using VIR_MIGRATE_TLS to ensure higher level of security in
+@@ -450,6 +482,11 @@
+ #backup_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+ 
+ 
++# Override QEMU default GNUTLS priority string for NBD backups
++#
++#backup_tls_priority = "@SYSTEM"
++
++
+ # By default, if no graphical front end is configured, libvirt will disable
+ # QEMU audio output since directly talking to alsa/pulseaudio may not work
+ # with various security settings. If you know what you're doing, enable
+diff --git a/src/qemu/qemu_backup.c b/src/qemu/qemu_backup.c
+index f64639d501..d416f0f0c7 100644
+--- a/src/qemu/qemu_backup.c
++++ b/src/qemu/qemu_backup.c
+@@ -725,8 +725,9 @@ qemuBackupBeginPrepareTLS(virDomainObj *vm,
+     }
+ 
+     if (qemuBuildTLSx509BackendProps(cfg->backupTLSx509certdir, true,
+-                                     cfg->backupTLSx509verify, tlsObjAlias,
+-                                     tlsKeySecretAlias,
++                                     cfg->backupTLSx509verify,
++                                     cfg->backupTLSpriority,
++                                     tlsObjAlias, tlsKeySecretAlias,
+                                      tlsProps) < 0)
+         return -1;
+ 
+diff --git a/src/qemu/qemu_blockjob.c b/src/qemu/qemu_blockjob.c
+index 4e77543fa8..4d94703807 100644
+--- a/src/qemu/qemu_blockjob.c
++++ b/src/qemu/qemu_blockjob.c
+@@ -623,6 +623,7 @@ qemuBlockJobCleanStorageSourceRuntime(virStorageSource *src)
+     VIR_FREE(src->nodenameformat);
+     VIR_FREE(src->tlsAlias);
+     VIR_FREE(src->tlsCertdir);
++    VIR_FREE(src->tlsPriority);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 24dac0ce0f..a2cf974e75 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -1229,6 +1229,7 @@ qemuBuildObjectSecretCommandLine(virCommand *cmd,
+  * @tlspath: path to the TLS credentials
+  * @listen: boolean listen for client or server setting
+  * @verifypeer: boolean to enable peer verification (form of authorization)
++ * @priority: GNUTLS priority string override (optional)
+  * @alias: alias for the TLS credentials object
+  * @secalias: if one exists, the alias of the security object for passwordid
+  * @propsret: json properties to return
+@@ -1241,6 +1242,7 @@ int
+ qemuBuildTLSx509BackendProps(const char *tlspath,
+                              bool isListen,
+                              bool verifypeer,
++                             const char *priority,
+                              const char *alias,
+                              const char *secalias,
+                              virJSONValue **propsret)
+@@ -1249,6 +1251,7 @@ qemuBuildTLSx509BackendProps(const char *tlspath,
+                                      "s:dir", tlspath,
+                                      "s:endpoint", (isListen ? "server": "client"),
+                                      "b:verify-peer", (isListen ? verifypeer : true),
++                                     "S:priority", priority,
+                                      "S:passwordid", secalias,
+                                      NULL) < 0)
+         return -1;
+@@ -1262,6 +1265,7 @@ qemuBuildTLSx509BackendProps(const char *tlspath,
+  * @tlspath: path to the TLS credentials
+  * @listen: boolean listen for client or server setting
+  * @verifypeer: boolean to enable peer verification (form of authorization)
++ * @priority: GNUTLS priority string override (optional)
+  * @certEncSecretAlias: alias of a 'secret' object for decrypting TLS private key
+  *                      (optional)
+  * @alias: TLS object alias
+@@ -1276,14 +1280,15 @@ qemuBuildTLSx509CommandLine(virCommand *cmd,
+                             const char *tlspath,
+                             bool isListen,
+                             bool verifypeer,
++                            const char *priority,
+                             const char *certEncSecretAlias,
+                             const char *alias,
+                             virQEMUCaps *qemuCaps)
+ {
+     g_autoptr(virJSONValue) props = NULL;
+ 
+-    if (qemuBuildTLSx509BackendProps(tlspath, isListen, verifypeer, alias,
+-                                     certEncSecretAlias, &props) < 0)
++    if (qemuBuildTLSx509BackendProps(tlspath, isListen, verifypeer, priority,
++                                     alias, certEncSecretAlias, &props) < 0)
+         return -1;
+ 
+     if (qemuBuildObjectCommandlineFromJSON(cmd, props, qemuCaps) < 0)
+@@ -1326,6 +1331,7 @@ qemuBuildChardevCommand(virCommand *cmd,
+             if (qemuBuildTLSx509CommandLine(cmd, chrSourcePriv->tlsCertPath,
+                                             dev->data.tcp.listen,
+                                             chrSourcePriv->tlsVerify,
++                                            chrSourcePriv->tlsPriority,
+                                             tlsCertEncSecAlias,
+                                             objalias, qemuCaps) < 0) {
+                 return -1;
+@@ -8082,6 +8088,7 @@ qemuBuildGraphicsVNCCommandLine(virQEMUDriverConfig *cfg,
+                                         cfg->vncTLSx509certdir,
+                                         true,
+                                         cfg->vncTLSx509verify,
++                                        cfg->vncTLSpriority,
+                                         secretAlias,
+                                         gfxPriv->tlsAlias,
+                                         qemuCaps) < 0)
+@@ -10933,8 +10940,8 @@ qemuBuildStorageSourceAttachPrepareCommon(virStorageSource *src,
+     }
+ 
+     if (src->haveTLS == VIR_TRISTATE_BOOL_YES &&
+-        qemuBuildTLSx509BackendProps(src->tlsCertdir, false, true, src->tlsAlias,
+-                                     tlsKeySecretAlias, &data->tlsProps) < 0)
++        qemuBuildTLSx509BackendProps(src->tlsCertdir, false, true, src->tlsPriority,
++                                     src->tlsAlias, tlsKeySecretAlias, &data->tlsProps) < 0)
+         return -1;
+ 
+     return 0;
+diff --git a/src/qemu/qemu_command.h b/src/qemu/qemu_command.h
+index 76c514b5f7..948a633668 100644
+--- a/src/qemu/qemu_command.h
++++ b/src/qemu/qemu_command.h
+@@ -62,6 +62,7 @@ int qemuBuildSecretInfoProps(qemuDomainSecretInfo *secinfo,
+ int qemuBuildTLSx509BackendProps(const char *tlspath,
+                                  bool isListen,
+                                  bool verifypeer,
++                                 const char *priority,
+                                  const char *alias,
+                                  const char *secalias,
+                                  virJSONValue **propsret);
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index 7c15c521c7..93e1f7938b 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -422,6 +422,9 @@ virQEMUDriverConfigLoadDefaultTLSEntry(virQEMUDriverConfig *cfg,
+     if (virConfGetValueString(conf, "default_tls_x509_secret_uuid",
+                               &cfg->defaultTLSx509secretUUID) < 0)
+         return -1;
++    if (virConfGetValueString(conf, "default_tls_priority",
++                              &cfg->defaultTLSpriority) < 0)
++        return -1;
+ 
+     return 0;
+ }
+@@ -521,6 +524,9 @@ virQEMUDriverConfigLoadSpecificTLSEntry(virQEMUDriverConfig *cfg,
+                                   #val "_tls_x509_secret_uuid", \
+                                   &cfg->val## TLSx509secretUUID) < 0) \
+             return -1; \
++        if ((rv = virConfGetValueString(conf, #val "_tls_priority", \
++                                        &cfg->val## TLSpriority)) < 0) \
++            return -1; \
+     } while (0)
+ 
+ #define GET_CONFIG_TLS_CERTINFO_SERVER(val) \
+@@ -1305,6 +1311,22 @@ virQEMUDriverConfigSetDefaults(virQEMUDriverConfig *cfg)
+ 
+ #undef SET_TLS_SECRET_UUID_DEFAULT
+ 
++#define SET_TLS_PRIORITY_DEFAULT(val) \
++    do { \
++        if (!cfg->val## TLSpriority && \
++            cfg->defaultTLSpriority) { \
++            cfg->val## TLSpriority = g_strdup(cfg->defaultTLSpriority); \
++        } \
++    } while (0)
++
++    SET_TLS_PRIORITY_DEFAULT(vnc);
++    SET_TLS_PRIORITY_DEFAULT(chardev);
++    SET_TLS_PRIORITY_DEFAULT(migrate);
++    SET_TLS_PRIORITY_DEFAULT(backup);
++    SET_TLS_PRIORITY_DEFAULT(nbd);
++
++#undef SET_TLS_PRIORITY_DEFAULT
++
+     /*
+      * If a "SYSCONFDIR" + "pki/libvirt-<val>" exists, then assume someone
+      * has created a val specific area to place service specific certificates.
+diff --git a/src/qemu/qemu_conf.h b/src/qemu/qemu_conf.h
+index 42cdb6f883..b650f52262 100644
+--- a/src/qemu/qemu_conf.h
++++ b/src/qemu/qemu_conf.h
+@@ -115,6 +115,7 @@ struct _virQEMUDriverConfig {
+     bool defaultTLSx509verify;
+     bool defaultTLSx509verifyPresent;
+     char *defaultTLSx509secretUUID;
++    char *defaultTLSpriority;
+ 
+     bool vncAutoUnixSocket;
+     bool vncTLS;
+@@ -123,6 +124,7 @@ struct _virQEMUDriverConfig {
+     bool vncSASL;
+     char *vncTLSx509certdir;
+     char *vncTLSx509secretUUID;
++    char *vncTLSpriority;
+     char *vncListen;
+     char *vncPassword;
+     char *vncSASLdir;
+@@ -140,25 +142,31 @@ struct _virQEMUDriverConfig {
+     bool chardevTLSx509verify;
+     bool chardevTLSx509verifyPresent;
+     char *chardevTLSx509secretUUID;
++    char *chardevTLSpriority;
+ 
+     char *migrateTLSx509certdir;
+     bool migrateTLSx509verify;
+     bool migrateTLSx509verifyPresent;
+     char *migrateTLSx509secretUUID;
++    char *migrateTLSpriority;
+     bool migrateTLSForce;
+ 
+     char *backupTLSx509certdir;
+     bool backupTLSx509verify;
+     bool backupTLSx509verifyPresent;
+     char *backupTLSx509secretUUID;
++    char *backupTLSpriority;
+ 
+     bool vxhsTLS;
+     char *vxhsTLSx509certdir;
+     char *vxhsTLSx509secretUUID;
++    char *vxhsTLSpriority; /* unused / dummy field to keep
++                            * GET_CONFIG_TLS_CERTINFO_COMMON happy */
+ 
+     bool nbdTLS;
+     char *nbdTLSx509certdir;
+     char *nbdTLSx509secretUUID;
++    char *nbdTLSpriority;
+ 
+     unsigned int remotePortMin;
+     unsigned int remotePortMax;
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 95cca36fe1..de13d45066 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -955,6 +955,7 @@ qemuDomainChrSourcePrivateDispose(void *obj)
+     qemuDomainChrSourcePrivateClearFDPass(priv);
+ 
+     g_free(priv->tlsCertPath);
++    g_free(priv->tlsPriority);
+ 
+     g_free(priv->tlsCredsAlias);
+ 
+@@ -8684,6 +8685,7 @@ qemuDomainPrepareChardevSourceOne(virDomainDeviceDef *dev,
+ 
+             if (charsrc->data.tcp.haveTLS == VIR_TRISTATE_BOOL_YES) {
+                 charpriv->tlsCertPath = g_strdup(data->cfg->chardevTLSx509certdir);
++                charpriv->tlsPriority = g_strdup(data->cfg->chardevTLSpriority);
+                 charpriv->tlsVerify = data->cfg->chardevTLSx509verify;
+             }
+         }
+@@ -8783,6 +8785,7 @@ qemuProcessPrepareStorageSourceTLSNBD(virStorageSource *src,
+ 
+         src->tlsAlias = qemuAliasTLSObjFromSrcAlias(parentAlias);
+         src->tlsCertdir = g_strdup(cfg->nbdTLSx509certdir);
++        src->tlsPriority = g_strdup(cfg->nbdTLSpriority);
+ 
+         if (cfg->nbdTLSx509secretUUID) {
+             qemuDomainStorageSourcePrivate *srcpriv = qemuDomainStorageSourcePrivateFetch(src);
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 79bdc4e8fe..ac08babb92 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -381,6 +381,7 @@ struct _qemuDomainChrSourcePrivate {
+ 
+     char *tlsCertPath; /* path to certificates if TLS is requested */
+     bool tlsVerify; /* whether server should verify client certificates */
++    char *tlsPriority; /* optional GNUTLS priority string */
+ 
+     char *tlsCredsAlias; /* alias of the x509 tls credentials object */
+ };
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index ff09b58bfe..c6704cbebe 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -1717,6 +1717,7 @@ qemuDomainGetTLSObjects(qemuDomainSecretInfo *secinfo,
+                         const char *tlsCertdir,
+                         bool tlsListen,
+                         bool tlsVerify,
++                        const char *tlsPriority,
+                         const char *alias,
+                         virJSONValue **tlsProps,
+                         virJSONValue **secProps)
+@@ -1730,7 +1731,7 @@ qemuDomainGetTLSObjects(qemuDomainSecretInfo *secinfo,
+         secAlias = secinfo->alias;
+     }
+ 
+-    if (qemuBuildTLSx509BackendProps(tlsCertdir, tlsListen, tlsVerify,
++    if (qemuBuildTLSx509BackendProps(tlsCertdir, tlsListen, tlsVerify, tlsPriority,
+                                      alias, secAlias, tlsProps) < 0)
+         return -1;
+ 
+@@ -1774,6 +1775,7 @@ qemuDomainAddChardevTLSObjects(virQEMUDriver *driver,
+                                 cfg->chardevTLSx509certdir,
+                                 dev->data.tcp.listen,
+                                 cfg->chardevTLSx509verify,
++                                cfg->chardevTLSpriority,
+                                 *tlsAlias, &tlsProps, &secProps) < 0)
+         return -1;
+ 
+diff --git a/src/qemu/qemu_hotplug.h b/src/qemu/qemu_hotplug.h
+index 4fe7f4923e..5d32487047 100644
+--- a/src/qemu/qemu_hotplug.h
++++ b/src/qemu/qemu_hotplug.h
+@@ -38,6 +38,7 @@ int qemuDomainGetTLSObjects(qemuDomainSecretInfo *secinfo,
+                             const char *tlsCertdir,
+                             bool tlsListen,
+                             bool tlsVerify,
++                            const char *tlsPriority,
+                             const char *alias,
+                             virJSONValue **tlsProps,
+                             virJSONValue **secProps);
+diff --git a/src/qemu/qemu_migration_params.c b/src/qemu/qemu_migration_params.c
+index 98822012cc..3858cca907 100644
+--- a/src/qemu/qemu_migration_params.c
++++ b/src/qemu/qemu_migration_params.c
+@@ -1143,6 +1143,7 @@ qemuMigrationParamsEnableTLS(virQEMUDriver *driver,
+     if (qemuDomainGetTLSObjects(priv->migSecinfo,
+                                 cfg->migrateTLSx509certdir, tlsListen,
+                                 cfg->migrateTLSx509verify,
++                                cfg->migrateTLSpriority,
+                                 *tlsAlias, &tlsProps, &secProps) < 0)
+         return -1;
+ 
+diff --git a/src/qemu/test_libvirtd_qemu.aug.in b/src/qemu/test_libvirtd_qemu.aug.in
+index 86b3844d2c..b916af35ee 100644
+--- a/src/qemu/test_libvirtd_qemu.aug.in
++++ b/src/qemu/test_libvirtd_qemu.aug.in
+@@ -5,12 +5,14 @@ module Test_libvirtd_qemu =
+ { "default_tls_x509_cert_dir" = "/etc/pki/qemu" }
+ { "default_tls_x509_verify" = "1" }
+ { "default_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
++{ "default_tls_priority" = "@SYSTEM" }
+ { "vnc_listen" = "0.0.0.0" }
+ { "vnc_auto_unix_socket" = "1" }
+ { "vnc_tls" = "1" }
+ { "vnc_tls_x509_cert_dir" = "/etc/pki/libvirt-vnc" }
+ { "vnc_tls_x509_verify" = "1" }
+ { "vnc_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
++{ "vnc_tls_priority" = "@SYSTEM" }
+ { "vnc_password" = "XYZ12345" }
+ { "vnc_sasl" = "1" }
+ { "vnc_sasl_dir" = "/some/directory/sasl2" }
+@@ -26,19 +28,23 @@ module Test_libvirtd_qemu =
+ { "chardev_tls_x509_cert_dir" = "/etc/pki/libvirt-chardev" }
+ { "chardev_tls_x509_verify" = "1" }
+ { "chardev_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
++{ "chardev_tls_priority" = "@SYSTEM" }
+ { "vxhs_tls" = "1" }
+ { "vxhs_tls_x509_cert_dir" = "/etc/pki/libvirt-vxhs" }
+ { "vxhs_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
+ { "nbd_tls" = "1" }
+ { "nbd_tls_x509_cert_dir" = "/etc/pki/libvirt-nbd" }
+ { "nbd_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
++{ "nbd_tls_priority" = "@SYSTEM" }
+ { "migrate_tls_x509_cert_dir" = "/etc/pki/libvirt-migrate" }
+ { "migrate_tls_x509_verify" = "1" }
+ { "migrate_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
++{ "migrate_tls_priority" = "@SYSTEM" }
+ { "migrate_tls_force" = "0" }
+ { "backup_tls_x509_cert_dir" = "/etc/pki/libvirt-backup" }
+ { "backup_tls_x509_verify" = "1" }
+ { "backup_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
++{ "backup_tls_priority" = "@SYSTEM" }
+ { "nographics_allow_host_audio" = "1" }
+ { "remote_display_port_min" = "5900" }
+ { "remote_display_port_max" = "65535" }
+diff --git a/tests/qemuxmlconfdata/disk-network-tlsx509-nbd-hostname.x86_64-latest.args b/tests/qemuxmlconfdata/disk-network-tlsx509-nbd-hostname.x86_64-latest.args
+index 4ee9a0631b..77d38c3020 100644
+--- a/tests/qemuxmlconfdata/disk-network-tlsx509-nbd-hostname.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/disk-network-tlsx509-nbd-hostname.x86_64-latest.args
+@@ -28,7 +28,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -boot strict=on \
+ -device '{"driver":"piix3-usb-uhci","id":"usb","bus":"pci.0","addr":"0x1.0x2"}' \
+ -object '{"qom-type":"secret","id":"objlibvirt-1-storage_tls0-secret0","data":"9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1","keyid":"masterKey0","iv":"AAECAwQFBgcICQoLDA0ODw==","format":"base64"}' \
+--object '{"qom-type":"tls-creds-x509","id":"objlibvirt-1-storage_tls0","dir":"/etc/pki/libvirt-nbd","endpoint":"client","verify-peer":true,"passwordid":"objlibvirt-1-storage_tls0-secret0"}' \
++-object '{"qom-type":"tls-creds-x509","id":"objlibvirt-1-storage_tls0","dir":"/etc/pki/libvirt-nbd","endpoint":"client","verify-peer":true,"priority":"@SYSTEM:-VERS-TLS1.3","passwordid":"objlibvirt-1-storage_tls0-secret0"}' \
+ -blockdev '{"driver":"nbd","server":{"type":"inet","host":"example.com","port":"1234"},"tls-creds":"objlibvirt-1-storage_tls0","tls-hostname":"test-hostname","node-name":"libvirt-1-storage","read-only":false,"cache":{"direct":true,"no-flush":false}}' \
+ -device '{"driver":"virtio-blk-pci","bus":"pci.0","addr":"0x7","drive":"libvirt-1-storage","id":"virtio-disk3","bootindex":1,"write-cache":"on"}' \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+diff --git a/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-5.2.0.args b/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-5.2.0.args
+index 11f8b3f4f0..3c3002dd4f 100644
+--- a/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-5.2.0.args
++++ b/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-5.2.0.args
+@@ -30,7 +30,7 @@ SASL_CONF_PATH=/etc/sasl2 \
+ -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -object secret,id=vnc-tls-creds0-secret0,data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
+--object tls-creds-x509,id=vnc-tls-creds0,dir=/etc/pki/libvirt-vnc,endpoint=server,verify-peer=on,passwordid=vnc-tls-creds0-secret0 \
++-object tls-creds-x509,id=vnc-tls-creds0,dir=/etc/pki/libvirt-vnc,endpoint=server,verify-peer=on,priority=@SYSTEM:-VERS-TLS1.3,passwordid=vnc-tls-creds0-secret0 \
+ -vnc 127.0.0.1:3,tls-creds=vnc-tls-creds0,sasl=on,audiodev=audio1 \
+ -device cirrus-vga,id=video0,bus=pci.0,addr=0x2 \
+ -sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+diff --git a/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-latest.args b/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-latest.args
+index 50cc8532d1..32d7be1d3b 100644
+--- a/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/graphics-vnc-tls-secret.x86_64-latest.args
+@@ -29,7 +29,7 @@ SASL_CONF_PATH=/etc/sasl2 \
+ -device '{"driver":"piix3-usb-uhci","id":"usb","bus":"pci.0","addr":"0x1.0x2"}' \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -object '{"qom-type":"secret","id":"vnc-tls-creds0-secret0","data":"9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1","keyid":"masterKey0","iv":"AAECAwQFBgcICQoLDA0ODw==","format":"base64"}' \
+--object '{"qom-type":"tls-creds-x509","id":"vnc-tls-creds0","dir":"/etc/pki/libvirt-vnc","endpoint":"server","verify-peer":true,"passwordid":"vnc-tls-creds0-secret0"}' \
++-object '{"qom-type":"tls-creds-x509","id":"vnc-tls-creds0","dir":"/etc/pki/libvirt-vnc","endpoint":"server","verify-peer":true,"priority":"@SYSTEM:-VERS-TLS1.3","passwordid":"vnc-tls-creds0-secret0"}' \
+ -vnc 127.0.0.1:3,tls-creds=vnc-tls-creds0,sasl=on,audiodev=audio1 \
+ -device '{"driver":"cirrus-vga","id":"video0","bus":"pci.0","addr":"0x2"}' \
+ -sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+diff --git a/tests/qemuxmlconfdata/serial-tcp-tlsx509-secret-chardev.x86_64-latest.args b/tests/qemuxmlconfdata/serial-tcp-tlsx509-secret-chardev.x86_64-latest.args
+index c227a04112..492d1be626 100644
+--- a/tests/qemuxmlconfdata/serial-tcp-tlsx509-secret-chardev.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/serial-tcp-tlsx509-secret-chardev.x86_64-latest.args
+@@ -32,7 +32,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -chardev udp,id=charserial0,host=127.0.0.1,port=2222,localaddr=127.0.0.1,localport=1111 \
+ -device '{"driver":"isa-serial","chardev":"charserial0","id":"serial0","index":0}' \
+ -object '{"qom-type":"secret","id":"charserial1-secret0","data":"9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1","keyid":"masterKey0","iv":"AAECAwQFBgcICQoLDA0ODw==","format":"base64"}' \
+--object '{"qom-type":"tls-creds-x509","id":"objcharserial1_tls0","dir":"/etc/pki/libvirt-chardev","endpoint":"client","verify-peer":true,"passwordid":"charserial1-secret0"}' \
++-object '{"qom-type":"tls-creds-x509","id":"objcharserial1_tls0","dir":"/etc/pki/libvirt-chardev","endpoint":"client","verify-peer":true,"priority":"@SYSTEM:-VERS-TLS1.3","passwordid":"charserial1-secret0"}' \
+ -chardev socket,id=charserial1,host=127.0.0.1,port=5555,tls-creds=objcharserial1_tls0 \
+ -device '{"driver":"isa-serial","chardev":"charserial1","id":"serial1","index":1}' \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index 049ca630a8..ba19029d95 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -1598,7 +1598,9 @@ mymain(void)
+     DO_TEST_CAPS_VER("disk-network-tlsx509-nbd", "5.2.0");
+     DO_TEST_CAPS_LATEST("disk-network-tlsx509-nbd");
+     DO_TEST_CAPS_VER_PARSE_ERROR("disk-network-tlsx509-nbd-hostname", "6.2.0");
++    driver.config->nbdTLSpriority = g_strdup("@SYSTEM:-VERS-TLS1.3");
+     DO_TEST_CAPS_LATEST("disk-network-tlsx509-nbd-hostname");
++    VIR_FREE(driver.config->nbdTLSpriority);
+     DO_TEST_CAPS_LATEST("disk-network-http");
+     VIR_FREE(driver.config->nbdTLSx509secretUUID);
+     VIR_FREE(driver.config->vxhsTLSx509secretUUID);
+@@ -1714,9 +1716,11 @@ mymain(void)
+     driver.config->vncTLS = 1;
+     driver.config->vncTLSx509verify = 1;
+     DO_TEST_CAPS_LATEST("graphics-vnc-tls");
++    driver.config->vncTLSpriority = g_strdup("@SYSTEM:-VERS-TLS1.3");
+     driver.config->vncTLSx509secretUUID = g_strdup("6fd3f62d-9fe7-4a4e-a869-7acd6376d8ea");
+     DO_TEST_CAPS_VER("graphics-vnc-tls-secret", "5.2.0");
+     DO_TEST_CAPS_LATEST("graphics-vnc-tls-secret");
++    VIR_FREE(driver.config->vncTLSpriority);
+     VIR_FREE(driver.config->vncTLSx509secretUUID);
+     driver.config->vncSASL = driver.config->vncTLSx509verify = driver.config->vncTLS = 0;
+     DO_TEST_CAPS_LATEST("graphics-vnc-egl-headless");
+@@ -1865,7 +1869,9 @@ mymain(void)
+     driver.config->chardevTLSx509verify = 0;
+     DO_TEST_CAPS_LATEST("serial-tcp-tlsx509-chardev-notls");
+     driver.config->chardevTLSx509secretUUID = g_strdup("6fd3f62d-9fe7-4a4e-a869-7acd6376d8ea");
++    driver.config->chardevTLSpriority = g_strdup("@SYSTEM:-VERS-TLS1.3");
+     DO_TEST_CAPS_LATEST("serial-tcp-tlsx509-secret-chardev");
++    VIR_FREE(driver.config->chardevTLSpriority);
+     VIR_FREE(driver.config->chardevTLSx509secretUUID);
+     driver.config->chardevTLS = 0;
+     DO_TEST_CAPS_LATEST("serial-many-chardev");
+-- 
+2.50.1

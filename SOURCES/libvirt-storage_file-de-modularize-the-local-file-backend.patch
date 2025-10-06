@@ -1,0 +1,117 @@
+From 26cc07514673cbd346579c58d91045acd2b9813d Mon Sep 17 00:00:00 2001
+Message-ID: <26cc07514673cbd346579c58d91045acd2b9813d.1737724457.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 9 Jan 2025 09:52:36 +0100
+Subject: [PATCH] storage_file: de-modularize the local file backend
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The 'storage_file' infrastructure serves as an abstraction on top of
+file-looking storage technologies. Apart from local file it currently
+implements also a backend for 'gluster'.
+
+Historically it was all modularized and the local file module was
+usually packaged with the 'core' part of the storage driver. Now with
+split daemons one can install e.g. 'virqemud' without the storage driver
+core which contains the 'fs' backend module. Since the qemu driver uses
+the storage file backends to e.g. create storage for snapshots and
+backups this allows users to create a deployment where some things will
+not work properly.
+
+As the 'fs' backend doesn't use any code that wouldn't be linked
+directly anyways there's no point in actually shipping it as a module.
+
+Let's compile it in so that all deployments can use it.
+
+To achieve that, compile the source directly into the
+'virt_storage_file_lib' static library and remove the loading code. Also
+adjust the spec file.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit f8558a87ac8525b16f4cbba4f24e0885fde2b79e)
+
+https://issues.redhat.com/browse/RHEL-73506
+---
+ libvirt.spec.in                         |  1 -
+ src/storage_file/meson.build            | 16 ----------------
+ src/storage_file/storage_file_backend.c | 11 ++++++-----
+ 3 files changed, 6 insertions(+), 22 deletions(-)
+
+diff --git a/src/storage_file/meson.build b/src/storage_file/meson.build
+index d40e98befa..27c4e5a432 100644
+--- a/src/storage_file/meson.build
++++ b/src/storage_file/meson.build
+@@ -3,9 +3,6 @@ storage_file_sources = [
+   'storage_source_backingstore.c',
+   'storage_file_backend.c',
+   'storage_file_probe.c',
+-]
+-
+-stoarge_file_fs_sources = [
+   'storage_file_backend_fs.c',
+ ]
+ 
+@@ -30,19 +27,6 @@ virt_storage_file_lib = static_library(
+ 
+ libvirt_libs += virt_storage_file_lib
+ 
+-if conf.has('WITH_STORAGE')
+-  virt_modules += {
+-    'name': 'virt_storage_file_fs',
+-    'sources': [
+-      files(stoarge_file_fs_sources),
+-    ],
+-    'include': [
+-      storage_inc_dir,
+-    ],
+-    'install_dir': storage_file_install_dir,
+-  }
+-endif
+-
+ if conf.has('WITH_STORAGE_GLUSTER')
+   virt_modules += {
+     'name': 'virt_storage_file_gluster',
+diff --git a/src/storage_file/storage_file_backend.c b/src/storage_file/storage_file_backend.c
+index 03583803de..1eeec5fb43 100644
+--- a/src/storage_file/storage_file_backend.c
++++ b/src/storage_file/storage_file_backend.c
+@@ -26,6 +26,7 @@
+ #include "virerror.h"
+ #include "internal.h"
+ #include "storage_file_backend.h"
++#include "storage_file_backend_fs.h"
+ #include "virlog.h"
+ #include "virmodule.h"
+ #include "virfile.h"
+@@ -40,7 +41,7 @@ VIR_LOG_INIT("storage.storage_source_backend");
+ static virStorageFileBackend *virStorageFileBackends[VIR_STORAGE_BACKENDS_MAX];
+ static size_t virStorageFileBackendsCount;
+ 
+-#if WITH_STORAGE_DIR || WITH_STORAGE_FS || WITH_STORAGE_GLUSTER
++#if WITH_STORAGE_GLUSTER
+ 
+ # define STORAGE_FILE_MODULE_DIR LIBDIR "/libvirt/storage-file"
+ 
+@@ -64,14 +65,14 @@ virStorageFileLoadBackendModule(const char *name,
+ 
+     return ret;
+ }
+-#endif /* WITH_STORAGE_DIR || WITH_STORAGE_FS || WITH_STORAGE_GLUSTER */
++#endif /* WITH_STORAGE_GLUSTER */
+ 
+ static int virStorageFileBackendOnceInit(void)
+ {
+-#if WITH_STORAGE_DIR || WITH_STORAGE_FS
+-    if (virStorageFileLoadBackendModule("fs", "virStorageFileFsRegister", false) < 0)
++    /* The backend for local files is compiled in */
++    if (virStorageFileFsRegister() < 0)
+         return -1;
+-#endif /* WITH_STORAGE_DIR || WITH_STORAGE_FS */
++
+ #if WITH_STORAGE_GLUSTER
+     if (virStorageFileLoadBackendModule("gluster", "virStorageFileGlusterRegister", false) < 0)
+         return -1;
+-- 
+2.48.1

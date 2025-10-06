@@ -1,0 +1,41 @@
+From 153ee694e806ebf1ba684c1b7ddfa7a90c9d3adf Mon Sep 17 00:00:00 2001
+Message-ID: <153ee694e806ebf1ba684c1b7ddfa7a90c9d3adf.1734696366.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 18 Dec 2024 13:27:40 +0100
+Subject: [PATCH] cpu_map: Add sha512, sm3, and sm4 CPU features
+
+Introduced by Clearwater Forest platform.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 212b7d8e280cabddef1f0996bd9553c6a55babd8)
+
+https://issues.redhat.com/browse/RHEL-71898
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/x86_features.xml | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/cpu_map/x86_features.xml b/src/cpu_map/x86_features.xml
+index 8be8fab42e..0e1fee6e98 100644
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -416,6 +416,15 @@
+   </feature>
+ 
+   <!-- cpuid level 0x00000007, 0x0001 (eax) -->
++  <feature name='sha512'>
++    <cpuid eax_in='0x00000007' ecx_in='0x00000001' eax='0x00000001'/>
++  </feature>
++  <feature name='sm3'>
++    <cpuid eax_in='0x00000007' ecx_in='0x00000001' eax='0x00000002'/>
++  </feature>
++  <feature name='sm4'>
++    <cpuid eax_in='0x00000007' ecx_in='0x00000001' eax='0x00000004'/>
++  </feature>
+   <feature name='avx-vnni'>
+     <cpuid eax_in='0x00000007' ecx_in='0x00000001' eax='0x00000010'/>
+   </feature>
+-- 
+2.47.1

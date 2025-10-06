@@ -1,0 +1,84 @@
+From f21392afad6dda87b988fa5f7fe189507e35ab86 Mon Sep 17 00:00:00 2001
+Message-ID: <f21392afad6dda87b988fa5f7fe189507e35ab86.1754469801.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Wed, 16 Jul 2025 16:32:05 +0100
+Subject: [PATCH] qemu: fix order of VNC TLS config entries
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+For TLS config parameters, the 'verify' option always comes before the
+'secret_uuid' option, except in the VNC case which has them reversed.
+
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 845e1b5138f37dbf91e5b08b7d54d963a6ec0452)
+
+Resolves: https://issues.redhat.com/browse/RHEL-106278
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+---
+ src/qemu/libvirtd_qemu.aug         |  2 +-
+ src/qemu/qemu.conf.in              | 12 ++++++------
+ src/qemu/test_libvirtd_qemu.aug.in |  2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/libvirtd_qemu.aug b/src/qemu/libvirtd_qemu.aug
+index 1377fd89cc..3f018f39a0 100644
+--- a/src/qemu/libvirtd_qemu.aug
++++ b/src/qemu/libvirtd_qemu.aug
+@@ -35,8 +35,8 @@ module Libvirtd_qemu =
+                  | bool_entry "vnc_auto_unix_socket"
+                  | bool_entry "vnc_tls"
+                  | str_entry "vnc_tls_x509_cert_dir"
+-                 | str_entry "vnc_tls_x509_secret_uuid"
+                  | bool_entry "vnc_tls_x509_verify"
++                 | str_entry "vnc_tls_x509_secret_uuid"
+                  | str_entry "vnc_password"
+                  | bool_entry "vnc_sasl"
+                  | str_entry "vnc_sasl_dir"
+diff --git a/src/qemu/qemu.conf.in b/src/qemu/qemu.conf.in
+index 89c9b6b913..3365834200 100644
+--- a/src/qemu/qemu.conf.in
++++ b/src/qemu/qemu.conf.in
+@@ -101,12 +101,6 @@
+ #vnc_tls_x509_cert_dir = "/etc/pki/libvirt-vnc"
+ 
+ 
+-# Uncomment and use the following option to override the default secret
+-# UUID provided in the default_tls_x509_secret_uuid parameter.
+-#
+-#vnc_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
+-
+-
+ # The default TLS configuration only uses certificates for the server
+ # allowing the client to verify the server's identity and establish
+ # an encrypted channel.
+@@ -125,6 +119,12 @@
+ #vnc_tls_x509_verify = 1
+ 
+ 
++# Uncomment and use the following option to override the default secret
++# UUID provided in the default_tls_x509_secret_uuid parameter.
++#
++#vnc_tls_x509_secret_uuid = "00000000-0000-0000-0000-000000000000"
++
++
+ # The default VNC password. Only 8 bytes are significant for
+ # VNC passwords. This parameter is only used if the per-domain
+ # XML config does not already provide a password. To allow
+diff --git a/src/qemu/test_libvirtd_qemu.aug.in b/src/qemu/test_libvirtd_qemu.aug.in
+index 69fdae215a..86b3844d2c 100644
+--- a/src/qemu/test_libvirtd_qemu.aug.in
++++ b/src/qemu/test_libvirtd_qemu.aug.in
+@@ -9,8 +9,8 @@ module Test_libvirtd_qemu =
+ { "vnc_auto_unix_socket" = "1" }
+ { "vnc_tls" = "1" }
+ { "vnc_tls_x509_cert_dir" = "/etc/pki/libvirt-vnc" }
+-{ "vnc_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
+ { "vnc_tls_x509_verify" = "1" }
++{ "vnc_tls_x509_secret_uuid" = "00000000-0000-0000-0000-000000000000" }
+ { "vnc_password" = "XYZ12345" }
+ { "vnc_sasl" = "1" }
+ { "vnc_sasl_dir" = "/some/directory/sasl2" }
+-- 
+2.50.1

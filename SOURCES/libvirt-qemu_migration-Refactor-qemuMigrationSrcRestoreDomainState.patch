@@ -1,0 +1,110 @@
+From f9698e648654cf75af7ef2366c4ad7c2b8c19f6d Mon Sep 17 00:00:00 2001
+Message-ID: <f9698e648654cf75af7ef2366c4ad7c2b8c19f6d.1739815540.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 15 Jan 2025 15:59:22 +0100
+Subject: [PATCH] qemu_migration: Refactor qemuMigrationSrcRestoreDomainState
+
+None of the callers really care about the return value so we can drop it
+and simplify the code a bit.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e46e64be501cd670a3f224fabd97705fb01c6f85)
+
+https://issues.redhat.com/browse/RHEL-1071
+---
+ src/qemu/qemu_migration.c | 64 +++++++++++++++++----------------------
+ 1 file changed, 28 insertions(+), 36 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index b2b172a26c..fe0b9fc672 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -219,57 +219,49 @@ qemuMigrationSrcStoreDomainState(virDomainObj *vm)
+               priv->preMigrationState, vm);
+ }
+ 
+-/* Returns true if the domain was resumed, false otherwise */
+-static bool
++
++static void
+ qemuMigrationSrcRestoreDomainState(virQEMUDriver *driver, virDomainObj *vm)
+ {
+     qemuDomainObjPrivate *priv = vm->privateData;
++    virDomainState preMigrationState = priv->preMigrationState;
+     int reason;
+     virDomainState state = virDomainObjGetState(vm, &reason);
+-    bool ret = false;
++
++    priv->preMigrationState = VIR_DOMAIN_NOSTATE;
+ 
+     VIR_DEBUG("driver=%p, vm=%p, pre-mig-state=%s, state=%s, reason=%s",
+               driver, vm,
+-              virDomainStateTypeToString(priv->preMigrationState),
++              virDomainStateTypeToString(preMigrationState),
+               virDomainStateTypeToString(state),
+               virDomainStateReasonToString(state, reason));
+ 
+-    if (state != VIR_DOMAIN_PAUSED ||
++    if (preMigrationState != VIR_DOMAIN_RUNNING ||
++        state != VIR_DOMAIN_PAUSED ||
+         reason == VIR_DOMAIN_PAUSED_POSTCOPY_FAILED)
+-        goto cleanup;
++        return;
+ 
+-    if (priv->preMigrationState == VIR_DOMAIN_RUNNING) {
+-        /* This is basically the only restore possibility that's safe
+-         * and we should attempt to do */
+-
+-        VIR_DEBUG("Restoring pre-migration state due to migration error");
+-
+-        /* we got here through some sort of failure; start the domain again */
+-        if (qemuProcessStartCPUs(driver, vm,
+-                                 VIR_DOMAIN_RUNNING_MIGRATION_CANCELED,
+-                                 VIR_ASYNC_JOB_MIGRATION_OUT) < 0) {
+-            /* Hm, we already know we are in error here.  We don't want to
+-             * overwrite the previous error, though, so we just throw something
+-             * to the logs and hope for the best */
+-            VIR_ERROR(_("Failed to resume guest %1$s after failure"), vm->def->name);
+-            if (virDomainObjGetState(vm, NULL) == VIR_DOMAIN_PAUSED) {
+-                virObjectEvent *event;
+-
+-                virDomainObjSetState(vm, VIR_DOMAIN_PAUSED,
+-                                     VIR_DOMAIN_PAUSED_API_ERROR);
+-                event = virDomainEventLifecycleNewFromObj(vm,
+-                                                          VIR_DOMAIN_EVENT_SUSPENDED,
+-                                                          VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR);
+-                virObjectEventStateQueue(driver->domainEventState, event);
+-            }
+-            goto cleanup;
++    VIR_DEBUG("Restoring pre-migration state due to migration error");
++
++    /* we got here through some sort of failure; start the domain again */
++    if (qemuProcessStartCPUs(driver, vm,
++                             VIR_DOMAIN_RUNNING_MIGRATION_CANCELED,
++                             VIR_ASYNC_JOB_MIGRATION_OUT) < 0) {
++        /* Hm, we already know we are in error here.  We don't want to
++         * overwrite the previous error, though, so we just throw something
++         * to the logs and hope for the best */
++        VIR_ERROR(_("Failed to resume guest %1$s after failure"), vm->def->name);
++        if (virDomainObjGetState(vm, NULL) == VIR_DOMAIN_PAUSED) {
++            virObjectEvent *event;
++
++            virDomainObjSetState(vm, VIR_DOMAIN_PAUSED,
++                                 VIR_DOMAIN_PAUSED_API_ERROR);
++            event = virDomainEventLifecycleNewFromObj(vm,
++                                                      VIR_DOMAIN_EVENT_SUSPENDED,
++                                                      VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR);
++            virObjectEventStateQueue(driver->domainEventState, event);
+         }
+-        ret = true;
+     }
+-
+- cleanup:
+-    priv->preMigrationState = VIR_DOMAIN_NOSTATE;
+-    return ret;
+ }
+ 
+ 
+-- 
+2.48.1

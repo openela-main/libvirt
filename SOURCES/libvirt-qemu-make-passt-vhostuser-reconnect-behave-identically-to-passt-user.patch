@@ -1,0 +1,111 @@
+From f990415cb0d9091756806ac48d2fb1ed3fb9f42f Mon Sep 17 00:00:00 2001
+Message-ID: <f990415cb0d9091756806ac48d2fb1ed3fb9f42f.1744363086.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 4 Apr 2025 19:44:52 -0400
+Subject: [PATCH] qemu: make passt+vhostuser reconnect behave identically to
+ passt+user
+
+When "original passt" support was added, we decided that we always
+wanted to reconnect (i.e. restart the passt process) if it was somehow
+terminated. Generic vhost-user, on the other hand, only turns on
+reconnect if specified by the user in the config. But there is no
+reason to require the user to specify this if the other end of the
+vhost-user socket is a passt process - we know what has happened and
+what we want to do; no reason to do the *wrong* thing by default, and
+force the user to make an arbitrary decision about what to add to the
+config in order to make it do the *right* thing; instead we just
+hardcode it to always do the right thing.
+
+(NB: when the backend is passt, <interface type='vhostuser'> has
+always ignored the reconnect setting in <source> when parsing and
+formatting, just as it has always ignored the socket path (since that
+also is not user configurable for the passt backend)
+
+Resolves: https://issues.redhat.com/browse/RHEL-80169
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Tested-by: Stefano Brivio <sbrivio@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 44abaa0128ac0fc8be9de4eebc15c03809bf5867)
+
+Conflicts:
+
+tests/qemuxmlconfdata/schema-reorder-domain-subelements.x86_64-latest.args:
+  This file (created by upstream commit be5332c81d28) was modified
+  upstream but doesin't exist downstream
+
+https://issues.redhat.com/browse/RHEL-84784
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_passt.c                            | 16 +++++++++++++---
+ .../net-vhostuser-passt.x86_64-latest.args       |  6 +++---
+ 2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_passt.c b/src/qemu/qemu_passt.c
+index bc495eca1e..fcc34de384 100644
+--- a/src/qemu/qemu_passt.c
++++ b/src/qemu/qemu_passt.c
+@@ -36,7 +36,7 @@ VIR_LOG_INIT("qemu.passt");
+ 
+ 
+ #define PASST "passt"
+-
++#define QEMU_PASST_RECONNECT_TIMEOUT 5
+ 
+ static char *
+ qemuPasstCreatePidFilename(virDomainObj *vm,
+@@ -106,11 +106,15 @@ qemuPasstAddNetProps(virDomainObj *vm,
+ 
+     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_NETDEV_STREAM_RECONNECT)) {
+         if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_NETDEV_STREAM_RECONNECT_MILISECONDS)) {
+-            if (virJSONValueObjectAdd(netprops, "u:reconnect-ms", 5000, NULL) < 0)
++            if (virJSONValueObjectAdd(netprops, "u:reconnect-ms",
++                                      QEMU_PASST_RECONNECT_TIMEOUT * 1000, NULL) < 0) {
+                 return -1;
++            }
+         } else {
+-            if (virJSONValueObjectAdd(netprops, "u:reconnect", 5, NULL) < 0)
++            if (virJSONValueObjectAdd(netprops, "u:reconnect",
++                                      QEMU_PASST_RECONNECT_TIMEOUT, NULL) < 0) {
+                 return -1;
++            }
+         }
+     }
+ 
+@@ -182,6 +186,12 @@ qemuPasstPrepareVhostUser(virDomainObj *vm,
+      */
+     g_free(net->data.vhostuser->data.nix.path);
+     net->data.vhostuser->data.nix.path = qemuPasstCreateSocketPath(vm, net);
++
++    /* reconnect is always enabled, with timeout always at 5 seconds, when
++     * using passt
++     */
++    net->data.vhostuser->data.nix.reconnect.enabled = VIR_TRISTATE_BOOL_YES;
++    net->data.vhostuser->data.nix.reconnect.timeout = QEMU_PASST_RECONNECT_TIMEOUT;
+ }
+ 
+ int
+diff --git a/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.args b/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.args
+index 7c030d7067..afbbe188cf 100644
+--- a/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/net-vhostuser-passt.x86_64-latest.args
+@@ -28,13 +28,13 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -boot strict=on \
+ -blockdev '{"driver":"host_device","filename":"/dev/HostVG/QEMUGuest1","node-name":"libvirt-1-storage","read-only":false}' \
+ -device '{"driver":"ide-hd","bus":"ide.0","unit":0,"drive":"libvirt-1-storage","id":"ide0-0-0","bootindex":1}' \
+--chardev socket,id=charnet0,path=/var/run/libvirt/qemu/passt/-1-QEMUGuest1-net0.socket \
++-chardev socket,id=charnet0,path=/var/run/libvirt/qemu/passt/-1-QEMUGuest1-net0.socket,reconnect-ms=5000 \
+ -netdev '{"type":"vhost-user","chardev":"charnet0","id":"hostnet0"}' \
+ -device '{"driver":"virtio-net-pci","netdev":"hostnet0","id":"net0","mac":"00:11:22:33:44:55","bus":"pci.0","addr":"0x2"}' \
+--chardev socket,id=charnet1,path=/var/run/libvirt/qemu/passt/-1-QEMUGuest1-net1.socket \
++-chardev socket,id=charnet1,path=/var/run/libvirt/qemu/passt/-1-QEMUGuest1-net1.socket,reconnect-ms=5000 \
+ -netdev '{"type":"vhost-user","chardev":"charnet1","id":"hostnet1"}' \
+ -device '{"driver":"virtio-net-pci","netdev":"hostnet1","id":"net1","mac":"00:11:22:33:44:11","bus":"pci.0","addr":"0x3"}' \
+--chardev socket,id=charnet2,path=/var/run/libvirt/qemu/passt/-1-QEMUGuest1-net2.socket \
++-chardev socket,id=charnet2,path=/var/run/libvirt/qemu/passt/-1-QEMUGuest1-net2.socket,reconnect-ms=5000 \
+ -netdev '{"type":"vhost-user","chardev":"charnet2","id":"hostnet2"}' \
+ -device '{"driver":"virtio-net-pci","netdev":"hostnet2","id":"net2","mac":"00:11:22:33:44:11","bus":"pci.0","addr":"0x4"}' \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+-- 
+2.49.0

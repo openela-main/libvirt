@@ -1,0 +1,202 @@
+From a4d5d10cb289c773e6a395da3126beaef19c946c Mon Sep 17 00:00:00 2001
+Message-ID: <a4d5d10cb289c773e6a395da3126beaef19c946c.1744363085.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Mon, 16 Dec 2024 16:37:52 +0000
+Subject: [PATCH] rpc: remove logind support for virNetDaemon
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The virNetDaemon code now only concerns itself with preventing auto
+shutdown of the local daemon. Logind is now handled by the new
+virInhibitor object, for QEMU, LXC and LibXL. This fixes two notable
+bugs
+
+ * Running virtual networks would prevent system shutdown
+ * Loaded ephemeral secrets would prevent system shutdown
+
+Fixes 9e3cc0ff5e81ed2056a6a528893fd2cb5609d70b
+Fixes 37800af9a400385801da6d73654249fdb51a93d8
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 8575724aef4f48f3d66cb7beb4c61014992e31eb)
+Resolves: https://issues.redhat.com/browse/RHEL-83067
+---
+ src/libxl/libxl_driver.c |  2 +-
+ src/lxc/lxc_driver.c     |  2 +-
+ src/qemu/qemu_driver.c   |  2 +-
+ src/rpc/virnetdaemon.c   | 78 ----------------------------------------
+ 4 files changed, 3 insertions(+), 81 deletions(-)
+
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index ecd6ea9fa8..2a4f31f93c 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -707,7 +707,7 @@ libxlStateInitialize(bool privileged,
+         goto error;
+ 
+     libxl_driver->inhibitor = virInhibitorNew(
+-        VIR_INHIBITOR_WHAT_NONE,
++        VIR_INHIBITOR_WHAT_SHUTDOWN,
+         _("Libvirt Xen"),
+         _("Xen virtual machines are running"),
+         VIR_INHIBITOR_MODE_DELAY,
+diff --git a/src/lxc/lxc_driver.c b/src/lxc/lxc_driver.c
+index 9ee771c62a..72b950ac8a 100644
+--- a/src/lxc/lxc_driver.c
++++ b/src/lxc/lxc_driver.c
+@@ -1488,7 +1488,7 @@ lxcStateInitialize(bool privileged,
+         goto cleanup;
+ 
+     lxc_driver->inhibitor = virInhibitorNew(
+-        VIR_INHIBITOR_WHAT_NONE,
++        VIR_INHIBITOR_WHAT_SHUTDOWN,
+         _("Libvirt LXC"),
+         _("LXC containers are running"),
+         VIR_INHIBITOR_MODE_DELAY,
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 5b911d5221..f8f3d2c725 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -673,7 +673,7 @@ qemuStateInitialize(bool privileged,
+     }
+ 
+     qemu_driver->inhibitor = virInhibitorNew(
+-        VIR_INHIBITOR_WHAT_NONE,
++        VIR_INHIBITOR_WHAT_SHUTDOWN,
+         _("Libvirt QEMU"),
+         _("QEMU/KVM virtual machines are running"),
+         VIR_INHIBITOR_MODE_DELAY,
+diff --git a/src/rpc/virnetdaemon.c b/src/rpc/virnetdaemon.c
+index 9795418126..e4c6261536 100644
+--- a/src/rpc/virnetdaemon.c
++++ b/src/rpc/virnetdaemon.c
+@@ -31,7 +31,6 @@
+ #include "virutil.h"
+ #include "virfile.h"
+ #include "virnetserver.h"
+-#include "virgdbus.h"
+ #include "virhash.h"
+ #include "virprocess.h"
+ #include "virsystemd.h"
+@@ -80,7 +79,6 @@ struct _virNetDaemon {
+     int autoShutdownTimerID;
+     bool autoShutdownTimerActive;
+     size_t autoShutdownInhibitions;
+-    int autoShutdownInhibitFd;
+ };
+ 
+ 
+@@ -109,7 +107,6 @@ virNetDaemonDispose(void *obj)
+         virEventRemoveHandle(dmn->sigwatch);
+ #endif /* !WIN32 */
+ 
+-    VIR_FORCE_CLOSE(dmn->autoShutdownInhibitFd);
+     g_free(dmn->stateStopThread);
+ 
+     g_clear_pointer(&dmn->servers, g_hash_table_unref);
+@@ -150,7 +147,6 @@ virNetDaemonNew(void)
+ #endif /* !WIN32 */
+ 
+     dmn->privileged = geteuid() == 0;
+-    dmn->autoShutdownInhibitFd = -1;
+ 
+     virProcessActivateMaxFiles();
+ 
+@@ -491,66 +487,6 @@ virNetDaemonAutoShutdown(virNetDaemon *dmn,
+ }
+ 
+ 
+-#ifdef G_OS_UNIX
+-/* As per: https://www.freedesktop.org/wiki/Software/systemd/inhibit */
+-static void
+-virNetDaemonCallInhibit(virNetDaemon *dmn,
+-                        const char *what,
+-                        const char *who,
+-                        const char *why,
+-                        const char *mode)
+-{
+-    g_autoptr(GVariant) reply = NULL;
+-    g_autoptr(GUnixFDList) replyFD = NULL;
+-    g_autoptr(GVariant) message = NULL;
+-    GDBusConnection *systemBus;
+-    int fd;
+-    int rc;
+-
+-    VIR_DEBUG("dmn=%p what=%s who=%s why=%s mode=%s",
+-              dmn, NULLSTR(what), NULLSTR(who), NULLSTR(why), NULLSTR(mode));
+-
+-    if (virSystemdHasLogind() < 0)
+-        return;
+-
+-    if (!(systemBus = virGDBusGetSystemBus()))
+-        return;
+-
+-    message = g_variant_new("(ssss)", what, who, why, mode);
+-
+-    rc = virGDBusCallMethodWithFD(systemBus,
+-                                  &reply,
+-                                  G_VARIANT_TYPE("(h)"),
+-                                  &replyFD,
+-                                  NULL,
+-                                  "org.freedesktop.login1",
+-                                  "/org/freedesktop/login1",
+-                                  "org.freedesktop.login1.Manager",
+-                                  "Inhibit",
+-                                  message,
+-                                  NULL);
+-
+-    if (rc < 0)
+-        return;
+-
+-    if (g_unix_fd_list_get_length(replyFD) <= 0)
+-        return;
+-
+-    fd = g_unix_fd_list_get(replyFD, 0, NULL);
+-    if (fd < 0)
+-        return;
+-
+-    if (dmn->autoShutdownInhibitions) {
+-        dmn->autoShutdownInhibitFd = fd;
+-        VIR_DEBUG("Got inhibit FD %d", fd);
+-    } else {
+-        /* We stopped the last VM since we made the inhibit call */
+-        VIR_DEBUG("Closing inhibit FD %d", fd);
+-        VIR_FORCE_CLOSE(fd);
+-    }
+-}
+-#endif
+-
+ void
+ virNetDaemonAddShutdownInhibition(virNetDaemon *dmn)
+ {
+@@ -559,15 +495,6 @@ virNetDaemonAddShutdownInhibition(virNetDaemon *dmn)
+     dmn->autoShutdownInhibitions++;
+ 
+     VIR_DEBUG("dmn=%p inhibitions=%zu", dmn, dmn->autoShutdownInhibitions);
+-
+-#ifdef G_OS_UNIX
+-    if (dmn->autoShutdownInhibitions == 1)
+-        virNetDaemonCallInhibit(dmn,
+-                                "shutdown",
+-                                _("Libvirt"),
+-                                _("Virtual machines need to be saved"),
+-                                "delay");
+-#endif
+ }
+ 
+ 
+@@ -579,11 +506,6 @@ virNetDaemonRemoveShutdownInhibition(virNetDaemon *dmn)
+     dmn->autoShutdownInhibitions--;
+ 
+     VIR_DEBUG("dmn=%p inhibitions=%zu", dmn, dmn->autoShutdownInhibitions);
+-
+-    if (dmn->autoShutdownInhibitions == 0) {
+-        VIR_DEBUG("Closing inhibit FD %d", dmn->autoShutdownInhibitFd);
+-        VIR_FORCE_CLOSE(dmn->autoShutdownInhibitFd);
+-    }
+ }
+ 
+ 
+-- 
+2.49.0

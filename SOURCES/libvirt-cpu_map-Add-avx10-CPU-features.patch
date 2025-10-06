@@ -1,0 +1,51 @@
+From ab3e7f96a75447a1fd8d5f31cc8acf4b61377074 Mon Sep 17 00:00:00 2001
+Message-ID: <ab3e7f96a75447a1fd8d5f31cc8acf4b61377074.1734696366.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 18 Dec 2024 13:30:16 +0100
+Subject: [PATCH] cpu_map: Add avx10* CPU features
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 30f05acf354437a776b528487bb70ddccf324cd2)
+
+https://issues.redhat.com/browse/RHEL-71897
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/x86_features.xml | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/cpu_map/x86_features.xml b/src/cpu_map/x86_features.xml
+index 08bf014604..8be8fab42e 100644
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -469,6 +469,9 @@
+   <feature name='prefetchiti'>
+     <cpuid eax_in='0x00000007' ecx_in='0x00000001' edx='0x00004000'/>
+   </feature>
++  <feature name='avx10'>
++    <cpuid eax_in='0x00000007' ecx_in='0x00000001' edx='0x00080000'/>
++  </feature>
+ 
+   <!-- cpuid level 0x00000007, 0x0002 (edx) -->
+   <feature name='mcdt-no'>
+@@ -541,6 +544,17 @@
+     <cpuid eax_in='0x00000014' ecx_in='0x00000000' ecx='0x80000000'/>
+   </feature>
+ 
++  <!-- cpuid level 0x00000024, 0x0000 (ebx) -->
++  <feature name='avx10-128'>
++    <cpuid eax_in='0x00000024' ecx_in='0x00000000' ebx='0x00010000'/>
++  </feature>
++  <feature name='avx10-256'>
++    <cpuid eax_in='0x00000024' ecx_in='0x00000000' ebx='0x00020000'/>
++  </feature>
++  <feature name='avx10-512'>
++    <cpuid eax_in='0x00000024' ecx_in='0x00000000' ebx='0x00040000'/>
++  </feature>
++
+   <!-- cpuid level 0x80000001 (ecx) -->
+   <feature name='lahf_lm'>
+     <alias name='lahf-lm' source='qemu'/>
+-- 
+2.47.1

@@ -1,0 +1,54 @@
+From 46220fe4e8747a4743cbc4557ec75290352db68c Mon Sep 17 00:00:00 2001
+Message-ID: <46220fe4e8747a4743cbc4557ec75290352db68c.1737724457.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 9 Jan 2025 14:53:49 +0100
+Subject: [PATCH] storage_file: Refuse qcow2 images with empty string as
+ 'data_file'
+
+In certain buggy conditions qemu can create an image which has empty
+string stored as 'data_file'. While probing libvirt would consider the
+empty string as a relative file name and construct the path using the
+path of the parent image stripping the last component and appending the
+empty string. This results into attempting to using a directory as an
+image and thus the following error when attempting to start VM with such
+an image:
+
+ error: unsupported configuration: storage type 'dir' requires use of storage format 'fat'
+
+Reject empty strings passed in as 'data_file'.
+
+Note that we do not have the same problem with 'backing store' as an
+empty string there is interpreted as no backing file both by qemu and
+libvirt.
+
+Resolves: https://issues.redhat.com/browse/RHEL-70627
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 87a4fe2906b712d3a6ea3e9c8d9faa98b9ec5632)
+---
+ src/storage_file/storage_source.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/storage_file/storage_source.c b/src/storage_file/storage_source.c
+index 4612e710b0..fa59949cf2 100644
+--- a/src/storage_file/storage_source.c
++++ b/src/storage_file/storage_source.c
+@@ -557,6 +557,16 @@ virStorageSourceNewFromDataFile(virStorageSource *parent)
+     g_autoptr(virStorageSource) dataFile = NULL;
+     int rc;
+ 
++    /* 'qemu-img' records an empty string as 'data_file' field in certain buggy
++     * cases. Note that it can't happen for 'backing store' as absence of the
++     * string equals to no backing store. */
++    if (STREQ(parent->dataFileRaw, "")) {
++        virReportError(VIR_ERR_OPERATION_FAILED,
++                       _("invalid empty data-file definition in '%1$s'"),
++                       NULLSTR(parent->path));
++        return NULL;
++    }
++
+     if ((rc = virStorageSourceNewFromChild(parent,
+                                            parent->dataFileRaw,
+                                            &dataFile)) < 0)
+-- 
+2.48.1

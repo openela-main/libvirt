@@ -1,0 +1,137 @@
+From 8012f23fe028ca0a4392094e2185d361ca568455 Mon Sep 17 00:00:00 2001
+Message-ID: <8012f23fe028ca0a4392094e2185d361ca568455.1739815540.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 10 Feb 2025 19:49:10 +0100
+Subject: [PATCH] qemu: migration: Reactivate block nodes after migration if VM
+ is left paused
+
+On incoming migration qemu doesn't activate the block graph nodes right
+away. This is to properly facilitate locking of the images.
+
+The block nodes are normally re-activated when starting the CPUs after
+migration, but in cases (e.g. when a paused VM was migrated) when the VM
+is left paused the block nodes are not re-activated by qemu.
+
+This means that blockjobs which would want to write to an existing
+backing chain member would fail. Generally read-only jobs would succeed
+with older qemu's but this was not intended.
+
+Instead with new qemu you'll always get an error if attempting to access
+a inactive node:
+
+ error: internal error: unable to execute QEMU command 'blockdev-mirror': Inactive 'libvirt-1-storage' can't be a backing child of active '#block052'
+
+This is the case for explicit blockjobs (virsh blockcopy) but also for
+non shared-storage migration (virsh migrate --copy-storage-all).
+
+Since qemu now provides 'blockdev-set-active' QMP command which can
+on-demand re-activate the nodes we can re-activate them in similar cases
+as when we'd be starting vCPUs if the VM weren't left paused.
+
+The only exception is on the source in case of a failed post-copy
+migration as the VM already ran on destination so it won't ever run on
+the source even when recovered.
+
+Resolves: https://issues.redhat.com/browse/RHEL-78398
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 2626fa0569781c0f42db247f4b7116c33cd88b43)
+---
+ src/qemu/qemu_migration.c | 55 ++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 4112e95a1e..62da892254 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -220,6 +220,43 @@ qemuMigrationSrcStoreDomainState(virDomainObj *vm)
+ }
+ 
+ 
++/**
++ * qemuMigrationBlockNodesReactivate:
++ *
++ * In case when we're keeping the VM paused qemu will not re-activate the block
++ * device backend tree so blockjobs would fail. In case when qemu supports the
++ * 'blockdev-set-active' command this function will re-activate the block nodes.
++ */
++static void
++qemuMigrationBlockNodesReactivate(virDomainObj *vm,
++                                  virDomainAsyncJob asyncJob)
++{
++    virErrorPtr orig_err;
++    qemuDomainObjPrivate *priv = vm->privateData;
++    int rc;
++
++    if (!virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_BLOCKDEV_SET_ACTIVE))
++        return;
++
++    VIR_DEBUG("re-activating block nodes");
++
++    virErrorPreserveLast(&orig_err);
++
++    if (qemuDomainObjEnterMonitorAsync(vm, asyncJob) < 0)
++        goto cleanup;
++
++    rc = qemuMonitorBlockdevSetActive(priv->mon, NULL, true);
++
++    qemuDomainObjExitMonitor(vm);
++
++    if (rc < 0)
++        VIR_WARN("failed to re-activate block nodes after migration of VM '%s'", vm->def->name);
++
++ cleanup:
++    virErrorRestore(&orig_err);
++}
++
++
+ static void
+ qemuMigrationSrcRestoreDomainState(virQEMUDriver *driver, virDomainObj *vm)
+ {
+@@ -236,14 +273,17 @@ qemuMigrationSrcRestoreDomainState(virQEMUDriver *driver, virDomainObj *vm)
+               virDomainStateTypeToString(state),
+               virDomainStateReasonToString(state, reason));
+ 
+-    if (preMigrationState != VIR_DOMAIN_RUNNING ||
+-        state != VIR_DOMAIN_PAUSED ||
++    if (state == VIR_DOMAIN_PAUSED &&
+         reason == VIR_DOMAIN_PAUSED_POSTCOPY_FAILED)
+         return;
+ 
++    if (preMigrationState != VIR_DOMAIN_RUNNING ||
++        state != VIR_DOMAIN_PAUSED)
++        goto reactivate;
++
+     if (reason == VIR_DOMAIN_PAUSED_IOERROR) {
+         VIR_DEBUG("Domain is paused due to I/O error, skipping resume");
+-        return;
++        goto reactivate;
+     }
+ 
+     VIR_DEBUG("Restoring pre-migration state due to migration error");
+@@ -266,7 +306,14 @@ qemuMigrationSrcRestoreDomainState(virQEMUDriver *driver, virDomainObj *vm)
+                                                       VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR);
+             virObjectEventStateQueue(driver->domainEventState, event);
+         }
++
++        goto reactivate;
+     }
++
++    return;
++
++ reactivate:
++    qemuMigrationBlockNodesReactivate(vm, VIR_ASYNC_JOB_MIGRATION_OUT);
+ }
+ 
+ 
+@@ -6781,6 +6828,8 @@ qemuMigrationDstFinishFresh(virQEMUDriver *driver,
+ 
+         if (*inPostCopy)
+             *doKill = false;
++    } else {
++        qemuMigrationBlockNodesReactivate(vm, VIR_ASYNC_JOB_MIGRATION_IN);
+     }
+ 
+     if (mig->jobData) {
+-- 
+2.48.1

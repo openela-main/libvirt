@@ -1,0 +1,684 @@
+From ca37c1656ba02cdc78667f3ce07c316d9d3ab41e Mon Sep 17 00:00:00 2001
+Message-ID: <ca37c1656ba02cdc78667f3ce07c316d9d3ab41e.1734429554.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 5 Dec 2024 15:38:08 +0100
+Subject: [PATCH] cpu_map: Add Conroe-v1 CPU model
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 2d061eba8c2b7907cad1fe80fb6e2b1707417ed3)
+
+https://issues.redhat.com/browse/RHEL-70129
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu_map/index.xml                               | 1 +
+ src/cpu_map/meson.build                             | 1 +
+ src/cpu_map/x86_Conroe-v1.xml                       | 6 ++++++
+ tests/cputestdata/x86_64-cpuid-Core2-E6850-host.xml | 2 +-
+ tests/cputestdata/x86_64-cpuid-Xeon-5110-host.xml   | 2 +-
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_6.0.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_6.1.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_6.2.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_7.0.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_7.1.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml  | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_7.2.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_8.0.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_8.1.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_8.2.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_9.0.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_9.1.0.x86_64.xml          | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml      | 3 ++-
+ tests/domaincapsdata/qemu_9.2.0.x86_64.xml          | 3 ++-
+ 45 files changed, 90 insertions(+), 42 deletions(-)
+ create mode 100644 src/cpu_map/x86_Conroe-v1.xml
+
+diff --git a/src/cpu_map/index.xml b/src/cpu_map/index.xml
+index a9a8d1b2c4..e9a180526e 100644
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -39,6 +39,7 @@
+ 
+     <group name='Intel CPU models'>
+       <include filename='x86_Conroe.xml'/>
++      <include filename='x86_Conroe-v1.xml'/>
+       <include filename='x86_Penryn.xml'/>
+       <include filename='x86_Nehalem.xml'/>
+       <include filename='x86_Nehalem-IBRS.xml'/>
+diff --git a/src/cpu_map/meson.build b/src/cpu_map/meson.build
+index 7ea53373ae..cbf7bb407b 100644
+--- a/src/cpu_map/meson.build
++++ b/src/cpu_map/meson.build
+@@ -40,6 +40,7 @@ cpumap_data = [
+   'x86_Cascadelake-Server-v4.xml',
+   'x86_Cascadelake-Server-v5.xml',
+   'x86_Cascadelake-Server.xml',
++  'x86_Conroe-v1.xml',
+   'x86_Conroe.xml',
+   'x86_Cooperlake-v1.xml',
+   'x86_Cooperlake-v2.xml',
+diff --git a/src/cpu_map/x86_Conroe-v1.xml b/src/cpu_map/x86_Conroe-v1.xml
+new file mode 100644
+index 0000000000..8dd626795a
+--- /dev/null
++++ b/src/cpu_map/x86_Conroe-v1.xml
+@@ -0,0 +1,6 @@
++<cpus>
++  <model name='Conroe-v1'>
++    <decode host='on' guest='off'/>
++    <model name='Conroe'/>
++  </model>
++</cpus>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core2-E6850-host.xml b/tests/cputestdata/x86_64-cpuid-Core2-E6850-host.xml
+index dae7f8846e..6625ebc44d 100644
+--- a/tests/cputestdata/x86_64-cpuid-Core2-E6850-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Core2-E6850-host.xml
+@@ -1,6 +1,6 @@
+ <cpu>
+   <arch>x86_64</arch>
+-  <model>Conroe</model>
++  <model>Conroe-v1</model>
+   <vendor>Intel</vendor>
+   <signature family='6' model='15' stepping='11'/>
+   <feature name='dtes64'/>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-5110-host.xml b/tests/cputestdata/x86_64-cpuid-Xeon-5110-host.xml
+index ec509f92e4..cca99c7b04 100644
+--- a/tests/cputestdata/x86_64-cpuid-Xeon-5110-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-5110-host.xml
+@@ -1,6 +1,6 @@
+ <cpu>
+   <arch>x86_64</arch>
+-  <model>Conroe</model>
++  <model>Conroe-v1</model>
+   <vendor>Intel</vendor>
+   <signature family='6' model='15' stepping='6'/>
+   <feature name='dtes64'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+index 985a00cf84..3a14131fda 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml
+@@ -218,7 +218,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+index 74aa563566..5223402151 100644
+--- a/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0-tcg.x86_64.xml
+@@ -350,7 +350,8 @@
+         <feature name='x2apic'/>
+         <feature name='xsavec'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+index 4fdeaec417..a3638c64a4 100644
+--- a/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_5.2.0.x86_64.xml
+@@ -217,7 +217,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+index 284d70c7cc..9af3b3768d 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-q35.x86_64.xml
+@@ -218,7 +218,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+index 07097ce25b..7932c25f39 100644
+--- a/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0-tcg.x86_64.xml
+@@ -351,7 +351,8 @@
+         <feature name='x2apic'/>
+         <feature name='xsavec'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+index 1aefe0ea08..72c598466a 100644
+--- a/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.0.0.x86_64.xml
+@@ -217,7 +217,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+index 2ffe8cb354..b3ba5b020d 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-q35.x86_64.xml
+@@ -234,7 +234,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx-vnni'/>
+diff --git a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+index 2a084c64fe..69a73ea9b2 100644
+--- a/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0-tcg.x86_64.xml
+@@ -379,7 +379,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+index bda2e0ef68..54edabd43f 100644
+--- a/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.1.0.x86_64.xml
+@@ -233,7 +233,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx-vnni'/>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+index d2fbcad98c..be908c6cc6 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-q35.x86_64.xml
+@@ -234,7 +234,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+index 60093eda9a..8fb08191ea 100644
+--- a/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0-tcg.x86_64.xml
+@@ -381,7 +381,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+index eafdc53ff6..1f9bdf36af 100644
+--- a/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_6.2.0.x86_64.xml
+@@ -233,7 +233,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+index 03896267d5..14081dfafd 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-q35.x86_64.xml
+@@ -235,7 +235,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+index 52eb4b8215..d9ba0202bd 100644
+--- a/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0-tcg.x86_64.xml
+@@ -382,7 +382,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+index f212097662..bba1b69e41 100644
+--- a/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.0.0.x86_64.xml
+@@ -234,7 +234,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+index 38b0f47092..9fb0fbe581 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-q35.x86_64.xml
+@@ -236,7 +236,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+index 43de9e5193..b7f01c2b58 100644
+--- a/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0-tcg.x86_64.xml
+@@ -382,7 +382,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+index 92514055c9..f7e9853077 100644
+--- a/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.1.0.x86_64.xml
+@@ -235,7 +235,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+index 10017064b8..4b670c95fe 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-q35.x86_64.xml
+@@ -241,7 +241,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+index 95b582af9f..8b85bd98b4 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64+hvf.xml
+@@ -311,7 +311,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+index 95b582af9f..8b85bd98b4 100644
+--- a/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0-tcg.x86_64.xml
+@@ -311,7 +311,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+index 1e40bc5b23..0e1328f1fc 100644
+--- a/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_7.2.0.x86_64.xml
+@@ -240,7 +240,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+index 392ec1e232..b3040a9e6e 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-q35.x86_64.xml
+@@ -241,7 +241,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+index 0893277250..ac533cccfa 100644
+--- a/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0-tcg.x86_64.xml
+@@ -315,7 +315,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='3dnowprefetch'/>
+diff --git a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+index 52ef9718d0..0558eb7588 100644
+--- a/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.0.0.x86_64.xml
+@@ -240,7 +240,8 @@
+         <feature name='pku'/>
+         <feature name='spec-ctrl'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+index ef74bbd2fa..3b334589ed 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-q35.x86_64.xml
+@@ -244,7 +244,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+index 404237ef67..9815a01beb 100644
+--- a/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0-tcg.x86_64.xml
+@@ -266,7 +266,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='arch-capabilities'/>
+diff --git a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+index eafacf0b61..3b1796949f 100644
+--- a/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.1.0.x86_64.xml
+@@ -243,7 +243,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+index c544eb02e3..c4d2a768bd 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-q35.x86_64.xml
+@@ -245,7 +245,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+index b7b0ddd7c4..207092ba7b 100644
+--- a/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0-tcg.x86_64.xml
+@@ -265,7 +265,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='arch-capabilities'/>
+diff --git a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+index a4c86941c6..855dfef498 100644
+--- a/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_8.2.0.x86_64.xml
+@@ -244,7 +244,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+index 06341f125a..f7ddcd9aff 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-q35.x86_64.xml
+@@ -245,7 +245,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+index e759a15ea7..3419e26d32 100644
+--- a/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0-tcg.x86_64.xml
+@@ -252,7 +252,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='arch-capabilities'/>
+diff --git a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+index eb4822c667..43bc77f7cc 100644
+--- a/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.0.0.x86_64.xml
+@@ -244,7 +244,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+index a6c7d8e74c..0a962420cd 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-q35.x86_64.xml
+@@ -249,7 +249,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+index 18070cd01a..02209df41b 100644
+--- a/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0-tcg.x86_64.xml
+@@ -251,7 +251,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='arch-capabilities'/>
+diff --git a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+index e008a2f2e9..49e1df7be4 100644
+--- a/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.1.0.x86_64.xml
+@@ -248,7 +248,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+index ce19774d0d..56449ad3db 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-q35.x86_64.xml
+@@ -249,7 +249,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+diff --git a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+index 217fbfe51c..04a759a16b 100644
+--- a/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0-tcg.x86_64.xml
+@@ -251,7 +251,8 @@
+         <feature name='xsavec'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='arch-capabilities'/>
+diff --git a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+index 4f34340651..7b3379b3e5 100644
+--- a/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_9.2.0.x86_64.xml
+@@ -248,7 +248,8 @@
+         <feature name='spec-ctrl'/>
+         <feature name='xsaves'/>
+       </blockers>
+-      <model usable='yes' vendor='Intel'>Conroe</model>
++      <model usable='yes' vendor='Intel' canonical='Conroe-v1'>Conroe</model>
++      <model usable='yes' vendor='Intel'>Conroe-v1</model>
+       <model usable='no' vendor='Intel' canonical='Cooperlake-v1'>Cooperlake</model>
+       <blockers model='Cooperlake'>
+         <feature name='avx512-bf16'/>
+-- 
+2.47.1

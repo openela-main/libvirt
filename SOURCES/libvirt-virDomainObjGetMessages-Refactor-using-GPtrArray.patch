@@ -1,0 +1,191 @@
+From dca26cc7b1814ec8fe50d5aafeb7956898d6c006 Mon Sep 17 00:00:00 2001
+Message-ID: <dca26cc7b1814ec8fe50d5aafeb7956898d6c006.1738937224.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 27 Jan 2025 17:38:51 +0100
+Subject: [PATCH] virDomainObjGetMessages: Refactor using GPtrArray
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Simplify the function especially by rewriting it using GPtrArray to
+construct the string list, especially for the upcoming case when the
+number of added elements will not be known beforehand and when
+hypervisor specific data will be added.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 1a02760cc6d79422dc4dd17b943915cd0ac15987)
+
+https://issues.redhat.com/browse/RHEL-76802
+---
+ src/conf/domain_conf.c   | 36 +++++++-----------------------------
+ src/conf/domain_conf.h   |  4 ++--
+ src/libxl/libxl_driver.c |  9 ++++++++-
+ src/qemu/qemu_driver.c   |  9 ++++++++-
+ src/test/test_driver.c   |  9 ++++++++-
+ 5 files changed, 33 insertions(+), 34 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index d3f30b08dc..8cd0fb83b6 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -31646,53 +31646,31 @@ virHostdevIsPCIDevice(const virDomainHostdevDef *hostdev)
+ /**
+  * virDomainObjGetMessages:
+  * @vm: domain object
+- * @msgs: pointer to a variable to store messages
++ * @m: GPtrArray to be filled with messages
+  * @flags: zero or more virDomainMessageType flags
+- *
+- * Returns number of messages stored in @msgs, -1 otherwise.
+  */
+-int
++void
+ virDomainObjGetMessages(virDomainObj *vm,
+-                        char ***msgs,
++                        GPtrArray *m,
+                         unsigned int flags)
+ {
+     size_t i = 0;
+-    size_t n = 0;
+-    int nmsgs = 0;
+-    int rv = -1;
+-
+-    *msgs = NULL;
+ 
+     if (!flags || (flags & VIR_DOMAIN_MESSAGE_TAINTING)) {
+-        nmsgs += __builtin_popcount(vm->taint);
+-        *msgs = g_renew(char *, *msgs, nmsgs+1);
+-
+         for (i = 0; i < VIR_DOMAIN_TAINT_LAST; i++) {
+             if (vm->taint & (1 << i)) {
+-                (*msgs)[n++] = g_strdup_printf(
+-                    _("tainted: %1$s"),
+-                    _(virDomainTaintMessageTypeToString(i)));
++                g_ptr_array_add(m, g_strdup_printf(_("tainted: %1$s"),
++                                                   _(virDomainTaintMessageTypeToString(i))));
+             }
+         }
+     }
+ 
+     if (!flags || (flags & VIR_DOMAIN_MESSAGE_DEPRECATION)) {
+-        nmsgs += vm->ndeprecations;
+-        *msgs = g_renew(char *, *msgs, nmsgs+1);
+-
+         for (i = 0; i < vm->ndeprecations; i++) {
+-            (*msgs)[n++] = g_strdup_printf(
+-                _("deprecated configuration: %1$s"),
+-                vm->deprecations[i]);
++            g_ptr_array_add(m, g_strdup_printf(_("deprecated configuration: %1$s"),
++                                               vm->deprecations[i]));
+         }
+     }
+-
+-    if (*msgs)
+-        (*msgs)[nmsgs] = NULL;
+-
+-    rv = nmsgs;
+-
+-    return rv;
+ }
+ 
+ bool
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 9f7c28343f..7058203e67 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -4576,9 +4576,9 @@ bool
+ virHostdevIsPCIDevice(const virDomainHostdevDef *hostdev)
+     ATTRIBUTE_NONNULL(1);
+ 
+-int
++void
+ virDomainObjGetMessages(virDomainObj *vm,
+-                        char ***msgs,
++                        GPtrArray *m,
+                         unsigned int flags);
+ 
+ bool
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index 26d22550ae..545d67de52 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -6572,6 +6572,7 @@ libxlDomainGetMessages(virDomainPtr dom,
+                       char ***msgs,
+                       unsigned int flags)
+ {
++    g_autoptr(GPtrArray) m = g_ptr_array_new_with_free_func(g_free);
+     virDomainObj *vm = NULL;
+     int ret = -1;
+ 
+@@ -6584,7 +6585,13 @@ libxlDomainGetMessages(virDomainPtr dom,
+     if (virDomainGetMessagesEnsureACL(dom->conn, vm->def) < 0)
+         goto cleanup;
+ 
+-    ret = virDomainObjGetMessages(vm, msgs, flags);
++    virDomainObjGetMessages(vm, m, flags);
++
++    ret = m->len;
++    if (m->len > 0) {
++        g_ptr_array_add(m, NULL);
++        *msgs = (char **) g_ptr_array_steal(m, NULL);
++    }
+ 
+  cleanup:
+     virDomainObjEndAPI(&vm);
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 09f7edda7d..276a7caded 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -19811,6 +19811,7 @@ qemuDomainGetMessages(virDomainPtr dom,
+                       char ***msgs,
+                       unsigned int flags)
+ {
++    g_autoptr(GPtrArray) m = g_ptr_array_new_with_free_func(g_free);
+     virDomainObj *vm = NULL;
+     int rv = -1;
+ 
+@@ -19823,7 +19824,13 @@ qemuDomainGetMessages(virDomainPtr dom,
+     if (virDomainGetMessagesEnsureACL(dom->conn, vm->def) < 0)
+         goto cleanup;
+ 
+-    rv = virDomainObjGetMessages(vm, msgs, flags);
++    virDomainObjGetMessages(vm, m, flags);
++
++    rv = m->len;
++    if (m->len > 0) {
++        g_ptr_array_add(m, NULL);
++        *msgs = (char **) g_ptr_array_steal(m, NULL);
++    }
+ 
+  cleanup:
+     virDomainObjEndAPI(&vm);
+diff --git a/src/test/test_driver.c b/src/test/test_driver.c
+index f1cefb5c50..a10ec3bc41 100644
+--- a/src/test/test_driver.c
++++ b/src/test/test_driver.c
+@@ -9522,6 +9522,7 @@ testDomainGetMessages(virDomainPtr dom,
+                       char ***msgs,
+                       unsigned int flags)
+ {
++    g_autoptr(GPtrArray) m = g_ptr_array_new_with_free_func(g_free);
+     virDomainObj *vm = NULL;
+     int rv = -1;
+ 
+@@ -9531,7 +9532,13 @@ testDomainGetMessages(virDomainPtr dom,
+     if (!(vm = testDomObjFromDomain(dom)))
+         return -1;
+ 
+-    rv = virDomainObjGetMessages(vm, msgs, flags);
++    virDomainObjGetMessages(vm, m, flags);
++
++    rv = m->len;
++    if (m->len > 0) {
++        g_ptr_array_add(m, NULL);
++        *msgs = (char **) g_ptr_array_steal(m, NULL);
++    }
+ 
+     virDomainObjEndAPI(&vm);
+     return rv;
+-- 
+2.48.1

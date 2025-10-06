@@ -1,0 +1,58 @@
+From 7744032897b3a04a0a2799a5d3bc65d30c68c8f7 Mon Sep 17 00:00:00 2001
+Message-ID: <7744032897b3a04a0a2799a5d3bc65d30c68c8f7.1749631608.git.jdenemar@redhat.com>
+From: Collin Walling <walling@linux.ibm.com>
+Date: Mon, 16 Dec 2024 18:03:55 -0500
+Subject: [PATCH] libvirt-domain: introduce
+ VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES
+
+Introduce domain flag used to filter deprecated features from the
+domain's CPU model.
+
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 4e2c8de2047e21d98443944a2bfe94529b269efa)
+JIRA: https://issues.redhat.com/browse/RHEL-95956
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ include/libvirt/libvirt-domain.h | 12 ++++++++++++
+ src/libvirt-domain.c             |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index f026ce197c..3d5e3750fc 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -1491,6 +1491,18 @@ int virDomainMigrateGetMaxSpeed(virDomainPtr domain,
+ int virDomainMigrateStartPostCopy(virDomainPtr domain,
+                                   unsigned int flags);
+ 
++/**
++ * virConnectGetDomainCapabilitiesFlags:
++ *
++ * Domain capabilities flags.
++ *
++ * Since: 11.0.0
++ */
++typedef enum {
++    /* Report host model with deprecated features disabled. (Since: 11.0.0) */
++    VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES = (1 << 0),
++} virConnectGetDomainCapabilitiesFlags;
++
+ char * virConnectGetDomainCapabilities(virConnectPtr conn,
+                                        const char *emulatorbin,
+                                        const char *arch,
+diff --git a/src/libvirt-domain.c b/src/libvirt-domain.c
+index 7c6b93963c..e8e5379672 100644
+--- a/src/libvirt-domain.c
++++ b/src/libvirt-domain.c
+@@ -12166,7 +12166,7 @@ virDomainSetUserPassword(virDomainPtr dom,
+  * @arch: domain architecture
+  * @machine: machine type
+  * @virttype: virtualization type
+- * @flags: extra flags; not used yet, so callers should always pass 0
++ * @flags: extra flags; bitwise-OR of virConnectGetDomainCapabilitiesFlags
+  *
+  * Prior creating a domain (for instance via virDomainCreateXML
+  * or virDomainDefineXML) it may be suitable to know what the
+-- 
+2.49.0

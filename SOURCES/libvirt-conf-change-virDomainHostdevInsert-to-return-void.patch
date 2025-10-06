@@ -1,0 +1,158 @@
+From 5083667a7f861364e293904a18bce550d9880536 Mon Sep 17 00:00:00 2001
+Message-ID: <5083667a7f861364e293904a18bce550d9880536.1739815540.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Tue, 11 Feb 2025 16:44:49 -0500
+Subject: [PATCH] conf: change virDomainHostdevInsert() to return void
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We haven't checked for memalloc failure in many years, and that was
+the only reason this function would have ever failed.
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 956c6684113b46b2350db698dc75604f4c3a4b76)
+
+https://issues.redhat.com/browse/RHEL-77086
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/conf/domain_conf.c   | 15 +++++----------
+ src/conf/domain_conf.h   |  2 +-
+ src/libxl/libxl_domain.c |  5 +----
+ src/libxl/libxl_driver.c |  3 +--
+ src/lxc/lxc_driver.c     |  3 +--
+ src/qemu/qemu_driver.c   |  3 +--
+ src/qemu/qemu_process.c  |  3 +--
+ 7 files changed, 11 insertions(+), 23 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index d83f1ba240..cba0b162f4 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -14456,12 +14456,10 @@ virDomainChrTargetTypeToString(int deviceType,
+     return type;
+ }
+ 
+-int
++void
+ virDomainHostdevInsert(virDomainDef *def, virDomainHostdevDef *hostdev)
+ {
+     VIR_APPEND_ELEMENT(def->hostdevs, def->nhostdevs, hostdev);
+-
+-    return 0;
+ }
+ 
+ virDomainHostdevDef *
+@@ -14877,9 +14875,8 @@ virDomainDiskRemoveByName(virDomainDef *def, const char *name)
+ int virDomainNetInsert(virDomainDef *def, virDomainNetDef *net)
+ {
+     /* hostdev net devices must also exist in the hostdevs array */
+-    if (net->type == VIR_DOMAIN_NET_TYPE_HOSTDEV &&
+-        virDomainHostdevInsert(def, &net->data.hostdev.def) < 0)
+-        return -1;
++    if (net->type == VIR_DOMAIN_NET_TYPE_HOSTDEV)
++        virDomainHostdevInsert(def, &net->data.hostdev.def);
+ 
+     VIR_APPEND_ELEMENT(def->nets, def->nnets, net);
+     return 0;
+@@ -19257,10 +19254,8 @@ virDomainDefParseXML(xmlXPathContextPtr ctxt,
+          * where the actual network type is already known to be
+          * hostdev) must also be in the hostdevs array.
+          */
+-        if (virDomainNetGetActualType(net) == VIR_DOMAIN_NET_TYPE_HOSTDEV &&
+-            virDomainHostdevInsert(def, virDomainNetGetActualHostdev(net)) < 0) {
+-            return NULL;
+-        }
++        if (virDomainNetGetActualType(net) == VIR_DOMAIN_NET_TYPE_HOSTDEV)
++            virDomainHostdevInsert(def, virDomainNetGetActualHostdev(net));
+     }
+     VIR_FREE(nodes);
+ 
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 5237046196..2d38e8fa51 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -3982,7 +3982,7 @@ virDomainNetDef *virDomainNetRemove(virDomainDef *def, size_t i);
+ virDomainNetDef *virDomainNetRemoveByObj(virDomainDef *def, virDomainNetDef *net);
+ void virDomainNetRemoveHostdev(virDomainDef *def, virDomainNetDef *net);
+ 
+-int virDomainHostdevInsert(virDomainDef *def, virDomainHostdevDef *hostdev);
++void virDomainHostdevInsert(virDomainDef *def, virDomainHostdevDef *hostdev);
+ virDomainHostdevDef *
+ virDomainHostdevRemove(virDomainDef *def, size_t i);
+ int virDomainHostdevFind(virDomainDef *def, virDomainHostdevDef *match,
+diff --git a/src/libxl/libxl_domain.c b/src/libxl/libxl_domain.c
+index cad6c9ce42..711e22b8df 100644
+--- a/src/libxl/libxl_domain.c
++++ b/src/libxl/libxl_domain.c
+@@ -1015,10 +1015,7 @@ libxlNetworkPrepareDevices(virDomainDef *def)
+             /* Each type='hostdev' network device must also have a
+              * corresponding entry in the hostdevs array.
+              */
+-            virDomainHostdevDef *hostdev = virDomainNetGetActualHostdev(net);
+-
+-            if (virDomainHostdevInsert(def, hostdev) < 0)
+-                return -1;
++            virDomainHostdevInsert(def, virDomainNetGetActualHostdev(net));
+         }
+     }
+ 
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index 29dcee3cfc..b670e697c6 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -3585,8 +3585,7 @@ libxlDomainAttachDeviceConfig(virDomainDef *vmdef, virDomainDeviceDef *dev)
+                 return -1;
+             }
+ 
+-            if (virDomainHostdevInsert(vmdef, hostdev) < 0)
+-                return -1;
++            virDomainHostdevInsert(vmdef, hostdev);
+             dev->data.hostdev = NULL;
+             break;
+ 
+diff --git a/src/lxc/lxc_driver.c b/src/lxc/lxc_driver.c
+index d682e7168a..9609d7d10c 100644
+--- a/src/lxc/lxc_driver.c
++++ b/src/lxc/lxc_driver.c
+@@ -3025,8 +3025,7 @@ lxcDomainAttachDeviceConfig(virDomainDef *vmdef,
+                            _("device is already in the domain configuration"));
+             return -1;
+         }
+-        if (virDomainHostdevInsert(vmdef, hostdev) < 0)
+-            return -1;
++        virDomainHostdevInsert(vmdef, hostdev);
+         dev->data.hostdev = NULL;
+         ret = 0;
+         break;
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 9a69574f31..379f9fb74f 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -6734,8 +6734,7 @@ qemuDomainAttachDeviceConfig(virDomainDef *vmdef,
+                            _("device is already in the domain configuration"));
+             return -1;
+         }
+-        if (virDomainHostdevInsert(vmdef, hostdev))
+-            return -1;
++        virDomainHostdevInsert(vmdef, hostdev);
+         dev->data.hostdev = NULL;
+         break;
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 1866c8f4e1..a45f1b5b7d 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5929,8 +5929,7 @@ qemuProcessPrepareDomainNetwork(virDomainObj *vm)
+             if (qemuDomainPrepareHostdev(hostdev, priv) < 0)
+                 return -1;
+ 
+-            if (virDomainHostdevInsert(def, hostdev) < 0)
+-                return -1;
++            virDomainHostdevInsert(def, hostdev);
+         }
+     }
+     return 0;
+-- 
+2.48.1

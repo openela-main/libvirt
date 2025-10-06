@@ -1,0 +1,119 @@
+From cecca681eb3c9ff5d44d6700ce74d287b2232d5c Mon Sep 17 00:00:00 2001
+Message-ID: <cecca681eb3c9ff5d44d6700ce74d287b2232d5c.1744363085.git.jdenemar@redhat.com>
+From: Laine Stump <laine@redhat.com>
+Date: Fri, 4 Apr 2025 16:57:21 -0400
+Subject: [PATCH] qemu: make processNetDevStreamDisconnectedEvent() reusable
+
+We will be adding a new event whose response will be *exactly* the
+same as the response to NETDEV_STREAM_DISCONNECTED. Rather than doing
+a copy-paste of the complete function that does the processing, turn
+that function into something more generic that takes the name of the
+event as an arg (the event name is only used in log messages).
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Tested-by: Stefano Brivio <sbrivio@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 03a6bc7752ec73d7ea222d5386e8f4124fe51c7f)
+
+Conflicts:
+
+src/qemu/qemu_driver.c:
+  In context surrounding a chunk, the arguments to
+  processNicRxFilterChangedEvent() changed upstream (due to upstream
+  commit 50981052a5f)
+
+https://issues.redhat.com/browse/RHEL-84784
+Signed-off-by: Laine Stump <laine@redhat.com>
+---
+ src/qemu/qemu_driver.c | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 53dcd690f0..65e17a870d 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -3618,8 +3618,9 @@ processDeviceDeletedEvent(virQEMUDriver *driver,
+ 
+ 
+ static void
+-processNetdevStreamDisconnectedEvent(virDomainObj *vm,
+-                                     const char *netdevId)
++processNetdevDisconnectedEvent(virDomainObj *vm,
++                               const char *netdevId,
++                               const char *eventName)
+ {
+     virDomainDeviceDef dev;
+     virDomainNetDef *def;
+@@ -3634,13 +3635,13 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,
+      */
+ 
+     if (!devAlias) {
+-        VIR_WARN("Received NETDEV_STREAM_DISCONNECTED event for unrecognized netdev %s from domain %p %s",
+-                  netdevId, vm, vm->def->name);
++        VIR_WARN("Received %s event for unrecognized netdev %s from domain %p %s",
++                 eventName, netdevId, vm, vm->def->name);
+         return;
+     }
+ 
+-    VIR_DEBUG("Received NETDEV_STREAM_DISCONNECTED event for device %s from domain %p %s",
+-              devAlias, vm, vm->def->name);
++    VIR_DEBUG("Received %s event for device %s from domain %p %s",
++              eventName, devAlias, vm, vm->def->name);
+ 
+     if (virDomainObjBeginJob(vm, VIR_JOB_QUERY) < 0)
+         return;
+@@ -3651,28 +3652,28 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,
+     }
+ 
+     if (virDomainDefFindDevice(vm->def, devAlias, &dev, true) < 0) {
+-        VIR_WARN("NETDEV_STREAM_DISCONNECTED event received for non-existent device %s in domain %s",
+-                 devAlias, vm->def->name);
++        VIR_WARN("%s event received for non-existent device %s in domain %s",
++                 eventName, devAlias, vm->def->name);
+         goto endjob;
+     }
+     if (dev.type != VIR_DOMAIN_DEVICE_NET) {
+-        VIR_WARN("NETDEV_STREAM_DISCONNECTED event received for non-network device %s in domain %s",
+-                 devAlias, vm->def->name);
++        VIR_WARN("%s event received for non-network device %s in domain %s",
++                 eventName, devAlias, vm->def->name);
+         goto endjob;
+     }
+     def = dev.data.net;
+ 
+     if (def->backend.type != VIR_DOMAIN_NET_BACKEND_PASST) {
+-        VIR_DEBUG("ignore NETDEV_STREAM_DISCONNECTED event for non-passt network device %s in domain %s",
+-                  def->info.alias, vm->def->name);
++        VIR_DEBUG("ignore %s event for non-passt network device %s in domain %s",
++                  eventName, def->info.alias, vm->def->name);
+         goto endjob;
+     }
+ 
+     /* handle the event - restart the passt process with its original
+      * parameters
+      */
+-    VIR_DEBUG("process NETDEV_STREAM_DISCONNECTED event for network device %s in domain %s",
+-              def->info.alias, vm->def->name);
++    VIR_DEBUG("process %s event for network device %s in domain %s",
++              eventName, def->info.alias, vm->def->name);
+ 
+     if (qemuPasstStart(vm, def) < 0)
+         goto endjob;
+@@ -3682,6 +3683,14 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,
+ }
+ 
+ 
++static void
++processNetdevStreamDisconnectedEvent(virDomainObj *vm,
++                                     const char *netdevId)
++{
++    processNetdevDisconnectedEvent(vm, netdevId, "NETDEV_STREAM_DISCONNECTED");
++}
++
++
+ static void
+ processNicRxFilterChangedEvent(virDomainObj *vm,
+                                const char *devAlias)
+-- 
+2.49.0
