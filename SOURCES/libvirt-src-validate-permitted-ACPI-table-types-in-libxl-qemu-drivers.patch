@@ -1,0 +1,94 @@
+From 39e946bdfdd15667379debea04d91fac43bde541 Mon Sep 17 00:00:00 2001
+Message-ID: <39e946bdfdd15667379debea04d91fac43bde541.1742990721.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Mon, 17 Feb 2025 16:39:29 +0000
+Subject: [PATCH] src: validate permitted ACPI table types in libxl/qemu
+ drivers
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This forces us to update the drivers when defining new table types
+to avoid incorrectly accepting them by default.
+
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 3d94587655696509f34492f75c2a31a7a93eb2f9)
+Resolves: https://issues.redhat.com/browse/RHEL-81041
+---
+ src/libxl/libxl_domain.c | 19 +++++++++++++++++++
+ src/qemu/qemu_validate.c | 15 +++++++++++++++
+ 2 files changed, 34 insertions(+)
+
+diff --git a/src/libxl/libxl_domain.c b/src/libxl/libxl_domain.c
+index 6805160923..efd01840de 100644
+--- a/src/libxl/libxl_domain.c
++++ b/src/libxl/libxl_domain.c
+@@ -306,6 +306,7 @@ libxlDomainDefValidate(const virDomainDef *def,
+     libxlDriverPrivate *driver = opaque;
+     g_autoptr(libxlDriverConfig) cfg = libxlDriverConfigGet(driver);
+     bool reqSecureBoot = false;
++    size_t i;
+ 
+     if (!virCapabilitiesDomainSupported(cfg->caps, def->os.type,
+                                         def->os.arch,
+@@ -330,6 +331,24 @@ libxlDomainDefValidate(const virDomainDef *def,
+         return -1;
+     }
+ 
++    for (i = 0; i < def->os.nacpiTables; i++) {
++        switch (def->os.acpiTables[i]->type) {
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_SLIC:
++            break;
++
++        default:
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST:
++            virReportEnumRangeError(virDomainOsACPITable,
++                                    def->os.acpiTables[i]->type);
++            return -1;
++        }
++    }
++    if (def->os.nacpiTables > 1) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("Only a single ACPI table is supported"));
++        return -1;
++    }
++
+     if (def->nsounds > 0) {
+         virDomainSoundDef *snd = def->sounds[0];
+ 
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index 289a3f94cc..e500a5d314 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -686,6 +686,8 @@ static int
+ qemuValidateDomainDefBoot(const virDomainDef *def,
+                           virQEMUCaps *qemuCaps)
+ {
++    size_t i;
++
+     if (def->os.bootloader || def->os.bootloaderArgs) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                        _("bootloader is not supported by QEMU"));
+@@ -725,6 +727,19 @@ qemuValidateDomainDefBoot(const virDomainDef *def,
+             return -1;
+     }
+ 
++    for (i = 0; i < def->os.nacpiTables; i++) {
++        switch (def->os.acpiTables[i]->type) {
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_SLIC:
++            break;
++
++        default:
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST:
++            virReportEnumRangeError(virDomainOsACPITable,
++                                    def->os.acpiTables[i]->type);
++            return -1;
++        }
++    }
++
+     return 0;
+ }
+ 
+-- 
+2.49.0

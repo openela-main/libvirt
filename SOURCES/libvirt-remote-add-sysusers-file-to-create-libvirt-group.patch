@@ -1,5 +1,5 @@
-From 4aa0ea0a693e06110333a8f851525d0e5a8fcfed Mon Sep 17 00:00:00 2001
-Message-ID: <4aa0ea0a693e06110333a8f851525d0e5a8fcfed.1741351378.git.jdenemar@redhat.com>
+From 44fc545f45e2e0077fbdc9d45bf8743d115fca35 Mon Sep 17 00:00:00 2001
+Message-ID: <44fc545f45e2e0077fbdc9d45bf8743d115fca35.1741876175.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Wed, 29 Jan 2025 15:37:46 +0000
 Subject: [PATCH] remote: add sysusers file to create 'libvirt' group
@@ -17,7 +17,7 @@ Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 18f0160994af80dfac2dcaf46097922e443b283b)
 
-https://issues.redhat.com/browse/RHEL-81740
+https://issues.redhat.com/browse/RHEL-81749
 
 Signed-off-by: Andrea Bolognani <abologna@redhat.com>
 ---

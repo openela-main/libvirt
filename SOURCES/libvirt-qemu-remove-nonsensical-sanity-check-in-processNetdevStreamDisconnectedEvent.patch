@@ -1,5 +1,5 @@
-From f6d606779aaedc8a6d958a2e97b462df390cb0a5 Mon Sep 17 00:00:00 2001
-Message-ID: <f6d606779aaedc8a6d958a2e97b462df390cb0a5.1744361503.git.jdenemar@redhat.com>
+From 13ff514007822c650ad0f3006882e2f85aab9b48 Mon Sep 17 00:00:00 2001
+Message-ID: <13ff514007822c650ad0f3006882e2f85aab9b48.1747908718.git.jdenemar@redhat.com>
 From: Laine Stump <laine@redhat.com>
 Date: Fri, 4 Apr 2025 16:48:23 -0400
 Subject: [PATCH] qemu: remove nonsensical sanity check in
@@ -21,14 +21,14 @@ Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 (cherry picked from commit 51a54dc1c4ecf37d60acee1cb94252e51c5ef627)
 
-https://issues.redhat.com/browse/RHEL-84782
+https://issues.redhat.com/browse/RHEL-80169
 Signed-off-by: Laine Stump <laine@redhat.com>
 ---
  src/qemu/qemu_driver.c | 7 -------
  1 file changed, 7 deletions(-)
 
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index f8f3d2c725..53dcd690f0 100644
+index 11dbbc1aab..89bb10756e 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -3623,7 +3623,6 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,

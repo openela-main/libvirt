@@ -1,0 +1,534 @@
+From 0261587fd9afe1c83d7d2e2d0666c1613aece94e Mon Sep 17 00:00:00 2001
+Message-ID: <0261587fd9afe1c83d7d2e2d0666c1613aece94e.1749039441.git.jdenemar@redhat.com>
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 12 May 2025 14:48:12 +0200
+Subject: [PATCH] redhat: Restore hunks in
+ tests/qemucapabilitiesdata/caps_10.0.0_s390x.*
+
+These hunks were ommitted from the backport in commit dd7b0824364c
+("tests: add capabilities for QEMU 10.0.0 on s390x"). Now that we've
+backported the corresponding feature to RHEL 9, we have to restore the
+hunks to make the tests working again.
+
+JIRA: https://issues.redhat.com/browse/RHEL-89415
+Upstream Status: RHEL-only
+                 (Hunks taken from commit 652b2eeaa91ebde76b951593e4f77ec3)
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ .../caps_10.0.0_s390x.replies                 | 447 +++++++++++++++++-
+ .../caps_10.0.0_s390x.xml                     |  13 +
+ 2 files changed, 458 insertions(+), 2 deletions(-)
+
+diff --git a/tests/qemucapabilitiesdata/caps_10.0.0_s390x.replies b/tests/qemucapabilitiesdata/caps_10.0.0_s390x.replies
+index 18f098153d..385c163441 100644
+--- a/tests/qemucapabilitiesdata/caps_10.0.0_s390x.replies
++++ b/tests/qemucapabilitiesdata/caps_10.0.0_s390x.replies
+@@ -32985,6 +32985,173 @@
+   "id": "libvirt-42"
+ }
+ 
++{
++  "execute": "query-cpu-model-expansion",
++  "arguments": {
++    "type": "full",
++    "model": {
++      "name": "host"
++    }
++  },
++  "id": "libvirt-43"
++}
++
++{
++  "return": {
++    "deprecated-props": [
++      "bpb",
++      "te",
++      "cte",
++      "csske"
++    ],
++    "model": {
++      "name": "gen16a-base",
++      "props": {
++        "pfmfi": false,
++        "exrl": true,
++        "stfle45": true,
++        "nnpa": true,
++        "cmma": false,
++        "dateh2": true,
++        "gen17ptff": false,
++        "aen": true,
++        "gen13ptff": true,
++        "dateh": true,
++        "ccf": false,
++        "cmmnt": true,
++        "iacc2": true,
++        "parseh": true,
++        "csst": true,
++        "idter": false,
++        "idtes": true,
++        "msa": true,
++        "vxpdeh": true,
++        "aefsi": true,
++        "diag318": true,
++        "hpma2": false,
++        "csst2": true,
++        "csske": true,
++        "mepoch": true,
++        "msa9": true,
++        "msa8": true,
++        "msa7": true,
++        "msa6": true,
++        "msa5": true,
++        "msa4": true,
++        "msa3": true,
++        "msa2": true,
++        "msa1": true,
++        "msa13_pckmo": false,
++        "msa11_pckmo": false,
++        "msa10_pckmo": false,
++        "sthyi": true,
++        "stckf": true,
++        "stfle": true,
++        "etf3": true,
++        "etf2": true,
++        "edat": true,
++        "hfpm": true,
++        "ri": true,
++        "minste4": false,
++        "deflate": true,
++        "msa13": false,
++        "msa12": false,
++        "msa11": false,
++        "msa10": false,
++        "edat2": true,
++        "hfpue": true,
++        "unpack": false,
++        "dfp": true,
++        "vxpdeh3": false,
++        "mvcos": true,
++        "etoken": true,
++        "sprogp": true,
++        "sigpif": false,
++        "ldisphp": true,
++        "vx": true,
++        "ipter": true,
++        "pai": true,
++        "emon": true,
++        "cei": false,
++        "cmpsceh": true,
++        "ginste": true,
++        "paie": true,
++        "dfppc": true,
++        "dfpzc": true,
++        "dfphp": true,
++        "stfle49": true,
++        "mepochptff": true,
++        "opc": true,
++        "ap": true,
++        "asnlxr": true,
++        "gpereh": false,
++        "sif": false,
++        "minste2": true,
++        "vxeh": true,
++        "vxpd": true,
++        "esop": true,
++        "ectg": true,
++        "ib": false,
++        "msa9_pckmo": true,
++        "siif": false,
++        "vxeh3": false,
++        "vxeh2": true,
++        "tsi": true,
++        "tpei": false,
++        "esan3": true,
++        "esort": true,
++        "fpe": true,
++        "ibs": false,
++        "zarch": true,
++        "appv": true,
++        "apqi": true,
++        "apft": true,
++        "stfle53": true,
++        "els": true,
++        "sief2": false,
++        "eimm": true,
++        "iep": true,
++        "irbm": false,
++        "srs": true,
++        "ineff_nc_tx": false,
++        "appvi": true,
++        "apqci": true,
++        "kss": false,
++        "cte": true,
++        "ais": true,
++        "fpseh": true,
++        "ltlbc": true,
++        "ldisp": true,
++        "bpb": true,
++        "64bscao": false,
++        "ctop": true,
++        "gs": true,
++        "sema": true,
++        "etf3eh": true,
++        "etf2eh": true,
++        "eec": true,
++        "ppa15": true,
++        "zpci": true,
++        "rdp": true,
++        "nonqks": true,
++        "sea_esop2": true,
++        "minste3": true,
++        "plo_ext": false,
++        "beareh": true,
++        "pfpo": true,
++        "te": true,
++        "cmm": true,
++        "tods": true,
++        "plo": true,
++        "gsls": false,
++        "skey": false,
++        "vxpdeh2": true
++      }
++    }
++  },
++  "id": "libvirt-43"
++}
++
+ {
+   "execute": "qmp_capabilities",
+   "id": "libvirt-1"
+@@ -37433,10 +37600,286 @@
+ }
+ 
+ {
+-  "execute": "query-machines",
++  "execute": "query-cpu-model-expansion",
++  "arguments": {
++    "type": "full",
++    "model": {
++      "name": "max"
++    }
++  },
+   "id": "libvirt-4"
+ }
+ 
++{
++  "return": {
++    "deprecated-props": [
++      "bpb",
++      "te",
++      "cte",
++      "csske"
++    ],
++    "model": {
++      "name": "gen15a-base",
++      "props": {
++        "pfmfi": false,
++        "exrl": true,
++        "stfle45": true,
++        "kmctr-etdea-192": false,
++        "kmctr-etdea-128": false,
++        "nnpa": false,
++        "cmma": false,
++        "dateh2": false,
++        "gen17ptff": false,
++        "gen13ptff": false,
++        "aen": true,
++        "kmo-etdea-192": false,
++        "kmf-etdea-192": false,
++        "kmc-etdea-192": false,
++        "kmac-tdea-192": false,
++        "kimd-sha-512": true,
++        "dateh": true,
++        "km-aes-256": false,
++        "km-aes-192": false,
++        "kmctr-aes-256": false,
++        "ccf": false,
++        "kma-gcm-eaes-192": false,
++        "kmo-tdea-192": false,
++        "kmf-tdea-192": false,
++        "kmctr-tdea-192": false,
++        "kmctr-tdea-128": false,
++        "km-etdea-192": false,
++        "kmc-tdea-192": false,
++        "cmmnt": false,
++        "iacc2": true,
++        "parseh": false,
++        "klmd-sha-512": true,
++        "kma-gcm-eaes-128": false,
++        "csst": true,
++        "pcc-xts-aes-256": false,
++        "pcc-xts-aes-128": false,
++        "pckmo-aes-128": false,
++        "idter": false,
++        "idtes": true,
++        "prno-trng-qrtcr": false,
++        "pcc-cmac-eaes-128": false,
++        "vxpdeh": false,
++        "aefsi": true,
++        "pckmo-etdea-192": false,
++        "pckmo-etdea-128": false,
++        "diag318": false,
++        "pcc-cmac-eaes-256": false,
++        "msa-base": true,
++        "pcc-cmac-etdea-192": false,
++        "hpma2": false,
++        "kmctr-eaes-256": false,
++        "csske": false,
++        "csst2": true,
++        "mepoch": false,
++        "msa9": false,
++        "msa6": false,
++        "msa1": false,
++        "kmctr-aes-192": false,
++        "msa13_pckmo": false,
++        "msa11_pckmo": false,
++        "msa10_pckmo": false,
++        "pckmo-aes-256": false,
++        "sthyi": false,
++        "stckf": true,
++        "stfle": true,
++        "edat": false,
++        "etf3": true,
++        "etf2": true,
++        "hfpm": false,
++        "ri": false,
++        "minste4": false,
++        "pcc-xts-eaes-256": false,
++        "deflate": false,
++        "msa13": false,
++        "msa12": false,
++        "msa11": false,
++        "msa10": false,
++        "km-xts-eaes-256": false,
++        "km-xts-eaes-128": false,
++        "edat2": false,
++        "hfpue": false,
++        "kmo-aes-192": false,
++        "kmf-aes-192": false,
++        "km-eaes-192": false,
++        "kmc-aes-192": false,
++        "unpack": false,
++        "dfp": false,
++        "kmo-aes-128": false,
++        "kmf-aes-128": false,
++        "km-eaes-128": false,
++        "kmctr-dea": false,
++        "vxpdeh3": false,
++        "mvcos": true,
++        "etoken": false,
++        "pcc-cmac-tdea-192": false,
++        "km-dea": false,
++        "sprogp": true,
++        "sigpif": false,
++        "kmac-eaes-128": false,
++        "ldisphp": true,
++        "pckmo-aes-192": false,
++        "ipter": false,
++        "vx": true,
++        "pai": false,
++        "kimd-ghash": false,
++        "emon": false,
++        "kimd-sha-1": false,
++        "cei": false,
++        "cmpsceh": false,
++        "kmctr-eaes-192": false,
++        "kmctr-eaes-128": false,
++        "ginste": true,
++        "km-xts-aes-256": false,
++        "kmac-eaes-256": false,
++        "kmo-eaes-128": false,
++        "kmf-eaes-128": false,
++        "kmc-eaes-128": false,
++        "kmac-aes-128": false,
++        "paie": false,
++        "dfppc": false,
++        "dfpzc": false,
++        "dfphp": false,
++        "kmo-eaes-256": false,
++        "kmf-eaes-256": false,
++        "kmc-eaes-256": false,
++        "kmac-aes-256": false,
++        "kmac-etdea-192": false,
++        "kmac-etdea-128": false,
++        "kmo-dea": false,
++        "kmf-dea": false,
++        "km-edea": false,
++        "kmc-dea": false,
++        "stfle49": true,
++        "klmd-sha-1": false,
++        "mepochptff": false,
++        "opc": false,
++        "ap": false,
++        "asnlxr": false,
++        "gpereh": false,
++        "sif": false,
++        "minste2": true,
++        "pcc-cmac-dea": false,
++        "vxpd": false,
++        "vxeh": true,
++        "esop": true,
++        "ectg": true,
++        "ib": false,
++        "km-tdea-192": false,
++        "km-tdea-128": false,
++        "msa9_pckmo": false,
++        "siif": false,
++        "kma-gcm-aes-256": false,
++        "kma-gcm-aes-192": false,
++        "kma-gcm-aes-128": false,
++        "pcc-cmac-aes-256": false,
++        "vxeh3": false,
++        "tsi": false,
++        "vxeh2": true,
++        "tpei": false,
++        "esort": false,
++        "esan3": true,
++        "fpe": true,
++        "ibs": false,
++        "pcc-xts-eaes-128": false,
++        "kmac-eaes-192": false,
++        "zarch": true,
++        "kmo-edea": false,
++        "kmf-edea": false,
++        "kmc-edea": false,
++        "kmac-dea": false,
++        "appv": false,
++        "apqi": false,
++        "apft": false,
++        "stfle53": true,
++        "ppno-sha-512-drng": false,
++        "pcc-cmac-tdea-128": false,
++        "kmo-aes-256": false,
++        "kmf-aes-256": false,
++        "km-eaes-256": false,
++        "kmc-aes-256": false,
++        "els": false,
++        "sief2": false,
++        "eimm": true,
++        "pcc-cmac-etdea-128": false,
++        "iep": true,
++        "irbm": false,
++        "km-xts-aes-128": false,
++        "srs": true,
++        "appvi": false,
++        "ineff_nc_tx": false,
++        "apqci": false,
++        "kmo-tdea-128": false,
++        "kmf-tdea-128": false,
++        "km-etdea-128": false,
++        "kmc-tdea-128": false,
++        "kss": false,
++        "cte": false,
++        "kmac-edea": false,
++        "prno-trng": true,
++        "kma-gcm-eaes-256": false,
++        "ais": true,
++        "fpseh": true,
++        "ltlbc": true,
++        "ldisp": true,
++        "kmo-etdea-128": false,
++        "kmf-etdea-128": false,
++        "kmc-etdea-128": false,
++        "kmac-tdea-128": false,
++        "pcc-cmac-edea": false,
++        "bpb": false,
++        "kmctr-edea": false,
++        "64bscao": false,
++        "ctop": false,
++        "kmo-eaes-192": false,
++        "kmf-eaes-192": false,
++        "kmc-eaes-192": false,
++        "kmac-aes-192": false,
++        "gs": false,
++        "sema": false,
++        "etf3eh": true,
++        "etf2eh": true,
++        "eec": false,
++        "pcc-cmac-eaes-192": false,
++        "ppa15": false,
++        "kmc-prng": false,
++        "zpci": true,
++        "rdp": false,
++        "nonqks": false,
++        "sea_esop2": true,
++        "minste3": true,
++        "plo_ext": false,
++        "beareh": false,
++        "pfpo": false,
++        "te": false,
++        "msa8-base": true,
++        "msa4-base": true,
++        "msa3-base": true,
++        "msa5-base": true,
++        "pcc-cmac-aes-192": false,
++        "cmm": false,
++        "tods": false,
++        "pcc-cmac-aes-128": false,
++        "plo": true,
++        "pckmo-edea": false,
++        "gsls": false,
++        "kmctr-aes-128": false,
++        "skey": false,
++        "vxpdeh2": false
++      }
++    }
++  },
++  "id": "libvirt-4"
++}
++
++{
++  "execute": "query-machines",
++  "id": "libvirt-5"
++}
++
+ {
+   "return": [
+     {
+@@ -37709,5 +38152,5 @@
+       "default-ram-id": "s390.ram"
+     }
+   ],
+-  "id": "libvirt-4"
++  "id": "libvirt-5"
+ }
+diff --git a/tests/qemucapabilitiesdata/caps_10.0.0_s390x.xml b/tests/qemucapabilitiesdata/caps_10.0.0_s390x.xml
+index 82cabd13b2..1d7d415e5b 100644
+--- a/tests/qemucapabilitiesdata/caps_10.0.0_s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_10.0.0_s390x.xml
+@@ -139,6 +139,7 @@
+   <flag name='chardev-reconnect-miliseconds'/>
+   <flag name='virtio-ccw.loadparm'/>
+   <flag name='netdev-stream-reconnect-miliseconds'/>
++  <flag name='query-cpu-model-expansion.deprecated-props'/>
+   <flag name='virtio-mem-ccw'/>
+   <version>9002050</version>
+   <microcodeVersion>39100285</microcodeVersion>
+@@ -200,6 +201,12 @@
+     <property name='te' type='boolean' value='true'/>
+     <property name='cmm' type='boolean' value='true'/>
+     <property name='vxpdeh2' type='boolean' value='true'/>
++    <deprecatedFeatures>
++      <property name='bpb'/>
++      <property name='te'/>
++      <property name='cte'/>
++      <property name='csske'/>
++    </deprecatedFeatures>
+   </hostCPU>
+   <cpu type='kvm' name='z13' typename='z13-s390x-cpu' usable='yes'/>
+   <cpu type='kvm' name='z990.3' typename='z990.3-s390x-cpu' usable='yes'/>
+@@ -398,6 +405,12 @@
+     <property name='msa3-base' type='boolean' value='true'/>
+     <property name='msa5-base' type='boolean' value='true'/>
+     <property name='tods' type='boolean' value='false'/>
++    <deprecatedFeatures>
++      <property name='bpb'/>
++      <property name='te'/>
++      <property name='cte'/>
++      <property name='csske'/>
++    </deprecatedFeatures>
+   </hostCPU>
+   <cpu type='tcg' name='z13' typename='z13-s390x-cpu' usable='no'>
+     <blocker name='ppno-sha-512-drng'/>
+-- 
+2.49.0

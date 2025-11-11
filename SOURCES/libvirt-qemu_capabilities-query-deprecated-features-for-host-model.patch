@@ -1,5 +1,5 @@
-From 9da8c1095b227097dc71f48da3caa7e172597c36 Mon Sep 17 00:00:00 2001
-Message-ID: <9da8c1095b227097dc71f48da3caa7e172597c36.1749027246.git.jdenemar@redhat.com>
+From 3620d993bb09b10d6e6e9e44a4a5fdf13a6d3da5 Mon Sep 17 00:00:00 2001
+Message-ID: <3620d993bb09b10d6e6e9e44a4a5fdf13a6d3da5.1749039441.git.jdenemar@redhat.com>
 From: Collin Walling <walling@linux.ibm.com>
 Date: Mon, 16 Dec 2024 18:03:54 -0500
 Subject: [PATCH] qemu_capabilities: query deprecated features for host-model
@@ -25,35 +25,38 @@ Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit 51c098347d7f2af9b4386ac0adc4431997d06f3d)
 
-JIRA: https://issues.redhat.com/browse/RHEL-89977
+JIRA: https://issues.redhat.com/browse/RHEL-89415
 Conflicts:
     src/qemu/qemu_capabilities.*
-    (contextual conflict due to earlier out-of-order backport)
+    (contextual conflict due to different amount of caps in downstream)
 Signed-off-by: Thomas Huth <thuth@redhat.com>
 ---
- src/qemu/qemu_capabilities.c                  |  40 ++
- src/qemu/qemu_capabilities.h                  |   3 +
+ src/qemu/qemu_capabilities.c                  |  40 +-
+ src/qemu/qemu_capabilities.h                  |   3 +-
  .../caps_9.1.0_s390x.replies                  | 348 +++++++++++++++++-
  .../qemucapabilitiesdata/caps_9.1.0_s390x.xml |   7 +
  .../caps_9.2.0_s390x.replies                  | 348 +++++++++++++++++-
  .../qemucapabilitiesdata/caps_9.2.0_s390x.xml |   7 +
- 6 files changed, 749 insertions(+), 4 deletions(-)
+ 6 files changed, 747 insertions(+), 6 deletions(-)
 
 diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
-index 50df7aeaf7..30af8721ee 100644
+index b1faea3ac7..b17c582b5e 100644
 --- a/src/qemu/qemu_capabilities.c
 +++ b/src/qemu/qemu_capabilities.c
-@@ -721,6 +721,9 @@ VIR_ENUM_IMPL(virQEMUCaps,
+@@ -721,10 +721,11 @@ VIR_ENUM_IMPL(virQEMUCaps,
                "chardev-reconnect-miliseconds", /* QEMU_CAPS_CHARDEV_RECONNECT_MILISECONDS */
                "virtio-ccw.loadparm", /* QEMU_CAPS_VIRTIO_CCW_DEVICE_LOADPARM */
                "netdev-stream-reconnect-miliseconds", /* QEMU_CAPS_NETDEV_STREAM_RECONNECT_MILISECONDS */
+-              "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
 +              "query-cpu-model-expansion.deprecated-props", /* QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS */
-+
-+              /* 470 */
-               "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
+ 
+               /* 470 */
+               "virtio-mem-ccw", /* QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW */
++              "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
      );
  
-@@ -1596,6 +1599,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+ 
+@@ -1601,6 +1602,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
      { "screendump/arg-type/device", QEMU_CAPS_SCREENDUMP_DEVICE },
      { "screendump/arg-type/format/^png", QEMU_CAPS_SCREENSHOT_FORMAT_PNG },
      { "set-numa-node/arg-type/+hmat-lb", QEMU_CAPS_NUMA_HMAT },
@@ -61,7 +64,7 @@ index 50df7aeaf7..30af8721ee 100644
  };
  
  typedef struct _virQEMUCapsObjectTypeProps virQEMUCapsObjectTypeProps;
-@@ -3152,6 +3156,38 @@ virQEMUCapsProbeHypervCapabilities(virQEMUCaps *qemuCaps,
+@@ -3160,6 +3162,38 @@ virQEMUCapsProbeHypervCapabilities(virQEMUCaps *qemuCaps,
  }
  
  
@@ -100,7 +103,7 @@ index 50df7aeaf7..30af8721ee 100644
  static int
  virQEMUCapsProbeQMPHostCPU(virQEMUCaps *qemuCaps,
                             virQEMUCapsAccel *accel,
-@@ -3233,6 +3269,10 @@ virQEMUCapsProbeQMPHostCPU(virQEMUCaps *qemuCaps,
+@@ -3241,6 +3275,10 @@ virQEMUCapsProbeQMPHostCPU(virQEMUCaps *qemuCaps,
          modelInfo->migratability = true;
      }
  
@@ -112,19 +115,22 @@ index 50df7aeaf7..30af8721ee 100644
          (ARCH_IS_X86(qemuCaps->arch) || ARCH_IS_ARM(qemuCaps->arch))) {
          g_autoptr(qemuMonitorCPUModelInfo) fullQEMU = NULL;
 diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
-index e93e6a01cc..b37f1f0b14 100644
+index 6467a09796..d2bccc0e2a 100644
 --- a/src/qemu/qemu_capabilities.h
 +++ b/src/qemu/qemu_capabilities.h
-@@ -700,6 +700,9 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+@@ -700,10 +700,11 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
      QEMU_CAPS_CHARDEV_RECONNECT_MILISECONDS, /* 'reconnect-ms' option for chardevs supported */
      QEMU_CAPS_VIRTIO_CCW_DEVICE_LOADPARM, /* loadparm available on CCW device for multi device boot */
      QEMU_CAPS_NETDEV_STREAM_RECONNECT_MILISECONDS, /* 'reconnect-ms' option for netdev stream supported */
+-    QEMU_CAPS_BLOCKDEV_SET_ACTIVE, /* blockdev-set-active QMP command supported */
 +    QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS, /* query-cpu-model-expansion may report deprecated CPU properties */
-+
-+    /* 470 */
-     QEMU_CAPS_BLOCKDEV_SET_ACTIVE, /* blockdev-set-active QMP command supported */
+ 
+     /* 470 */
+     QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW, /* -device virtio-mem-ccw */
++    QEMU_CAPS_BLOCKDEV_SET_ACTIVE, /* blockdev-set-active QMP command supported */
  
      QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
 diff --git a/tests/qemucapabilitiesdata/caps_9.1.0_s390x.replies b/tests/qemucapabilitiesdata/caps_9.1.0_s390x.replies
 index 2d4ab8ed75..0a523ba47e 100644
 --- a/tests/qemucapabilitiesdata/caps_9.1.0_s390x.replies

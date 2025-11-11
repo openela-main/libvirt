@@ -1,0 +1,160 @@
+From 1d5f1c125cbe567b5586ff661e6b030f7f7f4151 Mon Sep 17 00:00:00 2001
+Message-ID: <1d5f1c125cbe567b5586ff661e6b030f7f7f4151.1747908718.git.jdenemar@redhat.com>
+From: David Judkovics <djudkovi(a)linux.ibm.com>
+Date: Thu, 20 Mar 2025 01:28:24 -0400
+Subject: [PATCH] virsh: Introduce new hypervisor-cpu-models command
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add new virsh command 'hypervisor-cpu-models'.  Command pulls from the
+existing domcapabilities XML and uses xpath to parse CPU model strings.
+By default, only models reported as usable by the hypervisor on the
+host system are printed.  User may specify "--all" to also print
+models which are not supported on the host.
+
+Signed-off-by: David Judkovics <djudkovi@linux.ibm.com>
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Signed-off-by: Collin Walling <walling@linux.ibm.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 65eeaf12d0780d20fcd7b76479d892c50f56a78c)
+
+https://issues.redhat.com/browse/RHEL-11435
+
+Signed-off-by: Boris Fiuczynski <bfiuczyn@redhat.com>
+---
+ docs/manpages/virsh.rst | 25 ++++++++++++++
+ tools/virsh-host.c      | 75 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 2bb1313a48..4d86caecd6 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -1032,6 +1032,31 @@ listed in the XML description. If *--migratable* is specified, features that
+ block migration will not be included in the resulting CPU.
+ 
+ 
++hypervisor-cpu-models
++---------------------
++
++**Syntax:**
++
++::
++
++   hypervisor-cpu-models [--virttype virttype] [--emulator emulator]
++      [--arch arch] [--machine machine] [--all]
++
++Print the list of CPU models known by the hypervisor for the specified architecture.
++It is not guaranteed that a listed CPU will run on the host. To determine CPU
++model compatibility with the host, see ``virsh hypervisor-cpu-baseline`` and
++``virsh hypervisor-cpu-compare``.
++
++The *virttype* option specifies the virtualization type (usable in the 'type'
++attribute of the <domain> top level element from the domain XML). *emulator*
++specifies the path to the emulator, *arch* specifies the CPU architecture, and
++*machine* specifies the machine type.
++
++By default, only the models that are claimed to be "usable" by the hypervisor
++on the host are reported. The option *--all* will report every CPU model known
++to the hypervisor, including ones that are not supported on the hypervisor (e.g.
++newer generation models).
++
+ DOMAIN COMMANDS
+ ===============
+ 
+diff --git a/tools/virsh-host.c b/tools/virsh-host.c
+index 2fe64e415f..eac782f2d4 100644
+--- a/tools/virsh-host.c
++++ b/tools/virsh-host.c
+@@ -1751,6 +1751,75 @@ cmdHypervisorCPUBaseline(vshControl *ctl,
+ }
+ 
+ 
++/*
++ * "hypervisor-cpu-models" command
++ */
++static const vshCmdInfo info_hypervisor_cpu_models = {
++    .help = N_("Hypervisor reported CPU models"),
++    .desc = N_("Get the CPU models reported by the hypervisor."),
++};
++
++static const vshCmdOptDef opts_hypervisor_cpu_models[] = {
++    {.name = "virttype",
++     .type = VSH_OT_STRING,
++     .completer = virshDomainVirtTypeCompleter,
++     .help = N_("virtualization type (/domain/@type)"),
++    },
++    {.name = "emulator",
++     .type = VSH_OT_STRING,
++     .help = N_("path to emulator binary (/domain/devices/emulator)"),
++    },
++    {.name = "arch",
++     .type = VSH_OT_STRING,
++     .completer = virshArchCompleter,
++     .help = N_("CPU architecture (/domain/os/type/@arch)"),
++    },
++    {.name = "machine",
++     .type = VSH_OT_STRING,
++     .help = N_("machine type (/domain/os/type/@machine)"),
++    },
++    {.name = "all",
++     .type = VSH_OT_BOOL,
++     .help = N_("include all CPU models known to the hypervisor for the architecture")
++    },
++    {.name = NULL}
++};
++
++static bool
++cmdHypervisorCPUModelNames(vshControl *ctl,
++                           const vshCmd *cmd)
++{
++    g_autofree char *caps_xml = NULL;
++    const char *virttype = NULL;
++    const char *emulator = NULL;
++    const char *arch = NULL;
++    const char *machine = NULL;
++    const char *xpath = NULL;
++    virshControl *priv = ctl->privData;
++
++    if (vshCommandOptString(ctl, cmd, "virttype", &virttype) < 0 ||
++        vshCommandOptString(ctl, cmd, "emulator", &emulator) < 0 ||
++        vshCommandOptString(ctl, cmd, "arch", &arch) < 0 ||
++        vshCommandOptString(ctl, cmd, "machine", &machine) < 0)
++        return false;
++
++    if (vshCommandOptBool(cmd, "all"))
++        xpath = "//cpu//model[@usable]/text()";
++    else
++        xpath = "//cpu//model[@usable='yes']/text()";
++
++    caps_xml = virConnectGetDomainCapabilities(priv->conn, emulator, arch,
++                                               machine, virttype, 0);
++
++    if (!caps_xml) {
++        vshError(ctl, "%s", _("failed to get hypervisor CPU model names"));
++        return false;
++    }
++
++    return virshDumpXML(ctl, caps_xml, "domcapabilities", xpath, false);
++}
++
++
+ const vshCmdDef hostAndHypervisorCmds[] = {
+     {.name = "allocpages",
+      .handler = cmdAllocpages,
+@@ -1818,6 +1887,12 @@ const vshCmdDef hostAndHypervisorCmds[] = {
+      .info = &info_hypervisor_cpu_compare,
+      .flags = 0
+     },
++    {.name = "hypervisor-cpu-models",
++     .handler = cmdHypervisorCPUModelNames,
++     .opts = opts_hypervisor_cpu_models,
++     .info = &info_hypervisor_cpu_models,
++     .flags = 0
++    },
+     {.name = "maxvcpus",
+      .handler = cmdMaxvcpus,
+      .opts = opts_maxvcpus,
+-- 
+2.49.0

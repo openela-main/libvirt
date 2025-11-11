@@ -1,5 +1,5 @@
-From 514588d016d1e105f987d821331a578a34ccdf49 Mon Sep 17 00:00:00 2001
-Message-ID: <514588d016d1e105f987d821331a578a34ccdf49.1745925135.git.jdenemar@redhat.com>
+From 9874072fc9396d609f1a0213bb06fa7e9a2fa019 Mon Sep 17 00:00:00 2001
+Message-ID: <9874072fc9396d609f1a0213bb06fa7e9a2fa019.1747908717.git.jdenemar@redhat.com>
 From: Martin Kletzander <mkletzan@redhat.com>
 Date: Tue, 25 Feb 2025 15:36:03 +0100
 Subject: [PATCH] Add load average information type into virDomainGetGuestInfo
@@ -10,7 +10,7 @@ Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit c52c449fd40c7263896d5f17129207b815c3a09c)
 
-https://issues.redhat.com/browse/RHEL-88449
+https://issues.redhat.com/browse/RHEL-88447
 
 Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 ---

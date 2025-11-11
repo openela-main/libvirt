@@ -1,5 +1,5 @@
-From 4b43cc2ee96aefe625ca2f377cab56132b15b84f Mon Sep 17 00:00:00 2001
-Message-ID: <4b43cc2ee96aefe625ca2f377cab56132b15b84f.1754419286.git.jdenemar@redhat.com>
+From c8df999c2129645b26c043a81b051b330c05ba46 Mon Sep 17 00:00:00 2001
+Message-ID: <c8df999c2129645b26c043a81b051b330c05ba46.1742990721.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 11 Mar 2025 09:01:03 +0100
 Subject: [PATCH] qemuxmlconftest: Include shared memory 'net-vhostuser' test
@@ -18,7 +18,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 (cherry picked from commit 779a975355dcb34898abaefdf8968c214a66ebf1)
 
-https://issues.redhat.com/browse/RHEL-106504
+https://issues.redhat.com/browse/RHEL-84133
 ---
  tests/qemuxmlconfdata/net-vhostuser-fail.x86_64-latest.xml    | 3 +++
  tests/qemuxmlconfdata/net-vhostuser-fail.xml                  | 3 +++
@@ -141,4 +141,4 @@ index e55a30a54f..91d1abc027 100644
    <os>
      <type arch='x86_64' machine='pc'>hvm</type>
 -- 
-2.50.1
+2.49.0

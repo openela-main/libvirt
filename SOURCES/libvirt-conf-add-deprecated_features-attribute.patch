@@ -1,5 +1,5 @@
-From 1f2939355139bb56af0db6b4d575bc3aa9831394 Mon Sep 17 00:00:00 2001
-Message-ID: <1f2939355139bb56af0db6b4d575bc3aa9831394.1749027246.git.jdenemar@redhat.com>
+From 4c66a653f02c8259fdcf72fdcd801b594f73183e Mon Sep 17 00:00:00 2001
+Message-ID: <4c66a653f02c8259fdcf72fdcd801b594f73183e.1749039441.git.jdenemar@redhat.com>
 From: Collin Walling <walling@linux.ibm.com>
 Date: Mon, 16 Dec 2024 18:03:58 -0500
 Subject: [PATCH] conf: add deprecated_features attribute
@@ -28,7 +28,7 @@ features in the future.
 Signed-off-by: Collin Walling <walling@linux.ibm.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit 62658bbf060784c757f96c9de3935f27885834aa)
-JIRA: https://issues.redhat.com/browse/RHEL-89977
+JIRA: https://issues.redhat.com/browse/RHEL-89415
 Signed-off-by: Thomas Huth <thuth@redhat.com>
 ---
  src/conf/cpu_conf.c                           | 11 +++++++
@@ -113,10 +113,10 @@ index 3a8910e09f..8edf1d14e3 100644
          <attribute name="migratable">
            <ref name="virOnOff"/>
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index c80d7bb6dc..16b8991c3c 100644
+index c1ae324ad4..64683ecfe0 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
-@@ -6483,6 +6483,17 @@ qemuProcessUpdateGuestCPU(virDomainDef *def,
+@@ -6429,6 +6429,17 @@ qemuProcessUpdateGuestCPU(virDomainDef *def,
                                  &def->os.arch) < 0)
          return -1;
  
@@ -263,7 +263,7 @@ index 0000000000..67950715ec
 +  </devices>
 +</domain>
 diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
-index 3947f508a2..049ca630a8 100644
+index e88aa6da92..bed562286d 100644
 --- a/tests/qemuxmlconftest.c
 +++ b/tests/qemuxmlconftest.c
 @@ -2300,6 +2300,9 @@ mymain(void)

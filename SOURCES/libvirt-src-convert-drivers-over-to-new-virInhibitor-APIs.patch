@@ -1,5 +1,5 @@
-From fd7a63d7b6be85cb60b7157de52d28f5c76bdf42 Mon Sep 17 00:00:00 2001
-Message-ID: <fd7a63d7b6be85cb60b7157de52d28f5c76bdf42.1744361503.git.jdenemar@redhat.com>
+From 079d7a5d0a1dd198f96749d415295d8340476902 Mon Sep 17 00:00:00 2001
+Message-ID: <079d7a5d0a1dd198f96749d415295d8340476902.1742990721.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Mon, 16 Dec 2024 16:28:48 +0000
 Subject: [PATCH] src: convert drivers over to new virInhibitor APIs
@@ -24,7 +24,7 @@ state struct.
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 48f0b6dfa12563f0006d2de4b0f85599e20f9449)
-Resolves: https://issues.redhat.com/browse/RHEL-83076
+Resolves: https://issues.redhat.com/browse/RHEL-83064
 ---
  src/libxl/libxl_conf.h           |  9 +++----
  src/libxl/libxl_domain.c         |  6 ++---

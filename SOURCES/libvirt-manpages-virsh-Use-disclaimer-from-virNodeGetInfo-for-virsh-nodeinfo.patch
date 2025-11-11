@@ -1,0 +1,55 @@
+From 90859b9c9cda1ab3daa34847ac4608cf451102ce Mon Sep 17 00:00:00 2001
+Message-ID: <90859b9c9cda1ab3daa34847ac4608cf451102ce.1744876588.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 7 Apr 2025 14:58:41 +0200
+Subject: [PATCH] manpages: virsh: Use disclaimer from 'virNodeGetInfo()' for
+ 'virsh nodeinfo'
+
+Adapt the disclarimer about the data not being accurate in many cases
+from the API docs to the virsh command using the aforementioned API.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 617e2dc3194204a88309e3da55bec8743a5df2ea)
+
+https://issues.redhat.com/browse/RHEL-86197
+---
+ docs/manpages/virsh.rst | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 2e525d3fac..aea920b7a7 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -427,10 +427,25 @@ nodeinfo
+    nodeinfo
+ 
+ Returns basic information about the node, like number and type of CPU,
+-and size of the physical memory. The output corresponds to virNodeInfo
+-structure. Specifically, the "CPU socket(s)" field means number of CPU
+-sockets per NUMA cell. The information libvirt displays is dependent
+-upon what each architecture may provide.
++and size of the physical memory.
++
++Use of this command is strongly discouraged as the information provided
++is not guaranteed to be accurate on all hardware platforms.
++
++The *CPU frequency* value merely reflects the speed that the first CPU in the
++machine is currently running at. This speed may vary across CPUs and changes
++continually as the host OS throttles.
++
++The data structure used to fetch the data is not extensible thus only supports
++global nodes/sockets/cores/threads (sockets/cores/threads is per NUMA node)
++topology information. If the host CPU has any further groupings (e.g.
++dies, clusters, etc) or the NUMA topology is non-symmetrical the data structure
++can't faithfully represent the system. In such cases a fake topology
++(nodes = 1, sockets = 1, cores = number of host cpus, threads = 1) which
++only correctly represents the total host CPU count is reported.
++
++Recommended replacement is to use the *capabilities* command which reports
++the data (except frequency) under ``/capabilities/host/topology`` XPath.
+ 
+ 
+ nodecpumap
+-- 
+2.49.0

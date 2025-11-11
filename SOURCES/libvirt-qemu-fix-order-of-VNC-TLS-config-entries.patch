@@ -1,5 +1,5 @@
-From aab5d03bf61c67445ff9294dc872fe5c737c3c92 Mon Sep 17 00:00:00 2001
-Message-ID: <aab5d03bf61c67445ff9294dc872fe5c737c3c92.1754419285.git.jdenemar@redhat.com>
+From 5df4d5dc38491553e3d1e454f1cd233bda0b990a Mon Sep 17 00:00:00 2001
+Message-ID: <5df4d5dc38491553e3d1e454f1cd233bda0b990a.1755522824.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Wed, 16 Jul 2025 16:32:05 +0100
 Subject: [PATCH] qemu: fix order of VNC TLS config entries
@@ -14,7 +14,7 @@ Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 845e1b5138f37dbf91e5b08b7d54d963a6ec0452)
 
-Resolves: https://issues.redhat.com/browse/RHEL-106277
+Resolves: https://issues.redhat.com/browse/RHEL-106276
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 ---
  src/qemu/libvirtd_qemu.aug         |  2 +-

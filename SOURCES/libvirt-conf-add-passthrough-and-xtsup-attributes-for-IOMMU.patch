@@ -1,0 +1,198 @@
+From 2cd8164cffc5be97e2836862a4fc44578dae2b47 Mon Sep 17 00:00:00 2001
+Message-ID: <2cd8164cffc5be97e2836862a4fc44578dae2b47.1752749355.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 14 Mar 2025 17:13:31 +0100
+Subject: [PATCH] conf: add passthrough and xtsup attributes for IOMMU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+For the newly supported AMD device.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 856f667c8a3b44417f3b5bb42db5e8bf971bacd4)
+
+https://issues.redhat.com/browse/RHEL-50560
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ docs/formatdomain.rst                         |  8 +++++
+ src/conf/domain_conf.c                        | 30 +++++++++++++++++++
+ src/conf/domain_conf.h                        |  2 ++
+ src/conf/domain_validate.c                    |  9 ++++++
+ src/conf/schemas/domaincommon.rng             | 10 +++++++
+ src/qemu/qemu_command.c                       |  2 ++
+ .../amd-iommu.x86_64-latest.args              |  2 +-
+ tests/qemuxmlconfdata/amd-iommu.xml           |  2 +-
+ 8 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index ec7bdb07d0..847c9ebc6e 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -8885,6 +8885,14 @@ Example:
+       example to efficiently enable more than 255 vCPUs.
+       :since:`Since 10.7.0` (QEMU/KVM and ``intel`` model only)
+ 
++   ``passthrough``
++      Enable passthrough. In this mode, DMA read/writes are not translated.
++      :since:`Since 11.5.0` (QEMU/KVM and ``amd`` model only)
++
++   ``xtsup``
++      Enable x2APIC mode. Useful for higher number of guest CPUs.
++      :since:`Since 11.5.0` (QEMU/KVM and ``amd`` model only)
++
+ The ``virtio`` IOMMU devices can further have ``address`` element as described
+ in `Device addresses`_ (address has to by type of ``pci``).
+ 
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 7c8591e509..286e59a4c7 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -14063,6 +14063,14 @@ virDomainIOMMUDefParseXML(virDomainXMLOption *xmlopt,
+         if (virXMLPropTristateSwitch(driver, "dma_translation", VIR_XML_PROP_NONE,
+                                      &iommu->dma_translation) < 0)
+             return NULL;
++
++        if (virXMLPropTristateSwitch(driver, "xtsup", VIR_XML_PROP_NONE,
++                                     &iommu->xtsup) < 0)
++            return NULL;
++
++        if (virXMLPropTristateSwitch(driver, "passthrough", VIR_XML_PROP_NONE,
++                                     &iommu->pt) < 0)
++            return NULL;
+     }
+ 
+     if (virDomainDeviceInfoParseXML(xmlopt, node, ctxt,
+@@ -21682,6 +21690,20 @@ virDomainIOMMUDefCheckABIStability(virDomainIOMMUDef *src,
+                        virTristateSwitchTypeToString(src->dma_translation));
+         return false;
+     }
++    if (src->pt != dst->pt) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target domain IOMMU device dma translation '%1$s' does not match source '%2$s'"),
++                       virTristateSwitchTypeToString(dst->pt),
++                       virTristateSwitchTypeToString(src->pt));
++        return false;
++    }
++    if (src->xtsup != dst->xtsup) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target domain IOMMU device dma translation '%1$s' does not match source '%2$s'"),
++                       virTristateSwitchTypeToString(dst->xtsup),
++                       virTristateSwitchTypeToString(src->xtsup));
++        return false;
++    }
+ 
+     return virDomainDeviceInfoCheckABIStability(&src->info, &dst->info);
+ }
+@@ -27735,6 +27757,14 @@ virDomainIOMMUDefFormat(virBuffer *buf,
+         virBufferAsprintf(&driverAttrBuf, " dma_translation='%s'",
+                           virTristateSwitchTypeToString(iommu->dma_translation));
+     }
++    if (iommu->pt != VIR_TRISTATE_SWITCH_ABSENT) {
++        virBufferAsprintf(&driverAttrBuf, " passthrough='%s'",
++                          virTristateSwitchTypeToString(iommu->pt));
++    }
++    if (iommu->xtsup != VIR_TRISTATE_SWITCH_ABSENT) {
++        virBufferAsprintf(&driverAttrBuf, " xtsup='%s'",
++                          virTristateSwitchTypeToString(iommu->xtsup));
++    }
+ 
+     virXMLFormatElement(&childBuf, "driver", &driverAttrBuf, NULL);
+ 
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 343bb9bae0..e59d2e6c5f 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2987,6 +2987,8 @@ struct _virDomainIOMMUDef {
+     unsigned int aw_bits;
+     virDomainDeviceInfo info;
+     virTristateSwitch dma_translation;
++    virTristateSwitch xtsup;
++    virTristateSwitch pt;
+ };
+ 
+ typedef enum {
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index 483cfbbe08..522fd0174f 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -2999,6 +2999,15 @@ virDomainIOMMUDefValidate(const virDomainIOMMUDef *iommu)
+         break;
+ 
+     case VIR_DOMAIN_IOMMU_MODEL_INTEL:
++        if (iommu->pt != VIR_TRISTATE_SWITCH_ABSENT ||
++            iommu->xtsup != VIR_TRISTATE_SWITCH_ABSENT) {
++            virReportError(VIR_ERR_XML_ERROR,
++                           _("iommu model '%1$s' doesn't support some additional attributes"),
++                           virDomainIOMMUModelTypeToString(iommu->model));
++            return -1;
++        }
++        break;
++
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+     }
+diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
+index 38a0586f40..1b153acc48 100644
+--- a/src/conf/schemas/domaincommon.rng
++++ b/src/conf/schemas/domaincommon.rng
+@@ -6210,6 +6210,16 @@
+                 <ref name="virOnOff"/>
+               </attribute>
+             </optional>
++            <optional>
++              <attribute name="xtsup">
++                <ref name="virOnOff"/>
++              </attribute>
++            </optional>
++            <optional>
++              <attribute name="passthrough">
++                <ref name="virOnOff"/>
++              </attribute>
++            </optional>
+           </element>
+         </optional>
+         <optional>
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index de535029a8..fffc8be08a 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6113,6 +6113,8 @@ qemuBuildIOMMUCommandLine(virCommand *cmd,
+                                   "s:driver", "amd-iommu",
+                                   "s:pci-id", iommu->info.alias,
+                                   "S:intremap", qemuOnOffAuto(iommu->intremap),
++                                  "T:pt", iommu->pt,
++                                  "T:xtsup", iommu->xtsup,
+                                   "T:device-iotlb", iommu->iotlb,
+                                   NULL) < 0)
+             return -1;
+diff --git a/tests/qemuxmlconfdata/amd-iommu.x86_64-latest.args b/tests/qemuxmlconfdata/amd-iommu.x86_64-latest.args
+index 36244edb3a..20d7e379e6 100644
+--- a/tests/qemuxmlconfdata/amd-iommu.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/amd-iommu.x86_64-latest.args
+@@ -27,7 +27,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -no-shutdown \
+ -boot strict=on \
+ -device '{"driver":"AMDVI-PCI","id":"iommu0","bus":"pcie.0","addr":"0x1"}' \
+--device '{"driver":"amd-iommu","pci-id":"iommu0","intremap":"on","device-iotlb":true}' \
++-device '{"driver":"amd-iommu","pci-id":"iommu0","intremap":"on","pt":true,"xtsup":true,"device-iotlb":true}' \
+ -audiodev '{"id":"audio1","driver":"none"}' \
+ -global ICH9-LPC.noreboot=off \
+ -watchdog-action reset \
+diff --git a/tests/qemuxmlconfdata/amd-iommu.xml b/tests/qemuxmlconfdata/amd-iommu.xml
+index 0668ed4237..4ad79ce4ae 100644
+--- a/tests/qemuxmlconfdata/amd-iommu.xml
++++ b/tests/qemuxmlconfdata/amd-iommu.xml
+@@ -32,7 +32,7 @@
+     <watchdog model='itco' action='reset'/>
+     <memballoon model='none'/>
+     <iommu model='amd'>
+-      <driver intremap='on' iotlb='on'/>
++      <driver intremap='on' iotlb='on' passthrough='on' xtsup='on'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
+     </iommu>
+   </devices>
+-- 
+2.50.1

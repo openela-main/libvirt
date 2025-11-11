@@ -1,0 +1,167 @@
+From 27c5b0f2d04b700ef763ae1299143bca638c6d91 Mon Sep 17 00:00:00 2001
+Message-ID: <27c5b0f2d04b700ef763ae1299143bca638c6d91.1742990721.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Wed, 26 Feb 2025 18:39:18 +0000
+Subject: [PATCH] src: introduce 'raw' and 'rawset' ACPI table types
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The QEMU driver has only accepted type=slic even though QEMU is able to
+accept individual tables of any type, without needing to specify a
+signature. Introduce type=raw to address this usage scenario. Contrary
+to other types, this one may appear multiple times.
+
+The Xen driver has mistakenly accepted type=slic and use it to set the
+Xen acpi_firmware setting, which performs a simple passthrough of
+multiple concatenated data table. Introduce type=rawset to address
+this usage scenario.
+
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 513ef8f028e8b0acbad2c38b8db6507bd96484cc)
+Resolves: https://issues.redhat.com/browse/RHEL-81041
+---
+ docs/formatdomain.rst             | 19 ++++++++++++++++---
+ src/conf/domain_conf.c            |  5 ++++-
+ src/conf/domain_conf.h            |  2 ++
+ src/conf/schemas/domaincommon.rng |  6 +++++-
+ src/libxl/libxl_domain.c          |  7 +++++++
+ src/qemu/qemu_command.c           |  2 ++
+ src/qemu/qemu_validate.c          |  7 +++++++
+ 7 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index c077c09a39..b6e162235c 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -484,9 +484,22 @@ These options apply to any form of booting of the guest OS.
+    ...
+ 
+ ``acpi``
+-   The ``table`` element contains a fully-qualified path to the ACPI table. The
+-   ``type`` attribute contains the ACPI table type (currently only ``slic`` is
+-   supported) :since:`Since 1.3.5 (QEMU)` :since:`Since 5.9.0 (Xen)`
++   The ``table`` element contains a fully-qualified path to the ACPI table,
++   with the ``type`` attribute dictating what data must be present in the
++   file:
++
++   * ``raw``: a single ACPI table with header and data, with ACPI
++     signature auto-detected from header (:since:`Since 11.2.0`).
++   * ``rawset``: concatenation of multiple ACPI tables with header
++     and data, each with any ACPI signature, auto-detected from header
++     (:since:`Since 11.2.0`).
++   * ``slic``: a single ACPI table with header and data, providing
++     software licensing information. The ACPI table signature in the
++     header will be forced to ``SLIC`` (:since:`Since 1.3.5 (QEMU)`,
++     mis-interpreted as ``rawset`` :since:`Since 5.9.0 (Xen)`).
++
++   Each type may be used only once, except for ``raw`` which can
++   appear multiple times.
+ 
+ 
+ SMBIOS System Information
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index b0628da279..2ee0403c86 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1458,6 +1458,8 @@ VIR_ENUM_IMPL(virDomainOsDefFirmwareFeature,
+ 
+ VIR_ENUM_IMPL(virDomainOsACPITable,
+               VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST,
++              "raw",
++              "rawset",
+               "slic",
+ );
+ 
+@@ -17891,7 +17893,8 @@ virDomainDefParseBootAcpiOptions(virDomainDef *def,
+             goto error;
+ 
+         for (j = 0; j < i; j++) {
+-            if (tables[j]->type == type) {
++            if (tables[j]->type == type &&
++                type != VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAW) {
+                 virReportError(VIR_ERR_XML_ERROR,
+                                _("ACPI table type '%1$s' may only appear once"),
+                                virDomainOsACPITableTypeToString(type));
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index f52b80caec..bc3f42888e 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2463,6 +2463,8 @@ typedef enum {
+ VIR_ENUM_DECL(virDomainOsDefFirmwareFeature);
+ 
+ typedef enum {
++    VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAW,
++    VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAWSET,
+     VIR_DOMAIN_OS_ACPI_TABLE_TYPE_SLIC,
+ 
+     VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST
+diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
+index d433e95d8b..99bcc90d4f 100644
+--- a/src/conf/schemas/domaincommon.rng
++++ b/src/conf/schemas/domaincommon.rng
+@@ -7188,7 +7188,11 @@
+       <zeroOrMore>
+         <element name="table">
+           <attribute name="type">
+-            <value>slic</value>
++            <choice>
++              <value>raw</value>
++              <value>rawset</value>
++              <value>slic</value>
++            </choice>
+           </attribute>
+           <ref name="absFilePath"/>
+         </element>
+diff --git a/src/libxl/libxl_domain.c b/src/libxl/libxl_domain.c
+index efd01840de..e564d9e5fe 100644
+--- a/src/libxl/libxl_domain.c
++++ b/src/libxl/libxl_domain.c
+@@ -336,6 +336,13 @@ libxlDomainDefValidate(const virDomainDef *def,
+         case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_SLIC:
+             break;
+ 
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAW:
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAWSET:
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("ACPI table type '%1$s' is not supported"),
++                           virDomainOsACPITableTypeToString(def->os.acpiTables[i]->type));
++            return -1;
++
+         default:
+         case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST:
+             virReportEnumRangeError(virDomainOsACPITable,
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 756dd2168b..94fb7fc4c2 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -130,6 +130,8 @@ VIR_ENUM_IMPL(qemuNumaPolicy,
+ VIR_ENUM_DECL(qemuACPITableSIG);
+ VIR_ENUM_IMPL(qemuACPITableSIG,
+               VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST,
++              "", /* raw */
++              "", /* rawset */
+               "SLIC");
+ 
+ 
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index e500a5d314..8ef0257d73 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -732,6 +732,13 @@ qemuValidateDomainDefBoot(const virDomainDef *def,
+         case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_SLIC:
+             break;
+ 
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAW:
++        case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_RAWSET:
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("ACPI table type '%1$s' is not supported"),
++                           virDomainOsACPITableTypeToString(def->os.acpiTables[i]->type));
++            return -1;
++
+         default:
+         case VIR_DOMAIN_OS_ACPI_TABLE_TYPE_LAST:
+             virReportEnumRangeError(virDomainOsACPITable,
+-- 
+2.49.0

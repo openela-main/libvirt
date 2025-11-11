@@ -1,5 +1,5 @@
-From 874251dd0b6fdbf3a0be8e494f83001e5f028868 Mon Sep 17 00:00:00 2001
-Message-ID: <874251dd0b6fdbf3a0be8e494f83001e5f028868.1744361503.git.jdenemar@redhat.com>
+From 1be043d47792afe408bef01a5c169dcd4e98e782 Mon Sep 17 00:00:00 2001
+Message-ID: <1be043d47792afe408bef01a5c169dcd4e98e782.1747908718.git.jdenemar@redhat.com>
 From: Laine Stump <laine@redhat.com>
 Date: Fri, 4 Apr 2025 17:16:43 -0400
 Subject: [PATCH] qemu: respond to NETDEV_VHOST_USER_DISCONNECTED event
@@ -25,7 +25,7 @@ src/qemu/qemu_driver.c:
   processNicRxFilterChangedEvent() changed upstream (due to upstream
   commit 50981052a5f)
 
-https://issues.redhat.com/browse/RHEL-84782
+https://issues.redhat.com/browse/RHEL-80169
 Signed-off-by: Laine Stump <laine@redhat.com>
 ---
  src/qemu/qemu_domain.c       |  1 +
@@ -38,10 +38,10 @@ Signed-off-by: Laine Stump <laine@redhat.com>
  7 files changed, 64 insertions(+)
 
 diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
-index 92035dd281..95cca36fe1 100644
+index 4234e4605b..cc47adb724 100644
 --- a/src/qemu/qemu_domain.c
 +++ b/src/qemu/qemu_domain.c
-@@ -10036,6 +10036,7 @@ qemuProcessEventFree(struct qemuProcessEvent *event)
+@@ -10038,6 +10038,7 @@ qemuProcessEventFree(struct qemuProcessEvent *event)
      case QEMU_PROCESS_EVENT_WATCHDOG:
      case QEMU_PROCESS_EVENT_DEVICE_DELETED:
      case QEMU_PROCESS_EVENT_NETDEV_STREAM_DISCONNECTED:
@@ -50,7 +50,7 @@ index 92035dd281..95cca36fe1 100644
      case QEMU_PROCESS_EVENT_SERIAL_CHANGED:
      case QEMU_PROCESS_EVENT_GUEST_CRASHLOADED:
 diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
-index e810f79599..79bdc4e8fe 100644
+index 6246988491..63f422bbcb 100644
 --- a/src/qemu/qemu_domain.h
 +++ b/src/qemu/qemu_domain.h
 @@ -465,6 +465,7 @@ typedef enum {
@@ -62,7 +62,7 @@ index e810f79599..79bdc4e8fe 100644
      QEMU_PROCESS_EVENT_SERIAL_CHANGED,
      QEMU_PROCESS_EVENT_JOB_STATUS_CHANGE,
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 65e17a870d..d65fc542d1 100644
+index 3373dfb845..b374b1978c 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -3691,6 +3691,14 @@ processNetdevStreamDisconnectedEvent(virDomainObj *vm,
@@ -80,7 +80,7 @@ index 65e17a870d..d65fc542d1 100644
  static void
  processNicRxFilterChangedEvent(virDomainObj *vm,
                                 const char *devAlias)
-@@ -4086,6 +4094,9 @@ static void qemuProcessEventHandler(void *data, void *opaque)
+@@ -4089,6 +4097,9 @@ static void qemuProcessEventHandler(void *data, void *opaque)
      case QEMU_PROCESS_EVENT_NETDEV_STREAM_DISCONNECTED:
          processNetdevStreamDisconnectedEvent(vm, processEvent->data);
          break;
@@ -185,7 +185,7 @@ index 6f9f495888..be5d3be7e6 100644
  qemuMonitorJSONHandleNicRxFilterChanged(qemuMonitor *mon, virJSONValue *data)
  {
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index 722e982b9e..f5c277203f 100644
+index ad7e99750f..2076ad8208 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
 @@ -1402,6 +1402,23 @@ qemuProcessHandleNetdevStreamDisconnected(qemuMonitor *mon G_GNUC_UNUSED,

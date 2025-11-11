@@ -1,5 +1,5 @@
-From 45c1847b67d0d2996a67e65a017e1ce51b682ecc Mon Sep 17 00:00:00 2001
-Message-ID: <45c1847b67d0d2996a67e65a017e1ce51b682ecc.1754419285.git.jdenemar@redhat.com>
+From 6921381e6831f942029b922e6f0ef6b7ca0c6c58 Mon Sep 17 00:00:00 2001
+Message-ID: <6921381e6831f942029b922e6f0ef6b7ca0c6c58.1755522824.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Wed, 16 Jul 2025 16:30:52 +0100
 Subject: [PATCH] qemu: sanitize blank lines in config file
@@ -14,7 +14,7 @@ Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 0b9cfa791f2bd135ea36fe03fd1a8d6c8bf5e3d6)
 
-Resolves: https://issues.redhat.com/browse/RHEL-106277
+Resolves: https://issues.redhat.com/browse/RHEL-106276
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 ---
  src/qemu/qemu.conf.in | 41 ++++++++++++++++++++++++++++++++++++++---

@@ -1,5 +1,5 @@
-From 0c3803a034e519ee83837a0b24e475fbb2e2bd38 Mon Sep 17 00:00:00 2001
-Message-ID: <0c3803a034e519ee83837a0b24e475fbb2e2bd38.1749027246.git.jdenemar@redhat.com>
+From db00ca8dbb2feacf9307ce6e07058ff39ca7e3d6 Mon Sep 17 00:00:00 2001
+Message-ID: <db00ca8dbb2feacf9307ce6e07058ff39ca7e3d6.1749039441.git.jdenemar@redhat.com>
 From: Collin Walling <walling@linux.ibm.com>
 Date: Mon, 16 Dec 2024 18:03:53 -0500
 Subject: [PATCH] qemu: parse deprecated-props from query-cpu-model-expansion
@@ -29,7 +29,7 @@ Signed-off-by: Collin Walling <walling@linux.ibm.com>
 Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit 45140d293007c1b29f7563bf6ee9640e27769b96)
-JIRA: https://issues.redhat.com/browse/RHEL-89977
+JIRA: https://issues.redhat.com/browse/RHEL-89415
 Signed-off-by: Thomas Huth <thuth@redhat.com>
 ---
  src/qemu/qemu_capabilities.c                  | 31 +++++++++++++++++++
@@ -41,10 +41,10 @@ Signed-off-by: Thomas Huth <thuth@redhat.com>
  6 files changed, 65 insertions(+)
 
 diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
-index 65e19965dd..50df7aeaf7 100644
+index b507027667..b1faea3ac7 100644
 --- a/src/qemu/qemu_capabilities.c
 +++ b/src/qemu/qemu_capabilities.c
-@@ -4021,6 +4021,7 @@ virQEMUCapsLoadHostCPUModelInfo(virQEMUCapsAccel *caps,
+@@ -4029,6 +4029,7 @@ virQEMUCapsLoadHostCPUModelInfo(virQEMUCapsAccel *caps,
                                  const char *typeStr)
  {
      xmlNodePtr hostCPUNode;
@@ -52,7 +52,7 @@ index 65e19965dd..50df7aeaf7 100644
      g_autofree xmlNodePtr *nodes = NULL;
      VIR_XPATH_NODE_AUTORESTORE(ctxt)
      g_autoptr(qemuMonitorCPUModelInfo) hostCPU = NULL;
-@@ -4113,6 +4114,24 @@ virQEMUCapsLoadHostCPUModelInfo(virQEMUCapsAccel *caps,
+@@ -4121,6 +4122,24 @@ virQEMUCapsLoadHostCPUModelInfo(virQEMUCapsAccel *caps,
          }
      }
  
@@ -77,7 +77,7 @@ index 65e19965dd..50df7aeaf7 100644
      caps->hostCPU.info = g_steal_pointer(&hostCPU);
      return 0;
  }
-@@ -4845,6 +4864,18 @@ virQEMUCapsFormatHostCPUModelInfo(virQEMUCapsAccel *caps,
+@@ -4853,6 +4872,18 @@ virQEMUCapsFormatHostCPUModelInfo(virQEMUCapsAccel *caps,
          virBufferAddLit(buf, "/>\n");
      }
  

@@ -1,5 +1,5 @@
-From c6e5688293b765885e8b76c35ad47bc316de81aa Mon Sep 17 00:00:00 2001
-Message-ID: <c6e5688293b765885e8b76c35ad47bc316de81aa.1744361503.git.jdenemar@redhat.com>
+From 0cc716142961427bd257a528ef54b87b3a053ade Mon Sep 17 00:00:00 2001
+Message-ID: <0cc716142961427bd257a528ef54b87b3a053ade.1747908718.git.jdenemar@redhat.com>
 From: Laine Stump <laine@redhat.com>
 Date: Fri, 4 Apr 2025 19:38:28 -0400
 Subject: [PATCH] qemu: put vhost-user code that's special for passt in a
@@ -16,7 +16,7 @@ Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 (cherry picked from commit 95ff77f2896478e039673bb552affec2c5a5e822)
 
-https://issues.redhat.com/browse/RHEL-84782
+https://issues.redhat.com/browse/RHEL-80169
 Signed-off-by: Laine Stump <laine@redhat.com>
 ---
  src/qemu/qemu_hotplug.c |  7 +------
@@ -87,10 +87,10 @@ index e0b9aaac8d..ea545ccf38 100644
  char *qemuPasstCreateSocketPath(virDomainObj *vm,
                                  virDomainNetDef *net);
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index f5c277203f..c80d7bb6dc 100644
+index 2076ad8208..c1ae324ad4 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
-@@ -5952,13 +5952,8 @@ qemuProcessPrepareDomainNetwork(virDomainObj *vm)
+@@ -5898,13 +5898,8 @@ qemuProcessPrepareDomainNetwork(virDomainObj *vm)
  
          case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
              if (net->backend.type == VIR_DOMAIN_NET_BACKEND_PASST) {

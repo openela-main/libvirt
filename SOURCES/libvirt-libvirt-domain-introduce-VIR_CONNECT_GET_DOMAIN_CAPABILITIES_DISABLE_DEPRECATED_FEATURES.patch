@@ -1,5 +1,5 @@
-From ac453665a65559a7fb8b88d3f96cc275606ab51f Mon Sep 17 00:00:00 2001
-Message-ID: <ac453665a65559a7fb8b88d3f96cc275606ab51f.1749027246.git.jdenemar@redhat.com>
+From 0b2b30820c623e11aced21adb1692ed23430c064 Mon Sep 17 00:00:00 2001
+Message-ID: <0b2b30820c623e11aced21adb1692ed23430c064.1749039441.git.jdenemar@redhat.com>
 From: Collin Walling <walling@linux.ibm.com>
 Date: Mon, 16 Dec 2024 18:03:55 -0500
 Subject: [PATCH] libvirt-domain: introduce
@@ -11,7 +11,7 @@ domain's CPU model.
 Signed-off-by: Collin Walling <walling@linux.ibm.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit 4e2c8de2047e21d98443944a2bfe94529b269efa)
-JIRA: https://issues.redhat.com/browse/RHEL-89977
+JIRA: https://issues.redhat.com/browse/RHEL-89415
 Signed-off-by: Thomas Huth <thuth@redhat.com>
 ---
  include/libvirt/libvirt-domain.h | 12 ++++++++++++

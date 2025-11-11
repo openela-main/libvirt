@@ -1,0 +1,61 @@
+From 229d362a429fdcf64f91cf2422ab6a402d0af3fa Mon Sep 17 00:00:00 2001
+Message-ID: <229d362a429fdcf64f91cf2422ab6a402d0af3fa.1752749355.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Wed, 19 Mar 2025 01:55:02 +0100
+Subject: [PATCH] docs: formatdomain: document intel-only IOMMU attributes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 6291b0af3dd6a34b5a0f5f56dafa881d9c262f57)
+
+https://issues.redhat.com/browse/RHEL-50560
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ docs/formatdomain.rst | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index 961d20a41d..a950ee1cb4 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -8857,14 +8857,15 @@ Example:
+    ``caching_mode``
+       The ``caching_mode`` attribute with possible values ``on`` and ``off`` can
+       be used to turn on the VT-d caching mode (useful for assigned devices).
+-      :since:`Since 3.4.0` (QEMU/KVM only)
++      :since:`Since 3.4.0` (QEMU/KVM and ``intel`` model only)
+ 
+    ``eim``
+       The ``eim`` attribute (with possible values ``on`` and ``off``) can be
+       used to configure Extended Interrupt Mode. A q35 domain with split I/O
+       APIC (as described in `Hypervisor features`_), and
+       both interrupt remapping and EIM turned on for the IOMMU, will be able to
+-      use more than 255 vCPUs. :since:`Since 3.4.0` (QEMU/KVM only)
++      use more than 255 vCPUs. :since:`Since 3.4.0` (QEMU/KVM and ``intel`` model
++      only)
+ 
+    ``iotlb``
+       The ``iotlb`` attribute with possible values ``on`` and ``off`` can be
+@@ -8874,14 +8875,14 @@ Example:
+    ``aw_bits``
+       The ``aw_bits`` attribute can be used to set the address width to allow
+       mapping larger iova addresses in the guest. :since:`Since 6.5.0` (QEMU/KVM
+-      only)
++      and ``intel`` model only)
+ 
+    ``dma_translation``
+       The ``dma_translation`` attribute with possible values ``on`` and ``off`` can
+       be used to turn off the dma translation for IOMMU. It is useful when only
+       interrupt remapping is required but dma translation overhead is unwanted, for
+       example to efficiently enable more than 255 vCPUs.
+-      :since:`Since 10.7.0` (QEMU/KVM only)
++      :since:`Since 10.7.0` (QEMU/KVM and ``intel`` model only)
+ 
+ The ``virtio`` IOMMU devices can further have ``address`` element as described
+ in `Device addresses`_ (address has to by type of ``pci``).
+-- 
+2.50.1

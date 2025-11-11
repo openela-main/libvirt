@@ -1,5 +1,5 @@
-From 10b60d5a7910c243249e296306c7dc9e87e79f71 Mon Sep 17 00:00:00 2001
-Message-ID: <10b60d5a7910c243249e296306c7dc9e87e79f71.1744361503.git.jdenemar@redhat.com>
+From 593bba2d87b7e2bcfedd544d7d48eba936b7a212 Mon Sep 17 00:00:00 2001
+Message-ID: <593bba2d87b7e2bcfedd544d7d48eba936b7a212.1742990721.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Tue, 7 Jan 2025 15:21:18 +0000
 Subject: [PATCH] util: fix off-by-1 in inhibitor constants
@@ -12,7 +12,7 @@ string format, we picked the wrong names
 
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit fc3a60d9d7b29283a0b2d57bb06d15fb597a5003)
-Resolves: https://issues.redhat.com/browse/RHEL-83076
+Resolves: https://issues.redhat.com/browse/RHEL-83064
 ---
  src/util/virinhibitor.h | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)

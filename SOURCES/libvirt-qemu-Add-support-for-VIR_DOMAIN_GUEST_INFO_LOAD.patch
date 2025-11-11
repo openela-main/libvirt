@@ -1,5 +1,5 @@
-From 816ce9100cbc410706fde26763158640f6d06f44 Mon Sep 17 00:00:00 2001
-Message-ID: <816ce9100cbc410706fde26763158640f6d06f44.1745925135.git.jdenemar@redhat.com>
+From aeff1ebf96b595337f14ef6d1412d6c407bdc085 Mon Sep 17 00:00:00 2001
+Message-ID: <aeff1ebf96b595337f14ef6d1412d6c407bdc085.1747908717.git.jdenemar@redhat.com>
 From: Martin Kletzander <mkletzan@redhat.com>
 Date: Tue, 25 Feb 2025 15:36:32 +0100
 Subject: [PATCH] qemu: Add support for VIR_DOMAIN_GUEST_INFO_LOAD
@@ -8,7 +8,7 @@ Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit b4cf9c8cba45e65551aa9440dea2c3757a96aa0c)
 
-https://issues.redhat.com/browse/RHEL-88449
+https://issues.redhat.com/browse/RHEL-88447
 
 Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 ---
@@ -16,10 +16,10 @@ Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
  1 file changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index d65fc542d1..3e194999fe 100644
+index 8a354a606a..11dbbc1aab 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
-@@ -19288,7 +19288,8 @@ static const unsigned int qemuDomainGetGuestInfoSupportedTypes =
+@@ -19276,7 +19276,8 @@ static const unsigned int qemuDomainGetGuestInfoSupportedTypes =
      VIR_DOMAIN_GUEST_INFO_HOSTNAME |
      VIR_DOMAIN_GUEST_INFO_FILESYSTEM |
      VIR_DOMAIN_GUEST_INFO_DISKS |
@@ -29,7 +29,7 @@ index d65fc542d1..3e194999fe 100644
  
  static int
  qemuDomainGetGuestInfoCheckSupport(unsigned int types,
-@@ -19575,6 +19576,10 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -19563,6 +19564,10 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
      qemuAgentDiskInfo **agentdiskinfo = NULL;
      virDomainInterfacePtr *ifaces = NULL;
      size_t nifaces = 0;
@@ -40,7 +40,7 @@ index d65fc542d1..3e194999fe 100644
      size_t i;
  
      virCheckFlags(0, -1);
-@@ -19645,6 +19650,14 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -19633,6 +19638,14 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
              nifaces = rc;
      }
  
@@ -55,7 +55,7 @@ index d65fc542d1..3e194999fe 100644
      qemuDomainObjExitAgent(vm, agent);
      virDomainObjEndAgentJob(vm);
  
-@@ -19671,6 +19684,12 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -19659,6 +19672,12 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
          virDomainInterfaceFormatParams(ifaces, nifaces, params, nparams, &maxparams);
      }
  

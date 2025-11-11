@@ -1,0 +1,253 @@
+From 1910eee655456fff9f60e1a8d27e6b608a390953 Mon Sep 17 00:00:00 2001
+Message-ID: <1910eee655456fff9f60e1a8d27e6b608a390953.1752749355.git.jdenemar@redhat.com>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Wed, 12 Mar 2025 16:10:31 +0100
+Subject: [PATCH] qemu: introduce QEMU_CAPS_AMD_IOMMU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Check for the presence of the amd-iommu device, so we can conditionalize
+probing for its properties.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 14192af47ab8eda8bb9b9eee14fd1090addbb731)
+
+https://issues.redhat.com/browse/RHEL-50560
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                         | 2 ++
+ src/qemu/qemu_capabilities.h                         | 1 +
+ tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml    | 1 +
+ tests/qemucapabilitiesdata/caps_5.2.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_6.0.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_6.1.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_6.2.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_7.0.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml | 1 +
+ tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_9.1.0_x86_64.xml     | 1 +
+ tests/qemucapabilitiesdata/caps_9.2.0_x86_64.xml     | 1 +
+ 17 files changed, 18 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 6bff55f58e..8db6d19fda 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -726,6 +726,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               /* 470 */
+               "virtio-mem-ccw", /* QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW */
+               "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
++              "amd-iommu", /* QEMU_CAPS_AMD_IOMMU */
+     );
+ 
+ 
+@@ -1416,6 +1417,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
+     { "sev-snp-guest", QEMU_CAPS_SEV_SNP_GUEST },
+     { "acpi-erst", QEMU_CAPS_DEVICE_ACPI_ERST },
+     { "virtio-mem-ccw", QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW },
++    { "amd-iommu", QEMU_CAPS_AMD_IOMMU },
+ };
+ 
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 8de392bf0f..484d1b5f1d 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -705,6 +705,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     /* 470 */
+     QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW, /* -device virtio-mem-ccw */
+     QEMU_CAPS_BLOCKDEV_SET_ACTIVE, /* blockdev-set-active QMP command supported */
++    QEMU_CAPS_AMD_IOMMU, /* -device amd-iommu */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
+index e09b6e6e1a..8854b48a56 100644
+--- a/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_10.0.0_x86_64.xml
+@@ -211,6 +211,7 @@
+   <flag name='chardev-reconnect-miliseconds'/>
+   <flag name='netdev-stream-reconnect-miliseconds'/>
+   <flag name='blockdev-set-active'/>
++  <flag name='amd-iommu'/>
+   <version>9002050</version>
+   <microcodeVersion>43100285</microcodeVersion>
+   <package>v9.2.0-1636-gffaf7f0376</package>
+diff --git a/tests/qemucapabilitiesdata/caps_5.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_5.2.0_x86_64.xml
+index 4cd05fa7ec..c46b023c78 100644
+--- a/tests/qemucapabilitiesdata/caps_5.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_5.2.0_x86_64.xml
+@@ -161,6 +161,7 @@
+   <flag name='virtio-crypto'/>
+   <flag name='usb-mtp'/>
+   <flag name='netdev.user'/>
++  <flag name='amd-iommu'/>
+   <version>5002000</version>
+   <microcodeVersion>43100243</microcodeVersion>
+   <package>v5.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_6.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_6.0.0_x86_64.xml
+index a8897fb80b..c7f2da0de6 100644
+--- a/tests/qemucapabilitiesdata/caps_6.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.0.0_x86_64.xml
+@@ -174,6 +174,7 @@
+   <flag name='usb-mtp'/>
+   <flag name='netdev.user'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>6000000</version>
+   <microcodeVersion>43100242</microcodeVersion>
+   <package>v6.0.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_6.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_6.1.0_x86_64.xml
+index 0f2995a2d3..c3792a2ba8 100644
+--- a/tests/qemucapabilitiesdata/caps_6.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.1.0_x86_64.xml
+@@ -180,6 +180,7 @@
+   <flag name='usb-mtp'/>
+   <flag name='netdev.user'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>6001000</version>
+   <microcodeVersion>43100243</microcodeVersion>
+   <package>v6.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_6.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_6.2.0_x86_64.xml
+index 582b0e9b52..8c904abf1f 100644
+--- a/tests/qemucapabilitiesdata/caps_6.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_6.2.0_x86_64.xml
+@@ -182,6 +182,7 @@
+   <flag name='usb-mtp'/>
+   <flag name='netdev.user'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>6002000</version>
+   <microcodeVersion>43100244</microcodeVersion>
+   <package>v6.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_7.0.0_x86_64.xml
+index fd317a9afa..0268960643 100644
+--- a/tests/qemucapabilitiesdata/caps_7.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_7.0.0_x86_64.xml
+@@ -190,6 +190,7 @@
+   <flag name='acpi-erst'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>7000000</version>
+   <microcodeVersion>43100243</microcodeVersion>
+   <package>v7.0.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml
+index 32e4e8e1bb..8c0534264c 100644
+--- a/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_7.1.0_x86_64.xml
+@@ -195,6 +195,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>7001000</version>
+   <microcodeVersion>43100244</microcodeVersion>
+   <package>v7.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml
+index 0ebcb94a31..6e2204602b 100644
+--- a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml
++++ b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64+hvf.xml
+@@ -199,6 +199,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>7002000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v7.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml
+index 025ced01d9..6daef743bf 100644
+--- a/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_7.2.0_x86_64.xml
+@@ -199,6 +199,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>7002000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v7.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml
+index 5f45788b77..f28b8df68e 100644
+--- a/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.0.0_x86_64.xml
+@@ -203,6 +203,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>8000000</version>
+   <microcodeVersion>43100244</microcodeVersion>
+   <package>v8.0.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
+index 7dee7f94c2..d6fbb11064 100644
+--- a/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.1.0_x86_64.xml
+@@ -205,6 +205,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>8001000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v8.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
+index 51e14736cd..27ecaee290 100644
+--- a/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_8.2.0_x86_64.xml
+@@ -208,6 +208,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>8002000</version>
+   <microcodeVersion>43100246</microcodeVersion>
+   <package>v8.2.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
+index 4b64547b11..452e7384c0 100644
+--- a/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_9.0.0_x86_64.xml
+@@ -210,6 +210,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>9000000</version>
+   <microcodeVersion>43100245</microcodeVersion>
+   <package>v9.0.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_9.1.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_9.1.0_x86_64.xml
+index 06600f48fb..26883bd672 100644
+--- a/tests/qemucapabilitiesdata/caps_9.1.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_9.1.0_x86_64.xml
+@@ -208,6 +208,7 @@
+   <flag name='intel-iommu.dma-translation'/>
+   <flag name='machine-i8042-opt'/>
+   <flag name='snapshot-internal-qmp'/>
++  <flag name='amd-iommu'/>
+   <version>9001000</version>
+   <microcodeVersion>43100246</microcodeVersion>
+   <package>v9.1.0</package>
+diff --git a/tests/qemucapabilitiesdata/caps_9.2.0_x86_64.xml b/tests/qemucapabilitiesdata/caps_9.2.0_x86_64.xml
+index 982b7ad436..1353761fab 100644
+--- a/tests/qemucapabilitiesdata/caps_9.2.0_x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_9.2.0_x86_64.xml
+@@ -210,6 +210,7 @@
+   <flag name='snapshot-internal-qmp'/>
+   <flag name='chardev-reconnect-miliseconds'/>
+   <flag name='netdev-stream-reconnect-miliseconds'/>
++  <flag name='amd-iommu'/>
+   <version>9001090</version>
+   <microcodeVersion>43100247</microcodeVersion>
+   <package>v9.2.0-rc0-42-g3428a3894c</package>
+-- 
+2.50.1

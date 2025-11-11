@@ -1,0 +1,36 @@
+From 5c4270439f99bd52f91613a6ee833aa4bcb131c4 Mon Sep 17 00:00:00 2001
+Message-ID: <5c4270439f99bd52f91613a6ee833aa4bcb131c4.1744876588.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 15 Jan 2025 13:00:36 +0100
+Subject: [PATCH] qemu: Allow virtio-mem on CCW
+
+After previous commits, we can allow virtio-mem to live on CCW
+channel.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+(cherry picked from commit ee0320a7fccc8088bc2830fe949ae2339db208cb)
+Resolves: https://issues.redhat.com/browse/RHEL-72976
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_domain.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index b6c36d85d7..4234e4605b 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -7673,9 +7673,10 @@ qemuDomainDefValidateMemoryHotplugDevice(const virDomainMemoryDef *mem,
+ 
+     case VIR_DOMAIN_MEMORY_MODEL_VIRTIO_MEM:
+         if (mem->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI &&
++            mem->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_CCW &&
+             mem->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-                           _("only 'pci' addresses are supported for the %1$s device"),
++                           _("only 'pci' and 'ccw' addresses are supported for the %1$s device"),
+                            virDomainMemoryModelTypeToString(mem->model));
+             return -1;
+         }
+-- 
+2.49.0

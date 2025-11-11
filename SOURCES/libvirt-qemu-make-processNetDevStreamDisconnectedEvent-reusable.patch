@@ -1,5 +1,5 @@
-From 718c4bc80d3af4570d75b590625bd5249aa50a8d Mon Sep 17 00:00:00 2001
-Message-ID: <718c4bc80d3af4570d75b590625bd5249aa50a8d.1744361503.git.jdenemar@redhat.com>
+From a34cd486d22bf36ea64a6dd14541138fcca31b37 Mon Sep 17 00:00:00 2001
+Message-ID: <a34cd486d22bf36ea64a6dd14541138fcca31b37.1747908718.git.jdenemar@redhat.com>
 From: Laine Stump <laine@redhat.com>
 Date: Fri, 4 Apr 2025 16:57:21 -0400
 Subject: [PATCH] qemu: make processNetDevStreamDisconnectedEvent() reusable
@@ -23,14 +23,14 @@ src/qemu/qemu_driver.c:
   processNicRxFilterChangedEvent() changed upstream (due to upstream
   commit 50981052a5f)
 
-https://issues.redhat.com/browse/RHEL-84782
+https://issues.redhat.com/browse/RHEL-80169
 Signed-off-by: Laine Stump <laine@redhat.com>
 ---
  src/qemu/qemu_driver.c | 37 +++++++++++++++++++++++--------------
  1 file changed, 23 insertions(+), 14 deletions(-)
 
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 53dcd690f0..65e17a870d 100644
+index 89bb10756e..3373dfb845 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -3618,8 +3618,9 @@ processDeviceDeletedEvent(virQEMUDriver *driver,

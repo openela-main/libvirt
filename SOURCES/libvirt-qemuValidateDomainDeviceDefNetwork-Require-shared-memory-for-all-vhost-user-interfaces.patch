@@ -1,5 +1,5 @@
-From 3c84583ea0d1d1d4e1ca7c0dd228c60538b8270a Mon Sep 17 00:00:00 2001
-Message-ID: <3c84583ea0d1d1d4e1ca7c0dd228c60538b8270a.1754419286.git.jdenemar@redhat.com>
+From 5337b43f308c025977311d700b2bd89dfc848b0c Mon Sep 17 00:00:00 2001
+Message-ID: <5337b43f308c025977311d700b2bd89dfc848b0c.1742990721.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 11 Mar 2025 09:01:12 +0100
 Subject: [PATCH] qemuValidateDomainDeviceDefNetwork: Require shared memory for
@@ -18,17 +18,17 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 (cherry picked from commit 0d20632179e1a61903f30986215bef53b0f912f6)
 
-https://issues.redhat.com/browse/RHEL-106504
+https://issues.redhat.com/browse/RHEL-84133
 ---
  src/qemu/qemu_validate.c                                 | 9 +++------
  .../net-vhostuser-passt-no-shmem.x86_64-latest.err       | 2 +-
  2 files changed, 4 insertions(+), 7 deletions(-)
 
 diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
-index 289a3f94cc..3572dd70cb 100644
+index f814ee8c0d..1c61038f93 100644
 --- a/src/qemu/qemu_validate.c
 +++ b/src/qemu/qemu_validate.c
-@@ -1805,12 +1805,6 @@ qemuValidateDomainDeviceDefNetwork(const virDomainNetDef *net,
+@@ -1828,12 +1828,6 @@ qemuValidateDomainDeviceDefNetwork(const virDomainNetDef *net,
          return -1;
      }
  
@@ -41,7 +41,7 @@ index 289a3f94cc..3572dd70cb 100644
      if (net->type == VIR_DOMAIN_NET_TYPE_VDPA) {
          if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_NETDEV_VHOST_VDPA)) {
              virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-@@ -1834,6 +1828,9 @@ qemuValidateDomainDeviceDefNetwork(const virDomainNetDef *net,
+@@ -1857,6 +1851,9 @@ qemuValidateDomainDeviceDefNetwork(const virDomainNetDef *net,
                             _("'reconnect' attribute is not supported when source mode='server' for <interface type='vhostuser'>"));
              return -1;
          }
@@ -59,4 +59,4 @@ index 274af5c722..babde17518 100644
 -unsupported configuration: 'interface type="vhostuser" backend type="passt"' requires shared memory
 +unsupported configuration: 'interface' requires shared memory
 -- 
-2.50.1
+2.49.0

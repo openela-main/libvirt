@@ -1,5 +1,5 @@
-From 164d32e435c715b71b0d604d3f4e2d09ceb52bac Mon Sep 17 00:00:00 2001
-Message-ID: <164d32e435c715b71b0d604d3f4e2d09ceb52bac.1750849847.git.jdenemar@redhat.com>
+From 6e265f4f5faa468497e9bbdd86701d17480fcd38 Mon Sep 17 00:00:00 2001
+Message-ID: <6e265f4f5faa468497e9bbdd86701d17480fcd38.1750259242.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Fri, 28 Feb 2025 14:00:23 +0100
 Subject: [PATCH] qemuPrepareNVRAMFile: Fix NVRAM image conversion check
@@ -23,14 +23,14 @@ Fixes: 2aa644a2fc8
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit e088895a6246ac3b7f160e1895f2940c4b13b0cc)
-https://issues.redhat.com/browse/RHEL-97757
+https://issues.redhat.com/browse/RHEL-97758
 ---
  src/conf/domain_conf.h  | 7 +++++++
  src/qemu/qemu_process.c | 5 ++++-
  2 files changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
-index 2d38e8fa51..10b00e2403 100644
+index 961b7b056c..20be6f7c05 100644
 --- a/src/conf/domain_conf.h
 +++ b/src/conf/domain_conf.h
 @@ -2361,6 +2361,13 @@ struct _virDomainLoaderDef {
@@ -48,7 +48,7 @@ index 2d38e8fa51..10b00e2403 100644
  };
  
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index 16b8991c3c..8bddb415ac 100644
+index 64683ecfe0..a78aa8569d 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
 @@ -4727,7 +4727,10 @@ qemuPrepareNVRAMFile(virQEMUDriver *driver,

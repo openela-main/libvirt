@@ -1,0 +1,49 @@
+From e9899b64816f8086038098b44690df076d93d8d8 Mon Sep 17 00:00:00 2001
+Message-ID: <e9899b64816f8086038098b44690df076d93d8d8.1744876588.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 8 Apr 2025 16:25:37 +0200
+Subject: [PATCH] esx: Accept empty "path" URI component same way as "/"
+
+When connecting to "esx://" URI there's code which prints a warning that
+the path is not "empty". The check validates that "uri->path" is "/".
+
+In case when the user uses URI such as:
+
+ esx://hostname
+
+the warning is printed as well. Since there is no effective difference
+betweeen the two allow empty strings as well.
+
+Resolves: https://issues.redhat.com/browse/RHEL-86459
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 59f40ba67cc7d0a3f8eeb601c2f3c84def24a361)
+---
+ src/esx/esx_driver.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/esx/esx_driver.c b/src/esx/esx_driver.c
+index 6ae4ef9658..512ca6c028 100644
+--- a/src/esx/esx_driver.c
++++ b/src/esx/esx_driver.c
+@@ -687,7 +687,9 @@ esxConnectToVCenter(esxPrivate *priv,
+     g_autofree char *url = NULL;
+ 
+     if (!hostSystemIPAddress &&
+-        (!priv->parsedUri->path || STREQ(priv->parsedUri->path, "/"))) {
++        (!priv->parsedUri->path ||
++         STREQ(priv->parsedUri->path, "") ||
++         STREQ(priv->parsedUri->path, "/"))) {
+         virReportError(VIR_ERR_INVALID_ARG, "%s",
+                        _("Path has to specify the datacenter and compute resource"));
+         return -1;
+@@ -799,6 +801,7 @@ esxConnectOpen(virConnectPtr conn, virConnectAuthPtr auth,
+     virCheckFlags(VIR_CONNECT_RO, VIR_DRV_OPEN_ERROR);
+ 
+     if (STRCASENEQ(conn->uri->scheme, "vpx") &&
++        STRNEQ(conn->uri->path, "") &&
+         STRNEQ(conn->uri->path, "/")) {
+         VIR_WARN("Ignoring unexpected path '%s' for non-vpx scheme '%s'",
+                  conn->uri->path, conn->uri->scheme);
+-- 
+2.49.0

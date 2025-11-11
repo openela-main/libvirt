@@ -1,5 +1,5 @@
-From bc9aaea59652adb0156b68e8cd198759c9eae5b3 Mon Sep 17 00:00:00 2001
-Message-ID: <bc9aaea59652adb0156b68e8cd198759c9eae5b3.1754419286.git.jdenemar@redhat.com>
+From f61b747b0420d71efe33f836a1117d4741ecd716 Mon Sep 17 00:00:00 2001
+Message-ID: <f61b747b0420d71efe33f836a1117d4741ecd716.1742990721.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 11 Mar 2025 09:04:18 +0100
 Subject: [PATCH] qemu: process: Remove un-updated 'qemuProcessStartWarnShmem'
@@ -13,16 +13,16 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 (cherry picked from commit 080c7fd341619a3d1986a00265addaf45b63aacf)
 
-https://issues.redhat.com/browse/RHEL-106504
+https://issues.redhat.com/browse/RHEL-84133
 ---
  src/qemu/qemu_process.c | 54 -----------------------------------------
  1 file changed, 54 deletions(-)
 
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index 8bddb415ac..24d0049c43 100644
+index 722e982b9e..fac5678439 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
-@@ -5427,56 +5427,6 @@ qemuProcessMakeDir(virQEMUDriver *driver,
+@@ -5406,56 +5406,6 @@ qemuProcessMakeDir(virQEMUDriver *driver,
  }
  
  
@@ -79,7 +79,7 @@ index 8bddb415ac..24d0049c43 100644
  static int
  qemuProcessStartValidateGraphics(virDomainObj *vm)
  {
-@@ -5711,10 +5661,6 @@ qemuProcessStartValidate(virQEMUDriver *driver,
+@@ -5690,10 +5640,6 @@ qemuProcessStartValidate(virQEMUDriver *driver,
      if (qemuProcessStartValidateTSC(driver, vm) < 0)
          return -1;
  
@@ -91,4 +91,4 @@ index 8bddb415ac..24d0049c43 100644
  }
  
 -- 
-2.50.1
+2.49.0

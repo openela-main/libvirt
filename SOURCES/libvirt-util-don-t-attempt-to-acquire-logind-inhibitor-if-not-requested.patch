@@ -1,5 +1,5 @@
-From 05aa05e3b17000b2a886dddb2abdb183bd6d4295 Mon Sep 17 00:00:00 2001
-Message-ID: <05aa05e3b17000b2a886dddb2abdb183bd6d4295.1744361503.git.jdenemar@redhat.com>
+From ceeaa000473ddb72db453f7e38943b961ca16c22 Mon Sep 17 00:00:00 2001
+Message-ID: <ceeaa000473ddb72db453f7e38943b961ca16c22.1742990721.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Wed, 8 Jan 2025 17:37:03 +0000
 Subject: [PATCH] util: don't attempt to acquire logind inhibitor if not
@@ -20,7 +20,7 @@ resulting in errors being logged.
 Reviewed-by: Laine Stump <laine@redhat.com>
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit caa10431cdd1aa476637ff721f1947c4e0b53da1)
-Resolves: https://issues.redhat.com/browse/RHEL-83076
+Resolves: https://issues.redhat.com/browse/RHEL-83064
 ---
  src/util/virinhibitor.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)

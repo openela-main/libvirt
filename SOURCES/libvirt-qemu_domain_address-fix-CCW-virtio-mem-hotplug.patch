@@ -1,0 +1,48 @@
+From 82f30944276f1cbb997ee42bad66c37cc059067e Mon Sep 17 00:00:00 2001
+Message-ID: <82f30944276f1cbb997ee42bad66c37cc059067e.1744876588.git.jdenemar@redhat.com>
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Tue, 18 Mar 2025 14:48:50 +0100
+Subject: [PATCH] qemu_domain_address: fix CCW virtio-mem hotplug
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Since commit f23f8ff91a virtio-mem supports also CCW. When hotplugging a
+virtio-mem device with a CCW address results in a PCI device getting
+attached. The method qemuDomainAssignMemoryDeviceSlot is only
+considering PCI as address type and overwriting the CCW address. Adding
+support for address type CCW.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 9ef080d6d94643fffc413127bff2b2b008a11b27)
+Resolves: https://issues.redhat.com/browse/RHEL-72976
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_domain_address.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_domain_address.c b/src/qemu/qemu_domain_address.c
+index 970ae3949d..b73ac9ebf1 100644
+--- a/src/qemu/qemu_domain_address.c
++++ b/src/qemu/qemu_domain_address.c
+@@ -3073,6 +3073,7 @@ qemuDomainAssignMemoryDeviceSlot(virDomainObj *vm,
+                                  virDomainMemoryDef *mem)
+ {
+     g_autoptr(virBitmap) slotmap = NULL;
++    bool releaseaddr = false;
+     virDomainDeviceDef dev = {.type = VIR_DOMAIN_DEVICE_MEMORY, .data.memory = mem};
+ 
+     switch (mem->model) {
+@@ -3086,7 +3087,7 @@ qemuDomainAssignMemoryDeviceSlot(virDomainObj *vm,
+ 
+     case VIR_DOMAIN_MEMORY_MODEL_VIRTIO_PMEM:
+     case VIR_DOMAIN_MEMORY_MODEL_VIRTIO_MEM:
+-        return qemuDomainEnsurePCIAddress(vm, &dev);
++        return qemuDomainEnsureVirtioAddress(&releaseaddr, vm, &dev);
+         break;
+ 
+     case VIR_DOMAIN_MEMORY_MODEL_SGX_EPC:
+-- 
+2.49.0

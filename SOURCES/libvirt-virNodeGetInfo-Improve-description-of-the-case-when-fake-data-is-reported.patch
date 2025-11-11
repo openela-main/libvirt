@@ -1,0 +1,47 @@
+From 26445297c5b24bd539ec52525b748f86e82dcc52 Mon Sep 17 00:00:00 2001
+Message-ID: <26445297c5b24bd539ec52525b748f86e82dcc52.1744876587.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 7 Apr 2025 14:33:01 +0200
+Subject: [PATCH] virNodeGetInfo: Improve description of the case when fake
+ data is reported
+
+virNodeGetInfo due to the rigid desing of the filled struct can't
+faithfully represent all topologies. Improve the description when that
+happens and outline the fallback topology.
+
+The function docs already state that users ought to use
+virConnectGetCapabilities() instead.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 6654cf472c7a8c3e0294012b7c249fc427207759)
+
+https://issues.redhat.com/browse/RHEL-86197
+---
+ src/libvirt-host.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/libvirt-host.c b/src/libvirt-host.c
+index 318a664d24..b9c717be11 100644
+--- a/src/libvirt-host.c
++++ b/src/libvirt-host.c
+@@ -414,10 +414,13 @@ virConnectGetMaxVcpus(virConnectPtr conn,
+  * speed that the first CPU in the machine is currently running at. This speed
+  * may vary across CPUs and changes continually as the host OS throttles.
+  *
+- * The nodes/sockets/cores/threads data is potentially inaccurate as
+- * it assumes a symmetric installation. If one NUMA node has more
+- * sockets populated that another NUMA node this information will be
+- * wrong. It is also not able to report about CPU dies.
++ * The virNodeInfo structure is not extensible thus only supports global
++ * nodes/sockets/cores/threads (sockets/cores/threads is per NUMA node)
++ * topology information. If the host CPU has any further groupings (e.g.
++ * dies, clusters, etc) or the NUMA topology is non-symmetrical the structure
++ * can't faithfully represent the system. In such cases a fake topology
++ * (nodes = 1, sockets = 1, cores = number of host cpus, threads = 1) which
++ * only correctly represents the total host CPU count is reported.
+  *
+  * Applications are recommended to use the virConnectGetCapabilities()
+  * call instead, which provides all the information except CPU frequency,
+-- 
+2.49.0

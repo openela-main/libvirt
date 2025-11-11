@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 7.7%{?dist}%{?extra_release}
+Release: 15%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -381,37 +381,76 @@ Patch81: libvirt-docs-improve-type-user-docs-to-higlight-differences-between-SLI
 Patch82: libvirt-docs-document-using-passt-backend-with-interface-type-vhostuser.patch
 Patch83: libvirt-utils-Canonicalize-paths-before-comparing-them.patch
 Patch84: libvirt-remote-add-sysusers-file-to-create-libvirt-group.patch
-Patch85: libvirt-util-introduce-object-for-holding-a-system-inhibitor-lock.patch
-Patch86: libvirt-src-convert-drivers-over-to-new-virInhibitor-APIs.patch
-Patch87: libvirt-rpc-remove-logind-support-for-virNetDaemon.patch
-Patch88: libvirt-util-fix-off-by-1-in-inhibitor-constants.patch
-Patch89: libvirt-util-don-t-attempt-to-acquire-logind-inhibitor-if-not-requested.patch
-Patch90: libvirt-network-Free-inhibitor-in-networkStateCleanup.patch
-Patch91: libvirt-conf-parse-interface-source-dev-for-all-interface-types-with-backend-type-passt.patch
-Patch92: libvirt-qemu-remove-nonsensical-sanity-check-in-processNetdevStreamDisconnectedEvent.patch
-Patch93: libvirt-qemu-make-processNetDevStreamDisconnectedEvent-reusable.patch
-Patch94: libvirt-qemu-respond-to-NETDEV_VHOST_USER_DISCONNECTED-event.patch
-Patch95: libvirt-qemu-put-vhost-user-code-that-s-special-for-passt-in-a-helper-function.patch
-Patch96: libvirt-qemu-make-passt-vhostuser-reconnect-behave-identically-to-passt-user.patch
-Patch97: libvirt-Add-load-average-information-type-into-virDomainGetGuestInfo.patch
-Patch98: libvirt-qemu_agent-Add-qemuAgentGetLoadAvg.patch
-Patch99: libvirt-qemu-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
-Patch100: libvirt-virsh-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
-Patch101: libvirt-qemuMonitorJSONGetCPUModelExpansion-refactor-parsing-functions.patch
-Patch102: libvirt-qemu-parse-deprecated-props-from-query-cpu-model-expansion-response.patch
-Patch103: libvirt-qemu_capabilities-query-deprecated-features-for-host-model.patch
-Patch104: libvirt-libvirt-domain-introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES.patch
-Patch105: libvirt-qemu_capabilities-filter-deprecated-features-if-requested.patch
-Patch106: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.patch
-Patch107: libvirt-conf-add-deprecated_features-attribute.patch
-Patch108: libvirt-qemuPrepareNVRAMFile-Fix-NVRAM-image-conversion-check.patch
-Patch109: libvirt-esx-Allow-specifying-different-CA-bundle-for-remote-connections.patch
-Patch110: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
-Patch111: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
-Patch112: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
-Patch113: libvirt-qemuxmlconftest-Include-shared-memory-net-vhostuser-test-cases.patch
-Patch114: libvirt-qemuValidateDomainDeviceDefNetwork-Require-shared-memory-for-all-vhost-user-interfaces.patch
-Patch115: libvirt-qemu-process-Remove-un-updated-qemuProcessStartWarnShmem.patch
+Patch85: libvirt-qemu-Avoid-crash-in-qemuDomainCheckCPU-with-unknown-host-CPU.patch
+Patch86: libvirt-qemu_snapshot-allow-reverting-to-external-disk-only-snapshot.patch
+Patch87: libvirt-qemu-snapshot-error-out-early-when-reverting-snapshot-for-VM-with-non-file-disk.patch
+Patch88: libvirt-util-introduce-object-for-holding-a-system-inhibitor-lock.patch
+Patch89: libvirt-src-convert-drivers-over-to-new-virInhibitor-APIs.patch
+Patch90: libvirt-rpc-remove-logind-support-for-virNetDaemon.patch
+Patch91: libvirt-util-fix-off-by-1-in-inhibitor-constants.patch
+Patch92: libvirt-util-don-t-attempt-to-acquire-logind-inhibitor-if-not-requested.patch
+Patch93: libvirt-network-Free-inhibitor-in-networkStateCleanup.patch
+Patch94: libvirt-conf-introduce-support-for-multiple-ACPI-tables.patch
+Patch95: libvirt-src-validate-permitted-ACPI-table-types-in-libxl-qemu-drivers.patch
+Patch96: libvirt-src-introduce-raw-and-rawset-ACPI-table-types.patch
+Patch97: libvirt-qemu-support-raw-ACPI-table-type.patch
+Patch98: libvirt-libxl-support-rawset-ACPI-table-type.patch
+Patch99: libvirt-conf-support-MSDM-ACPI-table-type.patch
+Patch100: libvirt-qemu-support-MSDM-ACPI-table-type.patch
+Patch101: libvirt-qemuxmlconftest-Include-shared-memory-net-vhostuser-test-cases.patch
+Patch102: libvirt-qemuValidateDomainDeviceDefNetwork-Require-shared-memory-for-all-vhost-user-interfaces.patch
+Patch103: libvirt-qemu-process-Remove-un-updated-qemuProcessStartWarnShmem.patch
+Patch104: libvirt-esxConnectListAllDomains-Don-t-propagate-failure-to-lookup-a-single-domain.patch
+Patch105: libvirt-conf-parse-interface-source-dev-for-all-interface-types-with-backend-type-passt.patch
+Patch106: libvirt-libvirt-host-Clarify-fix-description-of-the-CPU-frequency-field.patch
+Patch107: libvirt-virNodeGetInfo-Improve-description-of-the-case-when-fake-data-is-reported.patch
+Patch108: libvirt-manpages-virsh-Use-disclaimer-from-virNodeGetInfo-for-virsh-nodeinfo.patch
+Patch109: libvirt-esx-Accept-empty-path-URI-component-same-way-as.patch
+Patch110: libvirt-qemu-Rename-outgoingMigration-parameter-in-various-TPM-functions.patch
+Patch111: libvirt-qemu-Properly-propagate-migration-state-to-TPM-cleanup-code.patch
+Patch112: libvirt-qemuDomainBlockCopyCommon-Don-t-revoke-access-to-file-twice-on-failure.patch
+Patch113: libvirt-qemuxmlconftest-Drop-s390-default-cpu-.ccw-virtio-2.7-test-cases.patch
+Patch114: libvirt-tests-add-capabilities-for-QEMU-10.0.0-on-s390x.patch
+Patch115: libvirt-qemu-Do-NOT-autoadd-NUMA-node-for-s390.patch
+Patch116: libvirt-qemu_command-Use-qemuBuildVirtioDevProps-to-build-cmd-line-for-virtio-mem-and-virtio-pmem.patch
+Patch117: libvirt-qemuxmlconftest-Introduce-memory-hotplug-virtio-mem-pci-s390x.xml.patch
+Patch118: libvirt-qemu_caps-Introduce-QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW.patch
+Patch119: libvirt-qemu-Validate-virtio-mem-ccw.patch
+Patch120: libvirt-qemu-Allow-virtio-mem-on-CCW.patch
+Patch121: libvirt-qemuxmlconftest-Introduce-memory-hotplug-virtio-mem-ccw-s390x.xml.patch
+Patch122: libvirt-qemu_domain_address-fix-CCW-virtio-mem-hotplug.patch
+Patch123: libvirt-Add-load-average-information-type-into-virDomainGetGuestInfo.patch
+Patch124: libvirt-qemu_agent-Add-qemuAgentGetLoadAvg.patch
+Patch125: libvirt-qemu-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
+Patch126: libvirt-virsh-Add-support-for-VIR_DOMAIN_GUEST_INFO_LOAD.patch
+Patch127: libvirt-qemu_capabilities-Fetch-caps-for-virtio-mem-ccw-too.patch
+Patch128: libvirt-cpu_map-Add-avx10-CPU-features.patch
+Patch129: libvirt-cpu_map-Add-GraniteRapids-v2-CPU-model.patch
+Patch130: libvirt-cpu_map-Add-sha512-sm3-and-sm4-CPU-features.patch
+Patch131: libvirt-virsh-Introduce-new-hypervisor-cpu-models-command.patch
+Patch132: libvirt-qemu-remove-nonsensical-sanity-check-in-processNetdevStreamDisconnectedEvent.patch
+Patch133: libvirt-qemu-make-processNetDevStreamDisconnectedEvent-reusable.patch
+Patch134: libvirt-qemu-respond-to-NETDEV_VHOST_USER_DISCONNECTED-event.patch
+Patch135: libvirt-qemu-put-vhost-user-code-that-s-special-for-passt-in-a-helper-function.patch
+Patch136: libvirt-qemu-make-passt-vhostuser-reconnect-behave-identically-to-passt-user.patch
+Patch137: libvirt-qemuMonitorJSONGetCPUModelExpansion-refactor-parsing-functions.patch
+Patch138: libvirt-qemu-parse-deprecated-props-from-query-cpu-model-expansion-response.patch
+Patch139: libvirt-qemu_capabilities-query-deprecated-features-for-host-model.patch
+Patch140: libvirt-libvirt-domain-introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES.patch
+Patch141: libvirt-qemu_capabilities-filter-deprecated-features-if-requested.patch
+Patch142: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.patch
+Patch143: libvirt-conf-add-deprecated_features-attribute.patch
+Patch144: libvirt-redhat-Restore-hunks-in-tests-qemucapabilitiesdata-caps_10.0.0_s390x.patch
+Patch145: libvirt-qemuPrepareNVRAMFile-Fix-NVRAM-image-conversion-check.patch
+Patch146: libvirt-qemu-introduce-QEMU_CAPS_AMD_IOMMU.patch
+Patch147: libvirt-qemu-introduce-QEMU_CAPS_PCI_ID.patch
+Patch148: libvirt-docs-formatdomain-document-intel-only-IOMMU-attributes.patch
+Patch149: libvirt-qemu-add-IOMMU-model-amd.patch
+Patch150: libvirt-conf-add-passthrough-and-xtsup-attributes-for-IOMMU.patch
+Patch151: libvirt-esx-Allow-specifying-different-CA-bundle-for-remote-connections.patch
+Patch152: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
+Patch153: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
+Patch154: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2737,51 +2776,92 @@ exit 0
 %endif
 
 %changelog
-* Tue Aug  5 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.7.el9_6
-- qemu: fix order of VNC TLS config entries (RHEL-106277)
-- qemu: sanitize blank lines in config file (RHEL-106277)
-- qemu: add ability to set TLS priority string with QEMU (RHEL-106277)
-- qemuxmlconftest: Include shared memory 'net-vhostuser' test cases (RHEL-106504)
-- qemuValidateDomainDeviceDefNetwork: Require shared memory for all vhost-user interfaces (RHEL-106504)
-- qemu: process: Remove un-updated 'qemuProcessStartWarnShmem' (RHEL-106504)
+* Mon Aug 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15
+- qemu: fix order of VNC TLS config entries (RHEL-106276)
+- qemu: sanitize blank lines in config file (RHEL-106276)
+- qemu: add ability to set TLS priority string with QEMU (RHEL-106276)
 
-* Fri Jul 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.6.el9_6
-- esx: Allow specifying different CA bundle for remote connections (RHEL-98292)
+* Thu Jul 17 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-14
+- qemu: introduce QEMU_CAPS_AMD_IOMMU (RHEL-50560)
+- qemu: introduce QEMU_CAPS_PCI_ID (RHEL-50560)
+- docs: formatdomain: document intel-only IOMMU attributes (RHEL-50560)
+- qemu: add IOMMU model amd (RHEL-50560)
+- conf: add passthrough and xtsup attributes for IOMMU (RHEL-50560)
+- esx: Allow specifying different CA bundle for remote connections (RHEL-97440)
 
-* Wed Jun 25 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.5.el9_6
-- qemuPrepareNVRAMFile: Fix NVRAM image conversion check (RHEL-97757)
+* Wed Jun 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-13
+- qemuPrepareNVRAMFile: Fix NVRAM image conversion check (RHEL-97758)
 
-* Wed Jun  4 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.4.el9_6
-- qemuMonitorJSONGetCPUModelExpansion: refactor parsing functions (RHEL-89977)
-- qemu: parse deprecated-props from query-cpu-model-expansion response (RHEL-89977)
-- qemu_capabilities: query deprecated features for host-model (RHEL-89977)
-- libvirt-domain: introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES (RHEL-89977)
-- qemu_capabilities: filter deprecated features if requested (RHEL-89977)
-- virsh: add --disable-deprecated-features flag to domcapabilities (RHEL-89977)
-- conf: add deprecated_features attribute (RHEL-89977)
+* Wed Jun  4 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-12
+- qemuMonitorJSONGetCPUModelExpansion: refactor parsing functions (RHEL-89415)
+- qemu: parse deprecated-props from query-cpu-model-expansion response (RHEL-89415)
+- qemu_capabilities: query deprecated features for host-model (RHEL-89415)
+- libvirt-domain: introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES (RHEL-89415)
+- qemu_capabilities: filter deprecated features if requested (RHEL-89415)
+- virsh: add --disable-deprecated-features flag to domcapabilities (RHEL-89415)
+- conf: add deprecated_features attribute (RHEL-89415)
+- redhat: Restore hunks in tests/qemucapabilitiesdata/caps_10.0.0_s390x.* (RHEL-89415)
 
-* Tue Apr 29 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.3.el9_6
-- Add load average information type into virDomainGetGuestInfo (RHEL-88449)
-- qemu_agent: Add qemuAgentGetLoadAvg() (RHEL-88449)
-- qemu: Add support for VIR_DOMAIN_GUEST_INFO_LOAD (RHEL-88449)
-- virsh: Add support for VIR_DOMAIN_GUEST_INFO_LOAD (RHEL-88449)
+* Thu May 22 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-11
+- Add load average information type into virDomainGetGuestInfo (RHEL-88447)
+- qemu_agent: Add qemuAgentGetLoadAvg() (RHEL-88447)
+- qemu: Add support for VIR_DOMAIN_GUEST_INFO_LOAD (RHEL-88447)
+- virsh: Add support for VIR_DOMAIN_GUEST_INFO_LOAD (RHEL-88447)
+- qemu_capabilities: Fetch caps for virtio-mem-ccw too (RHEL-87532)
+- cpu_map: Add avx10* CPU features (RHEL-87796)
+- cpu_map: Add GraniteRapids-v2 CPU model (RHEL-87796)
+- cpu_map: Add sha512, sm3, and sm4 CPU features (RHEL-87796)
+- virsh: Introduce new hypervisor-cpu-models command (RHEL-11435)
+- qemu: remove nonsensical sanity check in processNetdevStreamDisconnectedEvent() (RHEL-80169)
+- qemu: make processNetDevStreamDisconnectedEvent() reusable (RHEL-80169)
+- qemu: respond to NETDEV_VHOST_USER_DISCONNECTED event (RHEL-80169)
+- qemu: put vhost-user code that's special for passt in a helper function (RHEL-80169)
+- qemu: make passt+vhostuser reconnect behave identically to passt+user (RHEL-80169)
 
-* Fri Apr 11 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.2.el9_6
-- util: introduce object for holding a system inhibitor lock (RHEL-83076)
-- src: convert drivers over to new virInhibitor APIs (RHEL-83076)
-- rpc: remove logind support for virNetDaemon (RHEL-83076)
-- util: fix off-by-1 in inhibitor constants (RHEL-83076)
-- util: don't attempt to acquire logind inhibitor if not requested (RHEL-83076)
-- network: Free inhibitor in networkStateCleanup() (RHEL-83076)
-- conf: parse interface/source/@dev for all interface types (with backend type='passt') (RHEL-84689)
-- qemu: remove nonsensical sanity check in processNetdevStreamDisconnectedEvent() (RHEL-84782)
-- qemu: make processNetDevStreamDisconnectedEvent() reusable (RHEL-84782)
-- qemu: respond to NETDEV_VHOST_USER_DISCONNECTED event (RHEL-84782)
-- qemu: put vhost-user code that's special for passt in a helper function (RHEL-84782)
-- qemu: make passt+vhostuser reconnect behave identically to passt+user (RHEL-84782)
+* Thu Apr 17 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-10
+- esxConnectListAllDomains: Don't propagate failure to lookup a single domain (RHEL-80606)
+- conf: parse interface/source/@dev for all interface types (with backend type='passt') (RHEL-82539)
+- libvirt-host: Clarify/fix description of the CPU frequency field (RHEL-86197)
+- virNodeGetInfo: Improve description of the case when fake data is reported (RHEL-86197)
+- manpages: virsh: Use disclaimer from 'virNodeGetInfo()' for 'virsh nodeinfo' (RHEL-86197)
+- esx: Accept empty "path" URI component same way as "/" (RHEL-86459)
+- qemu: Rename outgoingMigration parameter in various TPM functions (RHEL-86800)
+- qemu: Properly propagate migration state to TPM cleanup code (RHEL-86800)
+- qemuDomainBlockCopyCommon: Don't revoke access to file twice on failure (RHEL-7357)
+- qemuxmlconftest: Drop s390-default-cpu-...ccw-virtio-2.7 test cases (RHEL-72976)
+- tests: add capabilities for QEMU 10.0.0 on s390x (RHEL-72976)
+- qemu: Do NOT autoadd NUMA node for s390 (RHEL-72976)
+- qemu_command: Use qemuBuildVirtioDevProps() to build cmd line for virtio-mem and virtio-pmem (RHEL-72976)
+- qemuxmlconftest: Introduce memory-hotplug-virtio-mem-pci-s390x.xml (RHEL-72976)
+- qemu_caps: Introduce QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW (RHEL-72976)
+- qemu: Validate virtio-mem-ccw (RHEL-72976)
+- qemu: Allow virtio-mem on CCW (RHEL-72976)
+- qemuxmlconftest: Introduce memory-hotplug-virtio-mem-ccw-s390x.xml (RHEL-72976)
+- qemu_domain_address: fix CCW virtio-mem hotplug (RHEL-72976)
 
-* Fri Mar  7 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7.1.el9_6
-- remote: add sysusers file to create 'libvirt' group (RHEL-81740)
+* Wed Mar 26 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-9
+- util: introduce object for holding a system inhibitor lock (RHEL-83064)
+- src: convert drivers over to new virInhibitor APIs (RHEL-83064)
+- rpc: remove logind support for virNetDaemon (RHEL-83064)
+- util: fix off-by-1 in inhibitor constants (RHEL-83064)
+- util: don't attempt to acquire logind inhibitor if not requested (RHEL-83064)
+- network: Free inhibitor in networkStateCleanup() (RHEL-83064)
+- conf: introduce support for multiple ACPI tables (RHEL-81041)
+- src: validate permitted ACPI table types in libxl/qemu drivers (RHEL-81041)
+- src: introduce 'raw' and 'rawset' ACPI table types (RHEL-81041)
+- qemu: support 'raw' ACPI table type (RHEL-81041)
+- libxl: support 'rawset' ACPI table type (RHEL-81041)
+- conf: support MSDM ACPI table type (RHEL-81041)
+- qemu: support MSDM ACPI table type (RHEL-81041)
+- qemuxmlconftest: Include shared memory 'net-vhostuser' test cases (RHEL-84133)
+- qemuValidateDomainDeviceDefNetwork: Require shared memory for all vhost-user interfaces (RHEL-84133)
+- qemu: process: Remove un-updated 'qemuProcessStartWarnShmem' (RHEL-84133)
+
+* Thu Mar 13 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-8
+- remote: add sysusers file to create 'libvirt' group (RHEL-81749)
+- qemu: Avoid crash in qemuDomainCheckCPU with unknown host CPU (RHEL-81747)
+- qemu_snapshot: allow reverting to external disk only snapshot (RHEL-21549)
+- qemu: snapshot: error out early when reverting snapshot for VM with non-file disk (RHEL-30971)
 
 * Mon Feb 17 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7
 - qemu_migration: Refactor qemuMigrationSrcRestoreDomainState (RHEL-79168)

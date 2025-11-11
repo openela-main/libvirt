@@ -1,0 +1,50 @@
+From b0282d5149f90b155a38881f92e3263bd23d9878 Mon Sep 17 00:00:00 2001
+Message-ID: <b0282d5149f90b155a38881f92e3263bd23d9878.1741876175.git.jdenemar@redhat.com>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Wed, 31 Jan 2024 17:14:28 +0100
+Subject: [PATCH] qemu_snapshot: allow reverting to external disk only snapshot
+
+When snapshot is created with disk-only flag it is always external
+snapshot without memory state. Historically when there was not support
+to revert external snapshots this produced error message.
+
+    error: Failed to revert snapshot s1
+    error: internal error: Invalid target domain state 'disk-snapshot'. Refusing snapshot reversion
+
+Now we can simply consider this as reverting to offline snapshot as the
+possible damage to file system is already done at the point of snapshot
+creation.
+
+Resolves: https://issues.redhat.com/browse/RHEL-21549
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 443ae4adec3a94a575ea2acaa112188e721c7dfe)
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_snapshot.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_snapshot.c b/src/qemu/qemu_snapshot.c
+index b1f4ebb995..3a8510c69e 100644
+--- a/src/qemu/qemu_snapshot.c
++++ b/src/qemu/qemu_snapshot.c
+@@ -2884,6 +2884,7 @@ qemuSnapshotRevert(virDomainObj *vm,
+     case VIR_DOMAIN_SNAPSHOT_SHUTDOWN:
+     case VIR_DOMAIN_SNAPSHOT_SHUTOFF:
+     case VIR_DOMAIN_SNAPSHOT_CRASHED:
++    case VIR_DOMAIN_SNAPSHOT_DISK_SNAPSHOT:
+         ret = qemuSnapshotRevertInactive(vm, snapshot, snap,
+                                          driver, cfg,
+                                          &inactiveConfig,
+@@ -2895,8 +2896,6 @@ qemuSnapshotRevert(virDomainObj *vm,
+                        _("qemu doesn't support reversion of snapshot taken in PMSUSPENDED state"));
+         goto endjob;
+ 
+-    case VIR_DOMAIN_SNAPSHOT_DISK_SNAPSHOT:
+-        /* Rejected earlier as an external snapshot */
+     case VIR_DOMAIN_SNAPSHOT_NOSTATE:
+     case VIR_DOMAIN_SNAPSHOT_BLOCKED:
+     case VIR_DOMAIN_SNAPSHOT_LAST:
+-- 
+2.48.1

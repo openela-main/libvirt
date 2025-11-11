@@ -1,5 +1,5 @@
-From a52da24e19808954454be38945953a2a81c078e9 Mon Sep 17 00:00:00 2001
-Message-ID: <a52da24e19808954454be38945953a2a81c078e9.1744361503.git.jdenemar@redhat.com>
+From 29ea0453595ee14cdd64b2e9c07343aa870426d0 Mon Sep 17 00:00:00 2001
+Message-ID: <29ea0453595ee14cdd64b2e9c07343aa870426d0.1744876587.git.jdenemar@redhat.com>
 From: Laine Stump <laine@redhat.com>
 Date: Thu, 6 Mar 2025 19:19:12 -0500
 Subject: [PATCH] conf: parse interface/source/@dev for all interface types
@@ -22,9 +22,6 @@ Resolves: https://issues.redhat.com/browse/RHEL-82539
 Signed-off-by: Laine Stump <laine@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 4c979edaa545c8425f7a856c06ebc0de939d4b9f)
-
-https://issues.redhat.com/browse/RHEL-84689
-
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---
  src/conf/domain_conf.c                                    | 8 +++++---
@@ -33,10 +30,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  3 files changed, 14 insertions(+), 4 deletions(-)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index 095b9bbaa2..94e26bf82a 100644
+index f6d3d849eb..726c3095ed 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
-@@ -9900,9 +9900,6 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
+@@ -9919,9 +9919,6 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
          break;
  
      case VIR_DOMAIN_NET_TYPE_USER:
@@ -46,7 +43,7 @@ index 095b9bbaa2..94e26bf82a 100644
      case VIR_DOMAIN_NET_TYPE_NULL:
      case VIR_DOMAIN_NET_TYPE_LAST:
          break;
-@@ -10017,6 +10014,11 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
+@@ -10036,6 +10033,11 @@ virDomainNetDefParseXML(virDomainXMLOption *xmlopt,
          return NULL;
      }
  

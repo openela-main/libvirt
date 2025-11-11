@@ -1,5 +1,5 @@
-From 018bb4a28e986278bb9a6e8d9bec93cb8047b7ce Mon Sep 17 00:00:00 2001
-Message-ID: <018bb4a28e986278bb9a6e8d9bec93cb8047b7ce.1752834529.git.jdenemar@redhat.com>
+From b554cae09e7870484240b023865bd13fe56878d1 Mon Sep 17 00:00:00 2001
+Message-ID: <b554cae09e7870484240b023865bd13fe56878d1.1752749355.git.jdenemar@redhat.com>
 From: Martin Kletzander <mkletzan@redhat.com>
 Date: Mon, 9 Jun 2025 15:40:12 +0200
 Subject: [PATCH] esx: Allow specifying different CA bundle for remote
@@ -15,7 +15,7 @@ Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 6c9a0beeca1c6a54eda5d15ba27925c734d51279)
 
-Resolves: https://issues.redhat.com/browse/RHEL-98292
+Resolves: https://issues.redhat.com/browse/RHEL-97440
 
 Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
 ---
