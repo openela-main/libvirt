@@ -1,0 +1,92 @@
+From d8c8f0d4f82ddbb3f3a59b11b9bd1373e8d82c3d Mon Sep 17 00:00:00 2001
+Message-ID: <d8c8f0d4f82ddbb3f3a59b11b9bd1373e8d82c3d.1752837271.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Thu, 17 Jul 2025 11:51:39 +0200
+Subject: [PATCH] qemu_tpm: Rename qemuTPMHasSharedStorage ->
+ qemuTPMDomainHasSharedStorage
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function deals with the whole domain and the part that handles one
+TPM will be useful elsewhere and hence extracted later.  This rename
+makes it possible for the new function to use the original name of this
+renamed one.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 05c5aabb475595249ed1eeca1b6f65b21edc0041)
+
+Resolves: https://issues.redhat.com/browse/RHEL-80155
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_migration.c | 2 +-
+ src/qemu/qemu_tpm.c       | 8 ++++----
+ src/qemu/qemu_tpm.h       | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 2400750ee4..090ac8ae1e 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -1721,7 +1721,7 @@ qemuMigrationSrcIsAllowed(virDomainObj *vm,
+             }
+         }
+ 
+-        if (qemuTPMHasSharedStorage(driver, vm->def) &&
++        if (qemuTPMDomainHasSharedStorage(driver, vm->def) &&
+             !qemuTPMCanMigrateSharedStorage(vm->def)) {
+             virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
+                            _("the running swtpm does not support migration with shared storage"));
+diff --git a/src/qemu/qemu_tpm.c b/src/qemu/qemu_tpm.c
+index b2f76e6b8b..8c104ab1b3 100644
+--- a/src/qemu/qemu_tpm.c
++++ b/src/qemu/qemu_tpm.c
+@@ -1150,7 +1150,7 @@ qemuTPMEmulatorStart(virQEMUDriver *driver,
+     virCommandSetPidFile(cmd, pidfile);
+     virCommandSetErrorFD(cmd, &errfd);
+ 
+-    if (incomingMigration && qemuTPMHasSharedStorage(driver, vm->def)) {
++    if (incomingMigration && qemuTPMDomainHasSharedStorage(driver, vm->def)) {
+         /* If the TPM is being migrated over shared storage, we can't
+          * lock all files before labeling them: the source swtpm
+          * process is still holding on to the lock file, and it will
+@@ -1219,8 +1219,8 @@ qemuTPMEmulatorStart(virQEMUDriver *driver,
+ 
+ 
+ bool
+-qemuTPMHasSharedStorage(virQEMUDriver *driver,
+-                        virDomainDef *def)
++qemuTPMDomainHasSharedStorage(virQEMUDriver *driver,
++                              virDomainDef *def)
+ {
+     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+     size_t i;
+@@ -1346,7 +1346,7 @@ qemuExtTPMStop(virQEMUDriver *driver,
+         return;
+ 
+     qemuTPMEmulatorStop(cfg->swtpmStateDir, shortName);
+-    if (migration && qemuTPMHasSharedStorage(driver, vm->def))
++    if (migration && qemuTPMDomainHasSharedStorage(driver, vm->def))
+         restoreTPMStateLabel = false;
+ 
+     if (qemuSecurityRestoreTPMLabels(driver, vm, restoreTPMStateLabel, false) < 0)
+diff --git a/src/qemu/qemu_tpm.h b/src/qemu/qemu_tpm.h
+index f0f16392a1..2d633fe36b 100644
+--- a/src/qemu/qemu_tpm.h
++++ b/src/qemu/qemu_tpm.h
+@@ -61,8 +61,8 @@ int qemuExtTPMSetupCgroup(virQEMUDriver *driver,
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_NONNULL(3)
+     G_GNUC_WARN_UNUSED_RESULT;
+ 
+-bool qemuTPMHasSharedStorage(virQEMUDriver *driver,
+-                             virDomainDef *def)
++bool qemuTPMDomainHasSharedStorage(virQEMUDriver *driver,
++                                   virDomainDef *def)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2)
+     G_GNUC_WARN_UNUSED_RESULT;
+ 
+-- 
+2.50.1

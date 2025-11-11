@@ -1,0 +1,178 @@
+From aa234d4ed710432af8aac8fbe79d5cf80ae2b1f6 Mon Sep 17 00:00:00 2001
+Message-ID: <aa234d4ed710432af8aac8fbe79d5cf80ae2b1f6.1752837271.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 26 Jun 2025 17:35:17 +0200
+Subject: [PATCH] virSystemdCreateMachine: Add flag to invert machined unit
+ dependencies
+
+The existing dependency order of the 'machined' unit file for the domain
+we're starting ("After libvirtd/virtqemud"->thus shuts down *before* the
+daemon) is intended to work with 'libvirt-guests.service' which requires
+the daemon to be around to shut down the VMs.
+
+If we want to use the integrated auto shutdown done by the daemon itself
+we need to be able to instruct the domains (thus the corresponding
+machined units to shut down *after* virtqemud/libvirt.
+
+This means that we need to be able to invert the ordering relationship
+to "Before".
+
+This patch adds a parameter to virSystemdCreateMachine so that when
+starting the VM we'll be able to tell the daemon to use the proper
+relationship.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 9b12b7e85914dd3d0874dfcd0f6abc0925e3325f)
+
+https://issues.redhat.com/browse/RHEL-95361
+---
+ src/util/vircgroup.c   |  3 ++-
+ src/util/virsystemd.c  | 27 +++++++++++++++++++++------
+ src/util/virsystemd.h  |  3 ++-
+ tests/virsystemdtest.c | 15 +++++++++------
+ 4 files changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/src/util/vircgroup.c b/src/util/vircgroup.c
+index 1daa95e178..fc5dca4858 100644
+--- a/src/util/vircgroup.c
++++ b/src/util/vircgroup.c
+@@ -1293,7 +1293,8 @@ virCgroupNewMachineSystemd(const char *name,
+                                       nnicindexes,
+                                       nicindexes,
+                                       partition,
+-                                      maxthreads)) < 0)
++                                      maxthreads,
++                                      false)) < 0)
+         return rv;
+ 
+     if (controllers != -1)
+diff --git a/src/util/virsystemd.c b/src/util/virsystemd.c
+index 4f8424ae32..bd174c683e 100644
+--- a/src/util/virsystemd.c
++++ b/src/util/virsystemd.c
+@@ -358,6 +358,8 @@ virSystemdGetMachineUnitByPID(pid_t pid)
+  * @nicindexes: list of network interface indexes
+  * @partition: name of the slice to place the machine in
+  * @maxthreads: maximum number of threads the VM process can use
++ * @daemonDomainShutdown: shutdown of domains on host shutdown is done by the
++ *                        daemon instead of the libvirt-guests script
+  *
+  * Returns 0 on success, -1 on fatal error, or -2 if systemd-machine is not available
+  */
+@@ -370,7 +372,8 @@ int virSystemdCreateMachine(const char *name,
+                             size_t nnicindexes,
+                             int *nicindexes,
+                             const char *partition,
+-                            unsigned int maxthreads)
++                            unsigned int maxthreads,
++                            bool daemonDomainShutdown)
+ {
+     int rc;
+     GDBusConnection *conn;
+@@ -462,11 +465,23 @@ int virSystemdCreateMachine(const char *name,
+                                           uuid, 16, sizeof(unsigned char));
+         gnicindexes = g_variant_new_fixed_array(G_VARIANT_TYPE("i"),
+                                                 nicindexes, nnicindexes, sizeof(int));
+-        gprops = g_variant_new_parsed("[('Slice', <%s>),"
+-                                      " ('After', <['libvirtd.service', %s]>),"
+-                                      " ('Before', <['virt-guest-shutdown.target']>)]",
+-                                      slicename,
+-                                      servicename);
++
++        if (daemonDomainShutdown) {
++            /* When domains are shut down by the daemon rather than the
++             * "libvirt-guests" script we need ensure that their unit
++             * is ordered so that it's shutdown after the libvirt daemon itself */
++            gprops = g_variant_new_parsed("[('Slice', <%s>),"
++                                          " ('Before', <['libvirtd.service', %s]>)]",
++                                          slicename,
++                                          servicename);
++        } else {
++            gprops = g_variant_new_parsed("[('Slice', <%s>),"
++                                          " ('After', <['libvirtd.service', %s]>),"
++                                          " ('Before', <['virt-guest-shutdown.target']>)]",
++                                          slicename,
++                                          servicename);
++        }
++
+         message = g_variant_new("(s@ayssus@ai@a(sv))",
+                                 name,
+                                 guuid,
+diff --git a/src/util/virsystemd.h b/src/util/virsystemd.h
+index 98460dbc3a..620d9a9645 100644
+--- a/src/util/virsystemd.h
++++ b/src/util/virsystemd.h
+@@ -40,7 +40,8 @@ int virSystemdCreateMachine(const char *name,
+                             size_t nnicindexes,
+                             int *nicindexes,
+                             const char *partition,
+-                            unsigned int maxthreads);
++                            unsigned int maxthreads,
++                            bool daemonDomainShutdown);
+ 
+ int virSystemdTerminateMachine(const char *name);
+ 
+diff --git a/tests/virsystemdtest.c b/tests/virsystemdtest.c
+index 004b0549ce..24c118a409 100644
+--- a/tests/virsystemdtest.c
++++ b/tests/virsystemdtest.c
+@@ -170,7 +170,8 @@ static int testCreateContainer(const void *opaque G_GNUC_UNUSED)
+                                 123,
+                                 true,
+                                 0, NULL,
+-                                "highpriority.slice", 0) < 0) {
++                                "highpriority.slice", 0,
++                                false) < 0) {
+         fprintf(stderr, "%s", "Failed to create LXC machine\n");
+         return -1;
+     }
+@@ -203,7 +204,9 @@ static int testCreateMachine(const void *opaque G_GNUC_UNUSED)
+                                 123,
+                                 false,
+                                 0, NULL,
+-                                NULL, 0) < 0) {
++                                NULL,
++                                0,
++                                true) < 0) {
+         fprintf(stderr, "%s", "Failed to create KVM machine\n");
+         return -1;
+     }
+@@ -240,7 +243,7 @@ static int testCreateNoSystemd(const void *opaque G_GNUC_UNUSED)
+                                       123,
+                                       false,
+                                       0, NULL,
+-                                      NULL, 0)) == 0) {
++                                      NULL, 0, false)) == 0) {
+         g_unsetenv("FAIL_NO_SERVICE");
+         fprintf(stderr, "%s", "Unexpected create machine success\n");
+         return -1;
+@@ -274,7 +277,7 @@ static int testCreateSystemdNotRunning(const void *opaque G_GNUC_UNUSED)
+                                       123,
+                                       false,
+                                       0, NULL,
+-                                      NULL, 0)) == 0) {
++                                      NULL, 0, false)) == 0) {
+         g_unsetenv("FAIL_NOT_REGISTERED");
+         fprintf(stderr, "%s", "Unexpected create machine success\n");
+         return -1;
+@@ -308,7 +311,7 @@ static int testCreateBadSystemd(const void *opaque G_GNUC_UNUSED)
+                                       123,
+                                       false,
+                                       0, NULL,
+-                                      NULL, 0)) == 0) {
++                                      NULL, 0, false)) == 0) {
+         g_unsetenv("FAIL_BAD_SERVICE");
+         fprintf(stderr, "%s", "Unexpected create machine success\n");
+         return -1;
+@@ -343,7 +346,7 @@ static int testCreateNetwork(const void *opaque G_GNUC_UNUSED)
+                                 123,
+                                 true,
+                                 nnicindexes, nicindexes,
+-                                "highpriority.slice", 2) < 0) {
++                                "highpriority.slice", 2, false) < 0) {
+         fprintf(stderr, "%s", "Failed to create LXC machine\n");
+         return -1;
+     }
+-- 
+2.50.1

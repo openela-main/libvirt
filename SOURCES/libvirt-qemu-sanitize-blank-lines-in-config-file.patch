@@ -1,5 +1,5 @@
-From a9b5680cc0db384cf841a97ade92d0c1f01e470b Mon Sep 17 00:00:00 2001
-Message-ID: <a9b5680cc0db384cf841a97ade92d0c1f01e470b.1754469801.git.jdenemar@redhat.com>
+From f8d6bc01e680b8c226270d100230a92a611f771d Mon Sep 17 00:00:00 2001
+Message-ID: <f8d6bc01e680b8c226270d100230a92a611f771d.1754404628.git.jdenemar@redhat.com>
 From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
 Date: Wed, 16 Jul 2025 16:30:52 +0100
 Subject: [PATCH] qemu: sanitize blank lines in config file
@@ -14,14 +14,14 @@ Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 0b9cfa791f2bd135ea36fe03fd1a8d6c8bf5e3d6)
 
-Resolves: https://issues.redhat.com/browse/RHEL-106278
+Resolves: https://issues.redhat.com/browse/RHEL-104382
 Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
 ---
- src/qemu/qemu.conf.in | 41 ++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 38 insertions(+), 3 deletions(-)
+ src/qemu/qemu.conf.in | 51 ++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 48 insertions(+), 3 deletions(-)
 
 diff --git a/src/qemu/qemu.conf.in b/src/qemu/qemu.conf.in
-index 3365834200..988d176a28 100644
+index 9bb52b5927..76cbe1a72d 100644
 --- a/src/qemu/qemu.conf.in
 +++ b/src/qemu/qemu.conf.in
 @@ -48,7 +48,7 @@
@@ -62,10 +62,32 @@ index 3365834200..988d176a28 100644
  #spice_sasl_dir = "/some/directory/sasl2"
  
 +
+ # RDP is configured to listen on 127.0.0.1 by default.
+ # To make it listen on all public interfaces, uncomment
+ # this next option.
+@@ -242,11 +246,13 @@
+ #
+ #rdp_tls_x509_cert_dir = "/etc/pki/libvirt-rdp"
+ 
++
+ # The default RDP username. This parameter is only used if the
+ # per-domain XML config does not already provide a username.
+ #
+ #rdp_username = "user"
+ 
++
+ # The default RDP password. This parameter is only used if the
+ # per-domain XML config does not already provide a password.
+ # By default, RDP server will not allow password-less connections.
+@@ -254,6 +260,7 @@
+ #
+ #rdp_password = "RDP12345"
+ 
++
  # Enable use of TLS encryption on the chardev TCP transports.
  #
  # It is necessary to setup CA and issue a server certificate
-@@ -468,6 +472,7 @@
+@@ -457,6 +464,7 @@
  #remote_display_port_min = 5900
  #remote_display_port_max = 65535
  
@@ -73,7 +95,7 @@ index 3365834200..988d176a28 100644
  # VNC WebSocket port policies, same rules apply as with remote display
  # ports.  VNC WebSockets use similar display <-> port mappings, with
  # the exception being that ports start from 5700 instead of 5900.
-@@ -475,6 +480,7 @@
+@@ -464,6 +472,7 @@
  #remote_websocket_port_min = 5700
  #remote_websocket_port_max = 65535
  
@@ -81,7 +103,7 @@ index 3365834200..988d176a28 100644
  # The default security driver is SELinux. If SELinux is disabled
  # on the host, then the security driver will automatically disable
  # itself. If you wish to disable QEMU SELinux security driver while
-@@ -492,15 +498,18 @@
+@@ -481,15 +490,18 @@
  #
  #security_driver = "selinux"
  
@@ -100,7 +122,7 @@ index 3365834200..988d176a28 100644
  # The user for QEMU processes run by the system instance. It can be
  # specified as a user name or as a user id. The qemu driver will try to
  # parse this value first as a name and then, if the name doesn't exist,
-@@ -518,20 +527,24 @@
+@@ -507,10 +519,12 @@
  #
  #user = "@QEMU_USER@"
  
@@ -112,7 +134,9 @@ index 3365834200..988d176a28 100644
 +
  # Whether libvirt should dynamically change file ownership
  # to match the configured user/group above. Defaults to 1.
- # Set to 0 to disable file ownership changes.
+ #
+@@ -526,11 +540,13 @@
+ # Set to 0 to disable file ownership changes globally in the qemu driver.
  #dynamic_ownership = 1
  
 +
@@ -125,7 +149,7 @@ index 3365834200..988d176a28 100644
  # What cgroup controllers to make use of with QEMU guests
  #
  #  - 'cpu' - use for scheduler tunables
-@@ -553,6 +566,7 @@
+@@ -552,6 +568,7 @@
  #
  #cgroup_controllers = [ "cpu", "devices", "memory", "blkio", "cpuset", "cpuacct" ]
  
@@ -133,7 +157,7 @@ index 3365834200..988d176a28 100644
  # This is the basic set of devices allowed / required by
  # all virtual machines.
  #
-@@ -612,12 +626,14 @@
+@@ -618,12 +635,14 @@
  #dump_image_format = "raw"
  #snapshot_image_format = "raw"
  
@@ -148,7 +172,7 @@ index 3365834200..988d176a28 100644
  # When a domain is configured to be auto-dumped, enabling this flag
  # has the same effect as using the VIR_DUMP_BYPASS_CACHE flag with the
  # virDomainCoreDump API.  That is, the system will avoid using the
-@@ -626,6 +642,7 @@
+@@ -632,6 +651,7 @@
  #
  #auto_dump_bypass_cache = 0
  
@@ -156,15 +180,65 @@ index 3365834200..988d176a28 100644
  # When a domain is configured to be auto-started, enabling this flag
  # has the same effect as using the VIR_DOMAIN_START_BYPASS_CACHE flag
  # with the virDomainCreateWithFlags API.  That is, the system will
-@@ -634,6 +651,7 @@
+@@ -640,11 +660,13 @@
  #
  #auto_start_bypass_cache = 0
+ 
++
+ # Delay in milliseconds between initiating the startup for
+ # each VM, during autostart
+ #
+ #auto_start_delay = 0
+ 
++
+ # The settings for auto shutdown actions accept one of
+ # four possible options:
+ #
+@@ -669,6 +691,7 @@
+ # they are restarted, or saved and restored.
+ #auto_shutdown_try_save = "persistent"
+ 
++
+ # As above, but with a graceful shutdown action instead of
+ # managed save. If managed save is enabled, shutdown will
+ # be tried only on failure to perform managed save.
+@@ -683,6 +706,7 @@
+ # they are restarted, or saved and restored.
+ #auto_shutdown_try_shutdown = "all"
+ 
++
+ # As above, but with a forced poweroff instead of managed
+ # save. If managed save or graceful shutdown are enabled,
+ # forced poweroff will be tried only on failure of the
+@@ -702,16 +726,19 @@
+ # feature should to be enabled as well to ensure proper cleanup of the VMs.
+ #auto_shutdown_poweroff = "all"
+ 
++
+ # How may seconds to wait for running VMs to gracefully shutdown
+ # when 'auto_shutdown_try_shutdown' is enabled. If set to 0
+ # then an arbitrary built-in default value will be used (which
+ # is currently 30 secs)
+ #auto_shutdown_wait = 30
+ 
++
+ # Whether VMs that are automatically powered off or saved during
+ # host shutdown, should be set to restore on next boot
+ #auto_shutdown_restore = 1
+ 
++
+ # When a domain is configured to be auto-saved on shutdown, enabling
+ # this flag has the same effect as using the VIR_DOMAIN_SAVE_BYPASS_CACHE
+ # flag with the virDomainManagedSave API.  That is, the system will
+@@ -720,6 +747,7 @@
+ #
+ #auto_save_bypass_cache = 0
  
 +
  # If provided by the host and a hugetlbfs mount point is configured,
  # a guest may request huge page backing.  When this mount point is
  # unspecified here, determination of a host mount point in /proc/mounts
-@@ -682,6 +700,7 @@
+@@ -768,6 +796,7 @@
  #max_processes = 0
  #max_files = 0
  
@@ -172,7 +246,7 @@ index 3365834200..988d176a28 100644
  # If max_threads_per_process is set to a positive integer, libvirt
  # will use it to set the maximum number of threads that can be
  # created by a qemu process. Some VM configurations can result in
-@@ -692,6 +711,7 @@
+@@ -778,6 +807,7 @@
  #
  #max_threads_per_process = 0
  
@@ -180,15 +254,15 @@ index 3365834200..988d176a28 100644
  # If max_core is set to a non-zero integer, then QEMU will be
  # permitted to create core dumps when it crashes, provided its
  # RAM size is smaller than the limit set.
-@@ -716,6 +736,7 @@
+@@ -804,6 +834,7 @@
  #
  #max_core = "unlimited"
  
 +
  # Determine if guest RAM is included in QEMU core dumps. By
- # default guest RAM will be excluded if a new enough QEMU is
- # present and host kernel supports it. Setting this to '1' will
-@@ -726,6 +747,7 @@
+ # default guest RAM will be excluded on Linux platforms,
+ # and included on all other patforms. Setting this to '1' will
+@@ -814,6 +845,7 @@
  #
  #dump_guest_core = 1
  
@@ -196,7 +270,7 @@ index 3365834200..988d176a28 100644
  # mac_filter enables MAC addressed based filtering on bridge ports.
  # This currently requires ebtables to be installed.
  #
-@@ -755,6 +777,7 @@
+@@ -843,6 +875,7 @@
  #
  #max_queued = 0
  
@@ -204,7 +278,7 @@ index 3365834200..988d176a28 100644
  ###################################################################
  # Keepalive protocol:
  # This allows qemu driver to detect broken connections to remote
-@@ -778,7 +801,6 @@
+@@ -866,7 +899,6 @@
  #keepalive_count = 5
  
  
@@ -212,7 +286,7 @@ index 3365834200..988d176a28 100644
  # Use seccomp syscall filtering sandbox in QEMU.
  # 1 == filter enabled, 0 == filter disabled
  #
-@@ -813,7 +835,6 @@
+@@ -901,7 +933,6 @@
  #migration_port_max = 49215
  
  
@@ -220,7 +294,7 @@ index 3365834200..988d176a28 100644
  # Timestamp QEMU's log messages (if QEMU supports it)
  #
  # Defaults to 1.
-@@ -853,6 +874,7 @@
+@@ -941,6 +972,7 @@
  #   "/usr/share/AAVMF/AAVMF32_CODE.fd:/usr/share/AAVMF/AAVMF32_VARS.fd"
  #]
  
@@ -228,7 +302,7 @@ index 3365834200..988d176a28 100644
  # The backend to use for handling stdout/stderr output from
  # QEMU processes.
  #
-@@ -868,6 +890,7 @@
+@@ -956,6 +988,7 @@
  #
  #stdio_handler = "logd"
  
@@ -236,7 +310,7 @@ index 3365834200..988d176a28 100644
  # QEMU gluster libgfapi log level, debug levels are 0-9, with 9 being the
  # most verbose, and 0 representing no debugging output.
  #
-@@ -888,6 +911,7 @@
+@@ -976,6 +1009,7 @@
  #
  #gluster_debug_level = 9
  
@@ -244,7 +318,7 @@ index 3365834200..988d176a28 100644
  # virtiofsd debug
  #
  # Whether to enable the debugging output of the virtiofsd daemon.
-@@ -895,6 +919,7 @@
+@@ -983,6 +1017,7 @@
  #
  #virtiofsd_debug = 1
  
@@ -252,7 +326,7 @@ index 3365834200..988d176a28 100644
  # To enhance security, QEMU driver is capable of creating private namespaces
  # for each domain started. Well, so far only "mount" namespace is supported. If
  # enabled it means qemu process is unable to see all the devices on the system,
-@@ -903,24 +928,29 @@
+@@ -991,16 +1026,19 @@
  # by default.
  #namespaces = [ "mount" ]
  
@@ -272,6 +346,10 @@ index 3365834200..988d176a28 100644
  # Path to the SLIRP networking helper.
  #slirp_helper = "/usr/bin/slirp-helper"
  
+@@ -1010,11 +1048,13 @@
+ # in $PATH.
+ #qemu_rdp = "qemu-rdp"
+ 
 +
  # Path to the dbus-daemon
  # If this is not an absolute path, the program will be searched for
@@ -282,7 +360,7 @@ index 3365834200..988d176a28 100644
  # User for the swtpm TPM Emulator
  #
  # Default is 'tss'; this is the same user that tcsd (TrouSerS) installs
-@@ -929,6 +959,7 @@
+@@ -1023,6 +1063,7 @@
  #swtpm_user = "tss"
  #swtpm_group = "tss"
  
@@ -290,7 +368,7 @@ index 3365834200..988d176a28 100644
  # For debugging and testing purposes it's sometimes useful to be able to disable
  # libvirt behaviour based on the capabilities of the qemu process. This option
  # allows to do so. DO _NOT_ use in production and beaware that the behaviour
-@@ -936,6 +967,7 @@
+@@ -1030,6 +1071,7 @@
  #
  #capability_filters = [ "capname" ]
  
@@ -298,7 +376,7 @@ index 3365834200..988d176a28 100644
  # 'deprecation_behavior' setting controls how the qemu process behaves towards
  # deprecated commands and arguments used by libvirt.
  #
-@@ -967,6 +999,7 @@
+@@ -1061,6 +1103,7 @@
  #
  #deprecation_behavior = "none"
  
@@ -306,7 +384,7 @@ index 3365834200..988d176a28 100644
  # If this is set then QEMU and its threads will run in a separate scheduling
  # group meaning no other process will share Hyper Threads of a single core with
  # QEMU. Each QEMU has its own group.
-@@ -983,6 +1016,7 @@
+@@ -1077,6 +1120,7 @@
  #              scheduling group
  #sched_core = "none"
  
@@ -314,7 +392,7 @@ index 3365834200..988d176a28 100644
  # Using nbdkit to access remote disk sources
  #
  # If this is set then libvirt will use nbdkit to access remote disk sources
-@@ -994,6 +1028,7 @@
+@@ -1088,6 +1132,7 @@
  #
  #storage_use_nbdkit = @USE_NBDKIT_DEFAULT@
  

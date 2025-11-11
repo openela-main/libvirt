@@ -3,15 +3,15 @@
 # This spec file assumes you are building on a Fedora or RHEL version
 # that's still supported by the vendor. It may work on other distros
 # or versions, but no effort will be made to ensure that going forward.
-%define min_rhel 8
-%define min_fedora 37
+%define min_rhel 9
+%define min_fedora 41
 
 %define arches_qemu_kvm         %{ix86} x86_64 %{power64} %{arm} aarch64 s390x riscv64
 %if 0%{?rhel}
-    %if 0%{?rhel} > 8
-        %define arches_qemu_kvm     x86_64 aarch64 s390x
+    %if 0%{?rhel} >= 10
+        %define arches_qemu_kvm     x86_64 aarch64 s390x riscv64
     %else
-        %define arches_qemu_kvm     x86_64 %{power64} aarch64 s390x
+        %define arches_qemu_kvm     x86_64 aarch64 s390x
     %endif
 %endif
 
@@ -29,17 +29,25 @@
 %define arches_zfs              %{arches_x86} %{power64} %{arm}
 %define arches_numactl          %{arches_x86} %{power64} aarch64 s390x
 %define arches_numad            %{arches_x86} %{power64} aarch64
+%define arches_ch               x86_64 aarch64
 
 # The hypervisor drivers that run in libvirtd
 %define with_qemu          0%{!?_without_qemu:1}
 %define with_lxc           0%{!?_without_lxc:1}
 %define with_libxl         0%{!?_without_libxl:1}
 %define with_vbox          0%{!?_without_vbox:1}
+%define with_ch            0%{!?_without_ch:1}
 
 %ifarch %{arches_qemu_kvm}
     %define with_qemu_kvm      %{with_qemu}
 %else
     %define with_qemu_kvm      0
+%endif
+
+%if 0%{?fedora} >= 42
+    %define with_account_add 0
+%else
+    %define with_account_add 1
 %endif
 
 %define with_qemu_tcg      %{with_qemu}
@@ -64,19 +72,12 @@
 
 %define with_storage_gluster 0%{!?_without_storage_gluster:1}
 %if 0%{?rhel}
-    # Glusterfs has been dropped in RHEL-9, and before that
-    # was only enabled on arches where KVM exists
-    %if 0%{?rhel} > 8
-        %define with_storage_gluster 0
-    %else
-        %ifnarch %{arches_qemu_kvm}
-            %define with_storage_gluster 0
-        %endif
-    %endif
+    # Glusterfs has been dropped in RHEL-9.
+    %define with_storage_gluster 0
 %endif
 
-# Fedora has zfs-fuse
-%if 0%{?fedora}
+# Fedora had zfs-fuse until F43
+%if 0%{?fedora} && 0%{?fedora} < 43
     %define with_storage_zfs      0%{!?_without_storage_zfs:1}
 %else
     %define with_storage_zfs      0
@@ -84,7 +85,7 @@
 
 %define with_storage_iscsi_direct 0%{!?_without_storage_iscsi_direct:1}
 # libiscsi has been dropped in RHEL-9
-%if 0%{?rhel} > 8
+%if 0%{?rhel}
     %define with_storage_iscsi_direct 0
 %endif
 
@@ -123,6 +124,9 @@
 %ifnarch %{arches_ceph}
     %define with_storage_rbd 0
 %endif
+%ifnarch %{arches_ch}
+    %define with_ch 0
+%endif
 
 # RHEL doesn't ship many hypervisor drivers
 %if 0%{?rhel}
@@ -132,13 +136,10 @@
     %define with_libxl 0
     %define with_hyperv 0
     %define with_lxc 0
+    %define with_ch 0
 %endif
 
 %define with_firewalld_zone 0%{!?_without_firewalld_zone:1}
-
-%if 0%{?rhel} && 0%{?rhel} < 9
-    %define with_netcf 0%{!?_without_netcf:1}
-%endif
 
 # fuse is used to provide virtualized /proc for LXC
 %if %{with_lxc}
@@ -181,8 +182,7 @@
 # Right now that's not the case anywhere, but things should be fine by the time
 # Fedora 40 is released.
 %if %{with_qemu}
-    # rhel-8 lacks pidfd_open
-    %if 0%{?fedora} || 0%{?rhel} >= 9
+    %if 0%{?fedora} || 0%{?rhel}
         %define with_nbdkit 0%{!?_without_nbdkit:1}
 
         # setting 'with_nbdkit_config_default' must be done only when compiling
@@ -190,7 +190,7 @@
         #
         # TODO: add RHEL 9 once a minor release that contains the necessary SELinux
         #       bits exists (we only support the most recent minor release)
-        %if 0%{?fedora} >= 40
+        %if 0%{?fedora}
             %define with_nbdkit_config_default 0%{!?_without_nbdkit_config_default:1}
         %endif
     %endif
@@ -201,13 +201,13 @@
 %endif
 
 %define with_modular_daemons 0
-%if 0%{?fedora} || 0%{?rhel} >= 9
+%if 0%{?fedora} || 0%{?rhel}
     %define with_modular_daemons 1
 %endif
 
 # Prefer nftables for future OS releases but keep using iptables
 # for existing ones
-%if 0%{?rhel} >= 10 || 0%{?fedora} >= 41
+%if 0%{?rhel} >= 10 || 0%{?fedora}
     %define prefer_nftables 1
     %define firewall_backend_priority nftables,iptables
 %else
@@ -261,7 +261,7 @@
 
 # Fedora and RHEL-9 are new enough to support /dev/userfaultfd, which
 # does not require enabling vm.unprivileged_userfaultfd sysctl.
-%if 0%{?fedora} || 0%{?rhel} >= 9
+%if 0%{?fedora} || 0%{?rhel}
     %define with_userfaultfd_sysctl 0
 %endif
 
@@ -288,8 +288,8 @@
 
 Summary: Library providing a simple virtualization API
 Name: libvirt
-Version: 10.10.0
-Release: 8.4%{?dist}%{?extra_release}
+Version: 11.5.0
+Release: 4%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -297,116 +297,26 @@ URL: https://libvirt.org/
     %define mainturl stable_updates/
 %endif
 Source: https://download.libvirt.org/%{?mainturl}libvirt-%{version}.tar.xz
-Patch1: libvirt-util-Fix-typo-in-virNetDevOpenvswitchInterfaceSetQos.patch
-Patch2: libvirt-qemu-tpm-do-not-update-profile-name-for-transient-domains.patch
-Patch3: libvirt-qemu-Enable-I-O-APIC-if-needed.patch
-Patch4: libvirt-cpu_map-Sort-data-files-in-meson.build.patch
-Patch5: libvirt-sync_qemu_models_i386-Update-meson.build.patch
-Patch6: libvirt-sync_qemu_models_i386-Generate-missing-v1-variants.patch
-Patch7: libvirt-cpu_map-Add-486-v1-CPU-model.patch
-Patch8: libvirt-cpu_map-Add-pentium-v1-CPU-model.patch
-Patch9: libvirt-cpu_map-Add-pentium2-v1-CPU-model.patch
-Patch10: libvirt-cpu_map-Add-pentium3-v1-CPU-model.patch
-Patch11: libvirt-cpu_map-Add-coreduo-v1-CPU-model.patch
-Patch12: libvirt-cpu_map-Add-n270-v1-CPU-model.patch
-Patch13: libvirt-cpu_map-Add-core2duo-v1-CPU-model.patch
-Patch14: libvirt-cpu_map-Add-qemu32-v1-CPU-model.patch
-Patch15: libvirt-cpu_map-Add-kvm32-v1-CPU-model.patch
-Patch16: libvirt-cpu_map-Add-qemu64-v1-CPU-model.patch
-Patch17: libvirt-cpu_map-Add-kvm64-v1-CPU-model.patch
-Patch18: libvirt-cpu_map-Add-Conroe-v1-CPU-model.patch
-Patch19: libvirt-cpu_map-Add-Penryn-v1-CPU-model.patch
-Patch20: libvirt-cpu_map-Add-KnightsMill-v1-CPU-model.patch
-Patch21: libvirt-cpu_map-Add-athlon-v1-CPU-model.patch
-Patch22: libvirt-cpu_map-Add-phenom-v1-CPU-model.patch
-Patch23: libvirt-cpu_map-Add-Opteron_G1-v1-CPU-model.patch
-Patch24: libvirt-cpu_map-Add-Opteron_G2-v1-CPU-model.patch
-Patch25: libvirt-cpu_map-Add-Opteron_G3-v1-CPU-model.patch
-Patch26: libvirt-cpu_map-Add-Opteron_G4-v1-CPU-model.patch
-Patch27: libvirt-cpu_map-Add-Opteron_G5-v1-CPU-model.patch
-Patch28: libvirt-cpu_map-Add-EPYC-Genoa-v1-CPU-model.patch
-Patch29: libvirt-qemu-Enable-I-O-APIC-even-more-frequently.patch
-Patch30: libvirt-cpu_map-Add-avx10-CPU-features.patch
-Patch31: libvirt-cpu_map-Add-GraniteRapids-v2-CPU-model.patch
-Patch32: libvirt-cpu_map-Add-sha512-sm3-and-sm4-CPU-features.patch
-Patch33: libvirt-conf-docs-Add-support-for-direct-and-extended-tlbflush-features.patch
-Patch34: libvirt-qemu-Add-support-for-direct-and-extended-tlbflush-features.patch
-Patch35: libvirt-conf-refactor-hyperv-features-formatting.patch
-Patch36: libvirt-conf-Adjust-hyperv-tlbflush-formatting.patch
-Patch37: libvirt-qemu_migration-Do-not-consider-post-copy-active-in-postcopy-recover.patch
-Patch38: libvirt-qemu-allow-migration-of-guest-with-mdev-vGPU-to-VF-vGPU.patch
-Patch39: libvirt-storage_file-Refuse-qcow2-images-with-empty-string-as-data_file.patch
-Patch40: libvirt-virstoragetest-Add-case-for-qcow2-image-with-empty-string-as-data_file.patch
-Patch41: libvirt-qemu-snapshot-delete-disk-image-only-if-parent-snapshot-is-external.patch
-Patch42: libvirt-storage_file-de-modularize-the-local-file-backend.patch
-Patch43: libvirt-tools-ssh-proxy-Check-for-domain-status-before-parsing-its-CID.patch
-Patch44: libvirt-qemu-re-use-existing-ActualNetDef-for-more-interface-types-during-update-device.patch
-Patch45: libvirt-build-Bump-minimum-glib2-version-to-2.66.0.patch
-Patch46: libvirt-qemuProcessHandleIOError-Refactor-to-extract-priv-instead-of-driver.patch
-Patch47: libvirt-qemu-Handle-quirks-of-device-field-of-BLOCK_IO_ERROR-event-in-monitor-code.patch
-Patch48: libvirt-qemu-Rename-diskAlias-to-device-in-qemu-IO-error-event-handling.patch
-Patch49: libvirt-qemuProcessHandleIOError-Rename-local-variables.patch
-Patch50: libvirt-qemuMonitorJSONHandleIOError-Do-not-munge-reason-field-of-IO-error-event.patch
-Patch51: libvirt-qemuProcessHandleIOError-Prefer-lookup-by-node-name.patch
-Patch52: libvirt-qemuMonitorJSONHandleIOError-Propagate-new-qom-path-field.patch
-Patch53: libvirt-virStorageSource-Add-fields-for-storing-last-I-O-error-message.patch
-Patch54: libvirt-qemuProcessHandleIOError-Populate-I-O-error-reason-to-virStorageSource.patch
-Patch55: libvirt-qemuProcessHandleIOError-Log-IO-errors-in-the-VM-log-file.patch
-Patch56: libvirt-libxlDomainGetMessages-Add-existing-flags-to-virCheckFlags.patch
-Patch57: libvirt-virDomainObjGetMessages-Refactor-using-GPtrArray.patch
-Patch58: libvirt-virDomainGetMessages-Introduce-VIR_DOMAIN_MESSAGE_IOERRORS.patch
-Patch59: libvirt-include-libvirt-domain-Reword-documentation-for-reason-of-VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON.patch
-Patch60: libvirt-include-libvirt-domain-Add-message-reason-of-VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON.patch
-Patch61: libvirt-qemuSnapshotForEachQcow2-Don-t-initialize-nrollback.patch
-Patch62: libvirt-qemu-process-Export-qemuPrepareNVRAM-for-use-in-snapshot-code.patch
-Patch63: libvirt-qemu-snapshot-Ensure-that-NVRAM-image-exists-when-taking-inactive-internal-snapshot.patch
-Patch64: libvirt-qemuxmlconftest-Allow-testing-of-the-writable-flag-for-passed-FDs-for-disks.patch
-Patch65: libvirt-qemuxmlconftest-Add-testing-of-FDs-with-writable-flag-in-disk-source-fd.patch
-Patch66: libvirt-qemu-domain-Initialize-FD-passthrough-for-a-virStorageSource-before-using-it.patch
-Patch67: libvirt-qemu_migration-Refactor-qemuMigrationSrcRestoreDomainState.patch
-Patch68: libvirt-qemu_migration-Do-not-automatically-resume-domain-after-I-O-error.patch
-Patch69: libvirt-qemucapabilitiestest-Add-data-for-the-qemu-10.0-dev-cycle-on-x86_64.patch
-Patch70: libvirt-qemucapabilitiestest-Update-caps_10.0.0_x86_64-to-v9.2.0-1636-gffaf7f0376.patch
-Patch71: libvirt-qemu-capabilies-Introduce-QEMU_CAPS_BLOCKDEV_SET_ACTIVE.patch
-Patch72: libvirt-qemu-monitor-Add-monitor-backend-for-blockdev-set-active.patch
-Patch73: libvirt-qemu-migration-Reactivate-block-nodes-after-migration-if-VM-is-left-paused.patch
-Patch74: libvirt-conf-change-virDomainHostdevInsert-to-return-void.patch
-Patch75: libvirt-qemu-fix-qemu-validation-to-forbid-guest-side-IP-address-for-type-vdpa.patch
-Patch76: libvirt-qemu-validate-that-model-is-virtio-for-vhostuser-and-vdpa-interfaces-in-the-same-place.patch
-Patch77: libvirt-qemu-automatically-set-model-type-virtio-for-interface-type-vhostuser.patch
-Patch78: libvirt-qemu-do-all-vhostuser-attribute-validation-in-qemu-driver.patch
-Patch79: libvirt-conf-qemu-make-source-element-almost-optional-for-type-vhostuser.patch
-Patch80: libvirt-qemu-use-switch-instead-of-if-in-qemuProcessPrepareDomainNetwork.patch
-Patch81: libvirt-qemu-make-qemuPasstCreateSocketPath-public.patch
-Patch82: libvirt-qemu-complete-vhostuser-passt-support.patch
-Patch83: libvirt-qemu-fail-validation-if-a-domain-def-has-vhostuser-passt-but-no-shared-mem.patch
-Patch84: libvirt-docs-improve-type-user-docs-to-higlight-differences-between-SLIRP-and-passt.patch
-Patch85: libvirt-docs-document-using-passt-backend-with-interface-type-vhostuser.patch
-Patch86: libvirt-utils-Canonicalize-paths-before-comparing-them.patch
-Patch87: libvirt-remote-add-sysusers-file-to-create-libvirt-group.patch
-Patch88: libvirt-util-introduce-object-for-holding-a-system-inhibitor-lock.patch
-Patch89: libvirt-src-convert-drivers-over-to-new-virInhibitor-APIs.patch
-Patch90: libvirt-rpc-remove-logind-support-for-virNetDaemon.patch
-Patch91: libvirt-util-fix-off-by-1-in-inhibitor-constants.patch
-Patch92: libvirt-util-don-t-attempt-to-acquire-logind-inhibitor-if-not-requested.patch
-Patch93: libvirt-network-Free-inhibitor-in-networkStateCleanup.patch
-Patch94: libvirt-conf-parse-interface-source-dev-for-all-interface-types-with-backend-type-passt.patch
-Patch95: libvirt-qemu-remove-nonsensical-sanity-check-in-processNetdevStreamDisconnectedEvent.patch
-Patch96: libvirt-qemu-make-processNetDevStreamDisconnectedEvent-reusable.patch
-Patch97: libvirt-qemu-respond-to-NETDEV_VHOST_USER_DISCONNECTED-event.patch
-Patch98: libvirt-qemu-put-vhost-user-code-that-s-special-for-passt-in-a-helper-function.patch
-Patch99: libvirt-qemu-make-passt-vhostuser-reconnect-behave-identically-to-passt-user.patch
-Patch100: libvirt-qemuMonitorJSONGetCPUModelExpansion-refactor-parsing-functions.patch
-Patch101: libvirt-qemu-parse-deprecated-props-from-query-cpu-model-expansion-response.patch
-Patch102: libvirt-qemu_capabilities-query-deprecated-features-for-host-model.patch
-Patch103: libvirt-libvirt-domain-introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES.patch
-Patch104: libvirt-qemu_capabilities-filter-deprecated-features-if-requested.patch
-Patch105: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.patch
-Patch106: libvirt-conf-add-deprecated_features-attribute.patch
-Patch107: libvirt-qemuPrepareNVRAMFile-Fix-NVRAM-image-conversion-check.patch
-Patch108: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
-Patch109: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
-Patch110: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
+Patch1: libvirt-virSystemdCreateMachine-Document-maxthreds.patch
+Patch2: libvirt-cgroup-Unexport-virDomainCgroupInitCgroup.patch
+Patch3: libvirt-qemu-conf-Store-autoShutdown-config-in-virDomainDriverAutoShutdownConfig.patch
+Patch4: libvirt-hypervisor-domain-Extract-logic-for-auto-shutdown-to-virDomainDriverAutoShutdownActive.patch
+Patch5: libvirt-virSystemdCreateMachine-Add-flag-to-invert-machined-unit-dependencies.patch
+Patch6: libvirt-cgroup-Plumb-the-daemonDomainShutdown-parameter-of-virSystemdCreateMachine-to-drivers.patch
+Patch7: libvirt-qemu-Fix-auto-shutdown-of-qemu-VMs-by-the-qemu-driver.patch
+Patch8: libvirt-hypervisor-Split-out-individual-steps-out-of-virDomainDriverAutoShutdown.patch
+Patch9: libvirt-virDomainDriverAutoShutdownDoSave-Don-t-attempt-to-save-transient-VMs.patch
+Patch10: libvirt-virDomainDriverAutoShutdown-Refactor-selection-logic-for-VMs.patch
+Patch11: libvirt-tls-Don-t-require-keyEncipherment-to-be-enabled-altoghther.patch
+Patch12: libvirt-kbase-tlscerts-Drop-encryption_key-feature-request.patch
+Patch13: libvirt-tests-virnettls-test-Drop-use-of-GNUTLS_KEY_KEY_ENCIPHERMENT.patch
+Patch14: libvirt-qemu_tpm-Rename-qemuTPMHasSharedStorage-qemuTPMDomainHasSharedStorage.patch
+Patch15: libvirt-qemu_tpm-Extract-per-TPM-functionality-from-qemuTPMDomainHasSharedStorage.patch
+Patch16: libvirt-qemu_tpm-Only-warn-about-missing-locking-feature-on-shared-filesystems.patch
+Patch17: libvirt-qemu_tpm-Do-not-use-persistent-definition-during-pre-start-checks.patch
+Patch18: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
+Patch19: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
+Patch20: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -428,6 +338,9 @@ Obsoletes: libvirt-daemon-uml <= 5.0.0
 %if %{with_vbox}
 Requires: libvirt-daemon-driver-vbox = %{version}-%{release}
 %endif
+%if %{with_ch}
+Requires: libvirt-daemon-driver-ch = %{version}-%{release}
+%endif
 Requires: libvirt-daemon-driver-nwfilter = %{version}-%{release}
 Requires: libvirt-daemon-driver-interface = %{version}-%{release}
 Requires: libvirt-daemon-driver-secret = %{version}-%{release}
@@ -442,7 +355,7 @@ Requires: libvirt-libs = %{version}-%{release}
 BuildRequires: python3-docutils
 BuildRequires: meson >= 0.56.0
 BuildRequires: ninja-build
-BuildRequires: git
+BuildRequires: git-core
 BuildRequires: perl-interpreter
 BuildRequires: python3
 BuildRequires: python3-pytest
@@ -479,12 +392,7 @@ BuildRequires: sanlock-devel >= 2.4
 BuildRequires: libpcap-devel >= 1.5.0
 BuildRequires: libnl3-devel
 BuildRequires: libselinux-devel
-# For modprobe
-BuildRequires: kmod
 BuildRequires: cyrus-sasl-devel
-BuildRequires: polkit >= 0.112
-# For mount/umount in FS driver
-BuildRequires: util-linux
     %if %{with_qemu}
 # For managing ACLs
 BuildRequires: libacl-devel
@@ -495,10 +403,6 @@ BuildRequires: /usr/bin/qemu-img
     %if %{with_nbdkit}
 BuildRequires: libnbd-devel
     %endif
-# For LVM drivers
-BuildRequires: lvm2
-# For pool type=iscsi
-BuildRequires: iscsi-initiator-utils
     %if %{with_storage_iscsi_direct}
 # For pool type=iscsi-direct
 BuildRequires: libiscsi-devel
@@ -538,11 +442,6 @@ BuildRequires: libwsman-devel >= 2.6.3
 BuildRequires: audit-libs-devel
 BuildRequires: systemtap-sdt-devel
 BuildRequires: /usr/bin/dtrace
-# For mount/umount in FS driver
-BuildRequires: util-linux
-    %if %{with_numad}
-BuildRequires: numad
-    %endif
     %if %{with_wireshark}
 BuildRequires: wireshark-devel
     %endif
@@ -623,6 +522,8 @@ Requires: libvirt-libs = %{version}-%{release}
 # Recommends here will install libvirt-client by default (if available), but
 # RPM won't complain if the package is unavailable, masked, or removed later.
 Recommends: libvirt-client = %{version}-%{release}
+# For modprobe and rmmod
+Requires: kmod
 # for /sbin/ip
 Requires: iproute
 # for /sbin/tc
@@ -637,8 +538,10 @@ Requires(posttrans): /usr/bin/systemctl
 Requires(preun): /usr/bin/systemctl
 # libvirtd depends on 'messagebus' service
 Requires: dbus
+    %if %{with_account_add}
 # For uid creation during pre
 Requires(pre): shadow-utils
+    %endif
 # Needed by /usr/libexec/libvirt-guests.sh script.
     %if 0%{?fedora}
 Requires: gettext-runtime
@@ -665,6 +568,7 @@ resources
 %package daemon-plugin-lockd
 Summary: lockd client plugin for virtlockd
 Requires: libvirt-libs = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-daemon-lock = %{version}-%{release}
 
 %description daemon-plugin-lockd
@@ -779,7 +683,7 @@ Summary: Storage driver plugin including base backends for the libvirtd daemon
 Requires: libvirt-daemon-common = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
 Recommends: nfs-utils
-# For mkfs
+# For mkfs and mount/umount
 Requires: util-linux
 # For storage wiping with different algorithms
 Requires: scrub
@@ -791,6 +695,9 @@ Requires: /usr/bin/qemu-img
 Obsoletes: libvirt-daemon-driver-storage-rbd < 5.2.0
     %endif
 Obsoletes: libvirt-daemon-driver-storage-sheepdog < 8.8.0
+    %if !%{with_storage_zfs}
+Obsoletes: libvirt-daemon-driver-storage-zfs < 11.4.0
+    %endif
 
 %description daemon-driver-storage-core
 The storage driver plugin for the libvirtd daemon, providing
@@ -944,7 +851,7 @@ Requires: swtpm-tools
         %if %{with_numad}
 Requires: numad
         %endif
-        %if 0%{?fedora} || 0%{?rhel} >= 9
+        %if 0%{?fedora} || 0%{?rhel}
 Recommends: passt
 Recommends: passt-selinux
         %endif
@@ -1137,6 +1044,20 @@ Server side daemon and driver required to manage the virtualization
 capabilities of VirtualBox
     %endif
 
+    %if %{with_ch}
+%package daemon-driver-ch
+Summary: Cloud-Hypervisor driver plugin for libvirtd daemon
+Requires: libvirt-daemon-common = %{version}-%{release}
+Requires: libvirt-daemon-log = %{version}-%{release}
+Requires: libvirt-libs = %{version}-%{release}
+
+%description daemon-driver-ch
+The ch driver plugin for the libvirtd daemon, providing
+an implementation of the hypervisor driver APIs by
+Cloud-Hypervisor
+    %endif
+
+
 %package client
 Summary: Client side utilities of the libvirt library
 Requires: libvirt-libs = %{version}-%{release}
@@ -1182,6 +1103,10 @@ Wireshark dissector plugin for better analysis of libvirt RPC traffic.
 %package login-shell
 Summary: Login shell for connecting users to an LXC container
 Requires: libvirt-libs = %{version}-%{release}
+        %if %{with_account_add}
+# For uid creation during pre
+Requires(pre): shadow-utils
+        %endif
 
 %description login-shell
 Provides the set-uid virt-login-shell binary that is used to
@@ -1204,6 +1129,7 @@ Requires: sanlock >= 2.4
 #for virt-sanlock-cleanup require augeas
 Requires: augeas
 Requires: libvirt-libs = %{version}-%{release}
+Requires: libvirt-daemon-common = %{version}-%{release}
 Obsoletes: libvirt-lock-sanlock < 9.1.0
 Provides: libvirt-lock-sanlock = %{version}-%{release}
 
@@ -1302,9 +1228,15 @@ exit 1
 %endif
 
 %if %{with_esx}
-    %define arg_esx -Ddriver_esx=enabled -Dcurl=enabled
+    %define arg_esx -Ddriver_esx=enabled
 %else
-    %define arg_esx -Ddriver_esx=disabled -Dcurl=disabled
+    %define arg_esx -Ddriver_esx=disabled
+%endif
+
+%if %{with_esx} || %{with_ch}
+    %define arg_curl -Dcurl=enabled
+%else
+    %define arg_curl -Dcurl=disabled
 %endif
 
 %if %{with_hyperv}
@@ -1317,6 +1249,12 @@ exit 1
     %define arg_vmware -Ddriver_vmware=enabled
 %else
     %define arg_vmware -Ddriver_vmware=disabled
+%endif
+
+%if %{with_ch}
+    %define arg_ch -Ddriver_ch=enabled
+%else
+    %define arg_ch -Ddriver_ch=disabled
 %endif
 
 %if %{with_storage_rbd}
@@ -1449,11 +1387,12 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/libvirt.spec)
            -Ddriver_remote=enabled \
            -Ddriver_test=enabled \
            %{?arg_esx} \
+           %{?arg_curl} \
            %{?arg_hyperv} \
            %{?arg_vmware} \
+           %{?arg_ch} \
            -Ddriver_vz=disabled \
            -Ddriver_bhyve=disabled \
-           -Ddriver_ch=disabled \
            %{?arg_remote_mode} \
            -Ddriver_interface=enabled \
            -Ddriver_network=enabled \
@@ -1533,6 +1472,7 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/libvirt.spec)
   -Dblkid=disabled \
   -Dcapng=disabled \
   -Ddriver_bhyve=disabled \
+  -Ddriver_ch=disabled \
   -Ddriver_hyperv=disabled \
   -Ddriver_interface=disabled \
   -Ddriver_libvirtd=disabled \
@@ -1654,6 +1594,10 @@ rm -rf $RPM_BUILD_ROOT%{_sysconfdir}/libvirt/libxl.conf
 rm -rf $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/libvirtd.libxl
 rm -f $RPM_BUILD_ROOT%{_datadir}/augeas/lenses/libvirtd_libxl.aug
 rm -f $RPM_BUILD_ROOT%{_datadir}/augeas/lenses/tests/test_libvirtd_libxl.aug
+    %endif
+    %if ! %{with_ch}
+rm -f $RPM_BUILD_ROOT%{_datadir}/augeas/lenses/libvirtd_ch.aug
+rm -f $RPM_BUILD_ROOT%{_datadir}/augeas/lenses/tests/test_libvirtd_ch.aug
     %endif
 
 # Copied into libvirt-docs subpackage eventually
@@ -1865,10 +1809,12 @@ export VIR_TEST_DEBUG=1
 %pre daemon-common
 %libvirt_sysconfig_pre libvirt-guests
 %libvirt_systemd_oneshot_pre libvirt-guests
+    %if %{with_account_add}
 # 'libvirt' group is just to allow password-less polkit access to libvirt
 # daemons. The uid number is irrelevant, so we use dynamic allocation.
 getent group libvirt >/dev/null || groupadd -r libvirt
 exit 0
+    %endif
 
 %posttrans daemon-common
 %libvirt_sysconfig_posttrans libvirt-guests
@@ -1991,6 +1937,7 @@ exit 0
 %libvirt_sysconfig_pre virtqemud
 %libvirt_systemd_unix_pre virtqemud
 
+        %if %{with_account_add}
 # We want soft static allocation of well-known ids, as disk images
 # are commonly shared across NFS mounts by id rather than name.
 # See https://docs.fedoraproject.org/en-US/packaging-guidelines/UsersAndGroups/
@@ -2006,6 +1953,7 @@ if ! getent passwd 'qemu' >/dev/null; then
   fi
 fi
 exit 0
+        %endif
 
 %posttrans daemon-driver-qemu
 %libvirt_sysconfig_posttrans virtqemud
@@ -2052,6 +2000,19 @@ exit 0
 
 %preun daemon-driver-libxl
 %libvirt_systemd_unix_preun virtxend
+    %endif
+
+    %if %{with_ch}
+%pre daemon-driver-ch
+%libvirt_sysconfig_pre virtchd
+%libvirt_systemd_unix_pre virtchd
+
+%posttrans daemon-driver-ch
+%libvirt_sysconfig_posttrans virtchd
+%libvirt_systemd_unix_posttrans virtchd
+
+%preun daemon-driver-ch
+%libvirt_systemd_unix_preun virtchd
     %endif
 
 %pre daemon-config-network
@@ -2119,8 +2080,10 @@ done
 
     %if %{with_lxc}
 %pre login-shell
+        %if %{with_account_add}
 getent group virtlogin >/dev/null || groupadd -r virtlogin
 exit 0
+        %endif
     %endif
 %endif
 
@@ -2141,7 +2104,9 @@ exit 0
 %config(noreplace) %{_sysconfdir}/libvirt/libvirtd.conf
 %config(noreplace) %{_prefix}/lib/sysctl.d/60-libvirtd.conf
 %config(noreplace) %{_sysconfdir}/logrotate.d/libvirtd
+%dir %{_datadir}/augeas/lenses
 %{_datadir}/augeas/lenses/libvirtd.aug
+%dir %{_datadir}/augeas/lenses/tests
 %{_datadir}/augeas/lenses/tests/test_libvirtd.aug
 %attr(0755, root, root) %{_sbindir}/libvirtd
 %{_mandir}/man8/libvirtd.8*
@@ -2161,6 +2126,8 @@ exit 0
 %dir %attr(0755, root, root) %{_libdir}/libvirt/
 %dir %attr(0755, root, root) %{_libdir}/libvirt/connection-driver/
 %dir %attr(0755, root, root) %{_libdir}/libvirt/storage-backend/
+%dir %attr(0755, root, root) %{_libdir}/libvirt/storage-file/
+%dir %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/
 %{_datadir}/polkit-1/actions/org.libvirt.unix.policy
 %{_datadir}/polkit-1/actions/org.libvirt.api.policy
 %{_datadir}/polkit-1/rules.d/50-libvirt.rules
@@ -2192,7 +2159,6 @@ exit 0
 %{_mandir}/man8/virtlockd.8*
 
 %files daemon-plugin-lockd
-%dir %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/
 %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/lockd.so
 
 %files daemon-log
@@ -2356,7 +2322,6 @@ exit 0
     %if %{with_storage_gluster}
 %files daemon-driver-storage-gluster
 %{_libdir}/libvirt/storage-backend/libvirt_storage_backend_gluster.so
-%dir %attr(0755, root, root) %{_libdir}/libvirt/storage-file/
 %{_libdir}/libvirt/storage-file/libvirt_storage_file_gluster.so
     %endif
 
@@ -2507,7 +2472,6 @@ exit 0
         %if %{with_libxl}
 %config(noreplace) %{_sysconfdir}/libvirt/libxl-sanlock.conf
         %endif
-%dir %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/
 %attr(0755, root, root) %{_libdir}/libvirt/lock-driver/sanlock.so
 %{_datadir}/augeas/lenses/libvirt_sanlock.aug
 %{_datadir}/augeas/lenses/tests/test_libvirt_sanlock.aug
@@ -2515,6 +2479,19 @@ exit 0
 %{_sbindir}/virt-sanlock-cleanup
 %{_mandir}/man8/virt-sanlock-cleanup.8*
 %attr(0755, root, root) %{_libexecdir}/libvirt_sanlock_helper
+    %endif
+
+    %if %{with_ch}
+%files daemon-driver-ch
+%attr(0755, root, root) %{_sbindir}/virtchd
+%config(noreplace) %{_sysconfdir}/libvirt/virtchd.conf
+%{_datadir}/augeas/lenses/virtchd.aug
+%{_datadir}/augeas/lenses/tests/test_virtchd.aug
+%{_unitdir}/virtchd-admin.socket
+%{_unitdir}/virtchd-ro.socket
+%{_unitdir}/virtchd.service
+%{_unitdir}/virtchd.socket
+%{_libdir}/libvirt/connection-driver/libvirt_driver_ch.so
     %endif
 
 %files client
@@ -2547,15 +2524,17 @@ exit 0
 %{_libdir}/libvirt-lxc.so.*
 %{_libdir}/libvirt-admin.so.*
 %dir %{_datadir}/libvirt/
+%{_datadir}/libvirt/test-screenshot.png
 %dir %{_datadir}/libvirt/schemas/
+%{_datadir}/libvirt/schemas/*.rng
+%dir %{_datadir}/systemtap/tapset/
 %{_datadir}/systemtap/tapset/libvirt_probes*.stp
 %{_datadir}/systemtap/tapset/libvirt_functions.stp
     %if %{with_qemu}
 %{_datadir}/systemtap/tapset/libvirt_qemu_probes*.stp
     %endif
-%{_datadir}/libvirt/schemas/*.rng
+%dir %{_datadir}/libvirt/cpu_map
 %{_datadir}/libvirt/cpu_map/*.xml
-%{_datadir}/libvirt/test-screenshot.png
 
     %if %{with_wireshark}
 %files wireshark
@@ -2575,6 +2554,7 @@ exit 0
 %attr(4750, root, virtlogin) %{_bindir}/virt-login-shell
 %{_libexecdir}/virt-login-shell-helper
 %config(noreplace) %{_sysconfdir}/libvirt/virt-login-shell.conf
+%{_sysusersdir}/libvirt-login-shell.conf
 %{_mandir}/man1/virt-login-shell.1*
     %endif
 
@@ -2732,39 +2712,65 @@ exit 0
 %endif
 
 %changelog
-* Wed Aug  6 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-8.4.el10_0
-- qemu: fix order of VNC TLS config entries (RHEL-106278)
-- qemu: sanitize blank lines in config file (RHEL-106278)
-- qemu: add ability to set TLS priority string with QEMU (RHEL-106278)
+* Tue Aug  5 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4
+- qemu: fix order of VNC TLS config entries (RHEL-104382)
+- qemu: sanitize blank lines in config file (RHEL-104382)
+- qemu: add ability to set TLS priority string with QEMU (RHEL-104382)
 
-* Wed Jun 25 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-8.3.el10_0
-- qemuPrepareNVRAMFile: Fix NVRAM image conversion check (RHEL-97761)
+* Fri Jul 25 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-3
+- qemu_tpm: Do not use persistent definition during pre-start checks (RHEL-80155)
 
-* Wed Jun 11 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-8.2.el10_0
-- qemuMonitorJSONGetCPUModelExpansion: refactor parsing functions (RHEL-95956)
-- qemu: parse deprecated-props from query-cpu-model-expansion response (RHEL-95956)
-- qemu_capabilities: query deprecated features for host-model (RHEL-95956)
-- libvirt-domain: introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES (RHEL-95956)
-- qemu_capabilities: filter deprecated features if requested (RHEL-95956)
-- virsh: add --disable-deprecated-features flag to domcapabilities (RHEL-95956)
-- conf: add deprecated_features attribute (RHEL-95956)
+* Fri Jul 18 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-2
+- virSystemdCreateMachine: Document @maxthreds (RHEL-95361)
+- cgroup: Unexport 'virDomainCgroupInitCgroup' (RHEL-95361)
+- qemu: conf: Store 'autoShutdown' config in virDomainDriverAutoShutdownConfig (RHEL-95361)
+- hypervisor: domain: Extract logic for auto shutdown to virDomainDriverAutoShutdownActive (RHEL-95361)
+- virSystemdCreateMachine: Add flag to invert machined unit dependencies (RHEL-95361)
+- cgroup: Plumb the 'daemonDomainShutdown' parameter of 'virSystemdCreateMachine' to drivers (RHEL-95361)
+- qemu: Fix auto-shutdown of qemu VMs by the qemu driver (RHEL-95361)
+- hypervisor: Split out individual steps out of virDomainDriverAutoShutdown (RHEL-95196)
+- virDomainDriverAutoShutdownDoSave: Don't attempt to save transient VMs (RHEL-95196)
+- virDomainDriverAutoShutdown: Refactor selection logic for VMs (RHEL-95196)
+- tls: Don't require 'keyEncipherment' to be enabled altoghther (RHEL-100711)
+- kbase: tlscerts: Drop 'encryption_key' feature request (RHEL-100711)
+- tests: virnettls*test: Drop use of GNUTLS_KEY_KEY_ENCIPHERMENT (RHEL-100711)
+- qemu_tpm: Rename qemuTPMHasSharedStorage -> qemuTPMDomainHasSharedStorage (RHEL-80155)
+- qemu_tpm: Extract per-TPM functionality from qemuTPMDomainHasSharedStorage (RHEL-80155)
+- qemu_tpm: Only warn about missing locking feature on shared filesystems (RHEL-80155)
 
-* Fri Apr 11 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-8.1.el10_0
-- util: introduce object for holding a system inhibitor lock (RHEL-83067)
-- src: convert drivers over to new virInhibitor APIs (RHEL-83067)
-- rpc: remove logind support for virNetDaemon (RHEL-83067)
-- util: fix off-by-1 in inhibitor constants (RHEL-83067)
-- util: don't attempt to acquire logind inhibitor if not requested (RHEL-83067)
-- network: Free inhibitor in networkStateCleanup() (RHEL-83067)
-- conf: parse interface/source/@dev for all interface types (with backend type='passt') (RHEL-84690)
-- qemu: remove nonsensical sanity check in processNetdevStreamDisconnectedEvent() (RHEL-84784)
-- qemu: make processNetDevStreamDisconnectedEvent() reusable (RHEL-84784)
-- qemu: respond to NETDEV_VHOST_USER_DISCONNECTED event (RHEL-84784)
-- qemu: put vhost-user code that's special for passt in a helper function (RHEL-84784)
-- qemu: make passt+vhostuser reconnect behave identically to passt+user (RHEL-84784)
+* Tue Jul  1 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-1
+- Rebased to libvirt-11.5.0 (RHEL-71662)
+- The rebase also fixes the following bugs:
+    RHEL-86592, RHEL-93775, RHEL-95749, RHEL-100109
 
-* Fri Mar  7 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-8
-- remote: add sysusers file to create 'libvirt' group (RHEL-81739)
+* Mon Jun  9 2025 Jiri Denemark <jdenemar@redhat.com> - 11.4.0-1
+- Rebased to libvirt-11.4.0 (RHEL-71662)
+- The rebase also fixes the following bugs:
+    RHEL-79460, RHEL-84783, RHEL-85414, RHEL-86952, RHEL-87177
+    RHEL-88747, RHEL-89414, RHEL-90160, RHEL-90625, RHEL-92510
+
+* Tue May  6 2025 Jiri Denemark <jdenemar@redhat.com> - 11.3.0-1
+- Rebased to libvirt-11.3.0 (RHEL-71662)
+- The rebase also fixes the following bugs:
+    RHEL-27172, RHEL-79088, RHEL-82411, RHEL-84257, RHEL-85320
+    RHEL-85414, RHEL-85672, RHEL-86523, RHEL-86776, RHEL-86778
+
+* Mon Apr  7 2025 Jiri Denemark <jdenemar@redhat.com> - 11.2.0-1
+- Rebased to libvirt-11.2.0 (RHEL-71662)
+- The rebase also fixes the following bugs:
+    RHEL-7035, RHEL-24046, RHEL-40077, RHEL-58151, RHEL-68043
+    RHEL-71883, RHEL-72994, RHEL-77552, RHEL-80166, RHEL-80533
+    RHEL-80688, RHEL-81731, RHEL-81890, RHEL-83148, RHEL-84257
+    RHEL-84688
+- cpu_map: Install Ampere-1 ARM CPU models (RHEL-71662)
+
+* Tue Mar  4 2025 Jiri Denemark <jdenemar@redhat.com> - 11.1.0-1
+- Rebased to libvirt-11.1.0 (RHEL-71662)
+- The rebase also fixes the following bugs:
+    RHEL-7041, RHEL-7042, RHEL-7104, RHEL-7342, RHEL-20294
+    RHEL-41264, RHEL-52493, RHEL-58933, RHEL-70656, RHEL-71042
+    RHEL-71810, RHEL-72021, RHEL-72052, RHEL-72192, RHEL-72994
+    RHEL-79088, RHEL-79460, RHEL-79465, RHEL-79953
 
 * Mon Feb 17 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-7
 - qemu_migration: Refactor qemuMigrationSrcRestoreDomainState (RHEL-1071)

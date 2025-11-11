@@ -1,0 +1,68 @@
+From c7889487359bff14c6d4b236055acfee68da66ae Mon Sep 17 00:00:00 2001
+Message-ID: <c7889487359bff14c6d4b236055acfee68da66ae.1752837271.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 26 Jun 2025 18:24:06 +0200
+Subject: [PATCH] cgroup: Unexport 'virDomainCgroupInitCgroup'
+
+The function is called just from one place within the module where it's
+defined.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 3e0859566a164f640e75889d08241844b5e61bf8)
+
+https://issues.redhat.com/browse/RHEL-95361
+---
+ src/hypervisor/domain_cgroup.c |  2 +-
+ src/hypervisor/domain_cgroup.h | 10 ----------
+ src/libvirt_private.syms       |  1 -
+ 3 files changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/src/hypervisor/domain_cgroup.c b/src/hypervisor/domain_cgroup.c
+index fda495faf5..fecc0f7966 100644
+--- a/src/hypervisor/domain_cgroup.c
++++ b/src/hypervisor/domain_cgroup.c
+@@ -342,7 +342,7 @@ virDomainCgroupSetupCpuCgroup(virDomainObj *vm,
+ }
+ 
+ 
+-int
++static int
+ virDomainCgroupInitCgroup(const char *prefix,
+                           virDomainObj *vm,
+                           size_t nnicindexes,
+diff --git a/src/hypervisor/domain_cgroup.h b/src/hypervisor/domain_cgroup.h
+index f8d261a080..6e5c98004e 100644
+--- a/src/hypervisor/domain_cgroup.h
++++ b/src/hypervisor/domain_cgroup.h
+@@ -52,16 +52,6 @@ virDomainCgroupSetupCpusetCgroup(virCgroup *cgroup);
+ int
+ virDomainCgroupSetupCpuCgroup(virDomainObj *vm,
+                               virCgroup *cgroup);
+-int
+-virDomainCgroupInitCgroup(const char *prefix,
+-                          virDomainObj *vm,
+-                          size_t nnicindexes,
+-                          int *nicindexes,
+-                          virCgroup **cgroup,
+-                          int cgroupControllers,
+-                          unsigned int maxThreadsPerProc,
+-                          bool privileged,
+-                          char *machineName);
+ void
+ virDomainCgroupRestoreCgroupState(virDomainObj *vm,
+                                   virCgroup *cgroup);
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index a8ebf9efd8..8f1489ecc8 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -1641,7 +1641,6 @@ virSetConnectStorage;
+ virDomainCgroupConnectCgroup;
+ virDomainCgroupEmulatorAllNodesAllow;
+ virDomainCgroupEmulatorAllNodesRestore;
+-virDomainCgroupInitCgroup;
+ virDomainCgroupRemoveCgroup;
+ virDomainCgroupSetMemoryLimitParameters;
+ virDomainCgroupSetupBlkio;
+-- 
+2.50.1

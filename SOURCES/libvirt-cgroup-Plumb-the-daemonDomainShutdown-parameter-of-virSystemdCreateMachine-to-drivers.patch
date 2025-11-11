@@ -1,0 +1,176 @@
+From 5ef229b0035c34fd9b67183d6f0a2b810cc47907 Mon Sep 17 00:00:00 2001
+Message-ID: <5ef229b0035c34fd9b67183d6f0a2b810cc47907.1752837271.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 27 Jun 2025 14:47:10 +0200
+Subject: [PATCH] cgroup: Plumb the 'daemonDomainShutdown' parameter of
+ 'virSystemdCreateMachine' to drivers
+
+Plumb the new argument across the cgroup helpers up to the domain driver
+code.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit fe57a6deaa8ab83ffdb8ed73104196e4b1421893)
+
+https://issues.redhat.com/browse/RHEL-95361
+---
+ src/ch/ch_process.c            | 2 ++
+ src/hypervisor/domain_cgroup.c | 4 ++++
+ src/hypervisor/domain_cgroup.h | 1 +
+ src/lxc/lxc_cgroup.c           | 1 +
+ src/qemu/qemu_cgroup.c         | 1 +
+ src/util/vircgroup.c           | 6 +++++-
+ src/util/vircgroup.h           | 1 +
+ 7 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/ch/ch_process.c b/src/ch/ch_process.c
+index 95c808cb41..cc84823fdc 100644
+--- a/src/ch/ch_process.c
++++ b/src/ch/ch_process.c
+@@ -973,6 +973,7 @@ virCHProcessStart(virCHDriver *driver,
+                                    cfg->cgroupControllers,
+                                    0, /*maxThreadsPerProc*/
+                                    priv->driver->privileged,
++                                   false,
+                                    priv->machineName) < 0)
+         goto cleanup;
+ 
+@@ -1147,6 +1148,7 @@ virCHProcessStartRestore(virCHDriver *driver, virDomainObj *vm, const char *from
+                                    cfg->cgroupControllers,
+                                    0, /*maxThreadsPerProc*/
+                                    priv->driver->privileged,
++                                   false,
+                                    priv->machineName) < 0)
+         goto cleanup;
+ 
+diff --git a/src/hypervisor/domain_cgroup.c b/src/hypervisor/domain_cgroup.c
+index fecc0f7966..8787165f48 100644
+--- a/src/hypervisor/domain_cgroup.c
++++ b/src/hypervisor/domain_cgroup.c
+@@ -351,6 +351,7 @@ virDomainCgroupInitCgroup(const char *prefix,
+                           int cgroupControllers,
+                           unsigned int maxThreadsPerProc,
+                           bool privileged,
++                          bool daemonDomainShutdown,
+                           char *machineName)
+ {
+     if (!privileged)
+@@ -384,6 +385,7 @@ virDomainCgroupInitCgroup(const char *prefix,
+                             vm->def->resource->partition,
+                             cgroupControllers,
+                             maxThreadsPerProc,
++                            daemonDomainShutdown,
+                             cgroup) < 0) {
+         if (virCgroupNewIgnoreError())
+             return 0;
+@@ -513,6 +515,7 @@ virDomainCgroupSetupCgroup(const char *prefix,
+                            int cgroupControllers,
+                            unsigned int maxThreadsPerProc,
+                            bool privileged,
++                           bool daemonDomainShutdown,
+                            char *machineName)
+ {
+     if (vm->pid == 0) {
+@@ -529,6 +532,7 @@ virDomainCgroupSetupCgroup(const char *prefix,
+                                   cgroupControllers,
+                                   maxThreadsPerProc,
+                                   privileged,
++                                  daemonDomainShutdown,
+                                   machineName) < 0)
+         return -1;
+ 
+diff --git a/src/hypervisor/domain_cgroup.h b/src/hypervisor/domain_cgroup.h
+index 6e5c98004e..7769572a2c 100644
+--- a/src/hypervisor/domain_cgroup.h
++++ b/src/hypervisor/domain_cgroup.h
+@@ -71,6 +71,7 @@ virDomainCgroupSetupCgroup(const char *prefix,
+                            int cgroupControllers,
+                            unsigned int maxThreadsPerProc,
+                            bool privileged,
++                           bool daemonDomainShutdown,
+                            char *machineName);
+ void
+ virDomainCgroupEmulatorAllNodesDataFree(virCgroupEmulatorAllNodesData *data);
+diff --git a/src/lxc/lxc_cgroup.c b/src/lxc/lxc_cgroup.c
+index 7c889667ba..f566a5468e 100644
+--- a/src/lxc/lxc_cgroup.c
++++ b/src/lxc/lxc_cgroup.c
+@@ -400,6 +400,7 @@ virCgroup *virLXCCgroupCreate(virDomainDef *def,
+                             def->resource->partition,
+                             -1,
+                             0,
++                            false,
+                             &cgroup) < 0)
+         return NULL;
+ 
+diff --git a/src/qemu/qemu_cgroup.c b/src/qemu/qemu_cgroup.c
+index 48af467bf9..04d6370011 100644
+--- a/src/qemu/qemu_cgroup.c
++++ b/src/qemu/qemu_cgroup.c
+@@ -919,6 +919,7 @@ qemuSetupCgroup(virDomainObj *vm,
+                                    cfg->cgroupControllers,
+                                    cfg->maxThreadsPerProc,
+                                    priv->driver->privileged,
++                                   false,
+                                    priv->machineName) < 0)
+ 
+         return -1;
+diff --git a/src/util/vircgroup.c b/src/util/vircgroup.c
+index fc5dca4858..532a7e5690 100644
+--- a/src/util/vircgroup.c
++++ b/src/util/vircgroup.c
+@@ -1274,6 +1274,7 @@ virCgroupNewMachineSystemd(const char *name,
+                            const char *partition,
+                            int controllers,
+                            unsigned int maxthreads,
++                           bool daemonDomainShutdown,
+                            virCgroup **group)
+ {
+     int rv;
+@@ -1294,7 +1295,7 @@ virCgroupNewMachineSystemd(const char *name,
+                                       nicindexes,
+                                       partition,
+                                       maxthreads,
+-                                      false)) < 0)
++                                      daemonDomainShutdown)) < 0)
+         return rv;
+ 
+     if (controllers != -1)
+@@ -1407,6 +1408,7 @@ virCgroupNewMachine(const char *name,
+                     const char *partition,
+                     int controllers,
+                     unsigned int maxthreads,
++                    bool daemonDomainShutdown,
+                     virCgroup **group)
+ {
+     int rv;
+@@ -1424,6 +1426,7 @@ virCgroupNewMachine(const char *name,
+                                          partition,
+                                          controllers,
+                                          maxthreads,
++                                         daemonDomainShutdown,
+                                          group)) == 0)
+         return 0;
+ 
+@@ -3144,6 +3147,7 @@ virCgroupNewMachine(const char *name G_GNUC_UNUSED,
+                     const char *partition G_GNUC_UNUSED,
+                     int controllers G_GNUC_UNUSED,
+                     unsigned int maxthreads G_GNUC_UNUSED,
++                    bool daemonDomainShutdown G_GNUC_UNUSED,
+                     virCgroup **group G_GNUC_UNUSED)
+ {
+     virReportSystemError(ENXIO, "%s",
+diff --git a/src/util/vircgroup.h b/src/util/vircgroup.h
+index adf3850b22..2a7aa3306c 100644
+--- a/src/util/vircgroup.h
++++ b/src/util/vircgroup.h
+@@ -101,6 +101,7 @@ int virCgroupNewMachine(const char *name,
+                         const char *partition,
+                         int controllers,
+                         unsigned int maxthreads,
++                        bool daemonDomainShutdown,
+                         virCgroup **group)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2)
+     ATTRIBUTE_NONNULL(3);
+-- 
+2.50.1

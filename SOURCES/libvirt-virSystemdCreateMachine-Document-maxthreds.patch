@@ -1,0 +1,32 @@
+From a979205ad19aafc0cea99f66debff32704882fa4 Mon Sep 17 00:00:00 2001
+Message-ID: <a979205ad19aafc0cea99f66debff32704882fa4.1752837271.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 26 Jun 2025 17:20:21 +0200
+Subject: [PATCH] virSystemdCreateMachine: Document @maxthreds
+
+The parameter overrides the maximum number of threads for the machine.
+
+Fixes: d5572f62e32
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 0df20b69c8c235946a307ee9b031002d69137852)
+
+https://issues.redhat.com/browse/RHEL-95361
+---
+ src/util/virsystemd.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/util/virsystemd.c b/src/util/virsystemd.c
+index 92d2890360..4f8424ae32 100644
+--- a/src/util/virsystemd.c
++++ b/src/util/virsystemd.c
+@@ -357,6 +357,7 @@ virSystemdGetMachineUnitByPID(pid_t pid)
+  * @nnicindexes: number of network interface indexes in list
+  * @nicindexes: list of network interface indexes
+  * @partition: name of the slice to place the machine in
++ * @maxthreads: maximum number of threads the VM process can use
+  *
+  * Returns 0 on success, -1 on fatal error, or -2 if systemd-machine is not available
+  */
+-- 
+2.50.1
