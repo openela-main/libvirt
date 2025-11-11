@@ -1,0 +1,72 @@
+From b4b30bd7eebc51bbc4b3de23db6cf3b494a8f60f Mon Sep 17 00:00:00 2001
+Message-ID: <b4b30bd7eebc51bbc4b3de23db6cf3b494a8f60f.1759835599.git.jdenemar@redhat.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 24 Sep 2025 13:11:50 +0200
+Subject: [PATCH] qemu: Add QEMU_CAPS_TDX_GUEST capability
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+QEMU_CAPS_TDX_GUEST set means TDX supported with this QEMU.
+
+Signed-off-by: Chenyi Qiang <chenyi.qiang@intel.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 121fd199420e0f3f645177de78e285dfa3502935)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+RHEL: context
+---
+ src/qemu/qemu_capabilities.c                               | 2 ++
+ src/qemu/qemu_capabilities.h                               | 1 +
+ tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml | 1 +
+ 3 files changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index ea0c42d624..f912b4cf9d 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -728,6 +728,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
+               "amd-iommu", /* QEMU_CAPS_AMD_IOMMU */
+               "amd-iommu.pci-id", /* QEMU_CAPS_AMD_IOMMU_PCI_ID */
++              "tdx-guest", /* QEMU_CAPS_TDX_GUEST */
+     );
+ 
+ 
+@@ -1419,6 +1420,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
+     { "acpi-erst", QEMU_CAPS_DEVICE_ACPI_ERST },
+     { "virtio-mem-ccw", QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW },
+     { "amd-iommu", QEMU_CAPS_AMD_IOMMU },
++    { "tdx-guest", QEMU_CAPS_TDX_GUEST},
+ };
+ 
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 8918e8dfc4..1334a668f0 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -707,6 +707,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_BLOCKDEV_SET_ACTIVE, /* blockdev-set-active QMP command supported */
+     QEMU_CAPS_AMD_IOMMU, /* -device amd-iommu */
+     QEMU_CAPS_AMD_IOMMU_PCI_ID, /* amd-iommu.pci-id */
++    QEMU_CAPS_TDX_GUEST, /* -object tdx-guest,... */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml b/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml
+index 584d515d8c..54b09813a8 100644
+--- a/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml
++++ b/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml
+@@ -194,6 +194,7 @@
+   <flag name='blockdev-set-active'/>
+   <flag name='amd-iommu'/>
+   <flag name='amd-iommu.pci-id'/>
++  <flag name='tdx-guest'/>
+   <version>10000050</version>
+   <microcodeVersion>43100286</microcodeVersion>
+   <package>v10.0.0-1724-gf9a3def17b</package>
+-- 
+2.51.0

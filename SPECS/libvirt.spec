@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 15%{?dist}%{?extra_release}
+Release: 15.1%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -451,6 +451,28 @@ Patch151: libvirt-esx-Allow-specifying-different-CA-bundle-for-remote-connection
 Patch152: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
 Patch153: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
 Patch154: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
+Patch155: libvirt-tools-Secure-guest-check-for-Intel-in-virt-host-validate.patch
+Patch156: libvirt-qemu-Check-if-INTEL-Trust-Domain-Extention-support-is-enabled.patch
+Patch157: libvirt-qemucapabilitiesdata-Document-inteltdx-variant.patch
+Patch158: libvirt-qemucapabilitiestest-Add-data-for-the-qemu-10.1.0-dev-cycle-on-x86_64-for-the-inteltdx-variant.patch
+Patch159: libvirt-qemu-Add-QEMU_CAPS_TDX_GUEST-capability.patch
+Patch160: libvirt-conf-Expose-TDX-feature-in-domain-capabilities.patch
+Patch161: libvirt-conf-Add-tdx-as-launch-security-type.patch
+Patch162: libvirt-conf-Validate-TDX-launchSecurity-element-mrConfigId-mrOwner-mrOwnerConfig.patch
+Patch163: libvirt-qemu-Add-command-line-and-validation-for-TDX-type.patch
+Patch164: libvirt-conf-Expose-TDX-type-in-domain-launch-security-capability.patch
+Patch165: libvirt-qemu-Force-special-parameters-enabled-for-TDX-guest.patch
+Patch166: libvirt-qemu-log-the-crash-information-for-TDX.patch
+Patch167: libvirt-qemu_firmware-Pick-the-right-firmware-for-TDX-guests.patch
+Patch168: libvirt-conf-Add-Intel-TDX-Quote-Generation-Service-QGS-support.patch
+Patch169: libvirt-qemu-Add-command-line-for-TDX-Quote-Generation-Service-QGS.patch
+Patch170: libvirt-qemu-Add-FakeReboot-support-for-TDX-guest.patch
+Patch171: libvirt-qemu-Support-reboot-command-in-guest.patch
+Patch172: libvirt-qemu-Avoid-duplicate-FakeReboot-for-secure-guest.patch
+Patch173: libvirt-qemu-Send-event-VIR_DOMAIN_EVENT_-STOPPED-STARTED-during-recreation.patch
+Patch174: libvirt-qemu-Support-domain-reset-command-for-TDX-guest.patch
+Patch175: libvirt-qemuxmlconftest-Add-latest-version-of-launch-security-tdx-test-data.patch
+Patch176: libvirt-docs-domain-Add-documentation-for-Intel-TDX-guest.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2776,6 +2798,30 @@ exit 0
 %endif
 
 %changelog
+* Tue Oct  7 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.1.el9_7
+- tools: Secure guest check for Intel in virt-host-validate (RHEL-111840)
+- qemu: Check if INTEL Trust Domain Extention support is enabled (RHEL-111840)
+- qemucapabilitiesdata: Document '+inteltdx' variant (RHEL-111840)
+- qemucapabilitiestest: Add data for the qemu-10.1.0 dev cycle on x86_64 for the '+inteltdx' variant (RHEL-111840)
+- qemu: Add QEMU_CAPS_TDX_GUEST capability (RHEL-111840)
+- conf: Expose TDX feature in domain capabilities (RHEL-111840)
+- conf: Add tdx as launch security type (RHEL-111840)
+- conf: Validate TDX launchSecurity element mrConfigId/mrOwner/mrOwnerConfig (RHEL-111840)
+- qemu: Add command line and validation for TDX type (RHEL-111840)
+- conf: Expose TDX type in domain launch security capability (RHEL-111840)
+- qemu: Force special parameters enabled for TDX guest (RHEL-111840)
+- qemu: log the crash information for TDX (RHEL-111840)
+- qemu_firmware: Pick the right firmware for TDX guests (RHEL-111840)
+- conf: Add Intel TDX Quote Generation Service(QGS) support (RHEL-111840)
+- qemu: Add command line for TDX Quote Generation Service(QGS) (RHEL-111840)
+- qemu: Add FakeReboot support for TDX guest (RHEL-111840)
+- qemu: Support reboot command in guest (RHEL-111840)
+- qemu: Avoid duplicate FakeReboot for secure guest (RHEL-111840)
+- qemu: Send event VIR_DOMAIN_EVENT_[STOPPED|STARTED] during recreation (RHEL-111840)
+- qemu: Support domain reset command for TDX guest (RHEL-111840)
+- qemuxmlconftest: Add latest version of 'launch-security-tdx*' test data (RHEL-111840)
+- docs: domain: Add documentation for Intel TDX guest (RHEL-111840)
+
 * Mon Aug 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15
 - qemu: fix order of VNC TLS config entries (RHEL-106276)
 - qemu: sanitize blank lines in config file (RHEL-106276)

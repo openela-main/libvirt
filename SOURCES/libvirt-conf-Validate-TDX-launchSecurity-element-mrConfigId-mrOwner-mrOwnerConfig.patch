@@ -1,0 +1,63 @@
+From 889ea0ba62e2c51b8dc7d75c0f59ba757d57bdce Mon Sep 17 00:00:00 2001
+Message-ID: <889ea0ba62e2c51b8dc7d75c0f59ba757d57bdce.1759835600.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:10 -0400
+Subject: [PATCH] conf: Validate TDX launchSecurity element
+ mrConfigId/mrOwner/mrOwnerConfig
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+mrConfigId/mrOwner/mrOwnerConfig are base64 encoded SHA384 digest,
+can be provided for TDX attestation.
+
+Check their decoded lengths to ensure they are 48 bytes.
+
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit ea625cb60b6c829d96c67a4ac99f6ccb96a15257)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/conf/domain_validate.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_validate.c b/src/conf/domain_validate.c
+index 2d4b79032b..2878b210c7 100644
+--- a/src/conf/domain_validate.c
++++ b/src/conf/domain_validate.c
+@@ -1839,10 +1839,13 @@ virDomainDefValidateIOThreads(const virDomainDef *def)
+     } \
+ }
+ 
++#define SHA384_DIGEST_SIZE  48
++
+ static int
+ virDomainDefLaunchSecurityValidate(const virDomainDef *def)
+ {
+     virDomainSEVSNPDef *sev_snp;
++    virDomainTDXDef *tdx;
+ 
+     if (!def->sec)
+         return 0;
+@@ -1857,10 +1860,17 @@ virDomainDefLaunchSecurityValidate(const virDomainDef *def)
+         CHECK_BASE64_LEN(sev_snp->host_data, "hostData", 32);
+         break;
+ 
++    case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
++        tdx = &def->sec->data.tdx;
++
++        CHECK_BASE64_LEN(tdx->mrconfigid, "mrConfigId", SHA384_DIGEST_SIZE);
++        CHECK_BASE64_LEN(tdx->mrowner, "mrOwner", SHA384_DIGEST_SIZE);
++        CHECK_BASE64_LEN(tdx->mrownerconfig, "mrOwnerConfig", SHA384_DIGEST_SIZE);
++        break;
++
+     case VIR_DOMAIN_LAUNCH_SECURITY_NONE:
+     case VIR_DOMAIN_LAUNCH_SECURITY_SEV:
+     case VIR_DOMAIN_LAUNCH_SECURITY_PV:
+-    case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
+     case VIR_DOMAIN_LAUNCH_SECURITY_LAST:
+         break;
+     }
+-- 
+2.51.0

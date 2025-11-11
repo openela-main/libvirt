@@ -1,0 +1,68 @@
+From 7eff4d32f92fa15ffa3705b977cf8e29d41f6d26 Mon Sep 17 00:00:00 2001
+Message-ID: <7eff4d32f92fa15ffa3705b977cf8e29d41f6d26.1759835599.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:04 -0400
+Subject: [PATCH] qemu: Check if INTEL Trust Domain Extention support is
+ enabled
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Implement TDX check in order to generate domain feature capability
+correctly in case the availability of the feature changed.
+
+For INTEL TDX the verification is:
+ - checking if "/sys/module/kvm_intel/parameters/tdx" contains the
+   value 'Y': meaning TDX is enabled in the host kernel.
+
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Reviewed-by: Xiaoyao Li <xiaoyao.li@intel.com>
+(cherry picked from commit d7c96e809d2c446830930790db5206168aedef81)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index d60d2d95cc..ea0c42d624 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -5308,6 +5308,24 @@ virQEMUCapsKVMSupportsSecureGuestAMD(void)
+ }
+ 
+ 
++/*
++ * Check whether INTEL Trust Domain Extention (x86) is enabled
++ */
++static bool
++virQEMUCapsKVMSupportsSecureGuestTDX(void)
++{
++    g_autofree char *modValue = NULL;
++
++    if (virFileReadValueString(&modValue, "/sys/module/kvm_intel/parameters/tdx") < 0)
++        return false;
++
++    if (modValue[0] != 'Y')
++        return false;
++
++    return true;
++}
++
++
+ /*
+  * Check whether the secure guest functionality is enabled.
+  * See the specific architecture function for details on the verifications made.
+@@ -5321,7 +5339,8 @@ virQEMUCapsKVMSupportsSecureGuest(void)
+         return virQEMUCapsKVMSupportsSecureGuestS390();
+ 
+     if (ARCH_IS_X86(arch))
+-        return virQEMUCapsKVMSupportsSecureGuestAMD();
++        return virQEMUCapsKVMSupportsSecureGuestAMD() ||
++               virQEMUCapsKVMSupportsSecureGuestTDX();
+ 
+     return false;
+ }
+-- 
+2.51.0

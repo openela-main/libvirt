@@ -1,0 +1,84 @@
+From ed45ed36365fd14833c74d6143678afdf8448dc7 Mon Sep 17 00:00:00 2001
+Message-ID: <ed45ed36365fd14833c74d6143678afdf8448dc7.1759835600.git.jdenemar@redhat.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 24 Sep 2025 12:41:09 +0200
+Subject: [PATCH] qemu: Add command line for TDX Quote Generation Service(QGS)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+'tdx-guest' object supports a "quote-generation-socket" property for
+attestation purpose. When "quote-generation-socket" is configured in
+guest xml, libvirt generates unix socket format cmdline for QEMU.
+
+'Path' element can be omitted, default path "/var/run/tdx-qgs/qgs.socket"
+is used in this case.
+
+QEMU command line example:
+  qemu-system-x86_64 \
+    -object '{"qom-type":"tdx-guest","id":"lsec0","mrconfigid":"xxx","mrowner":"xxx","mrownerconfig":"xxx","quote-generation-socket":{"type":"unix","path":"/var/run/tdx-qgs/qgs.socket"},"attributes":268435457}' \
+    -machine pc-q35-6.0,confidential-guest-support=lsec0
+
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 61c4c1b538eed608315c21126b4bd1d26f972512)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+RHEL: context
+---
+ src/conf/domain_conf.h  |  3 +++
+ src/qemu/qemu_command.c | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 85ef6fbf2c..15aacc71c1 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2959,6 +2959,9 @@ struct _virDomainSEVSNPDef {
+ };
+ 
+ 
++/* Copied from QGS source code */
++#define QGS_UNIX_SOCKET_FILE	"/var/run/tdx-qgs/qgs.socket"
++
+ struct _virDomainTDXDef {
+     bool havePolicy;
+     unsigned long long policy;
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index c2183d332e..c6b826a007 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -9754,16 +9754,30 @@ static int
+ qemuBuildTDXCommandLine(virDomainObj *vm, virCommand *cmd,
+                         virDomainTDXDef *tdx)
+ {
++    g_autoptr(virJSONValue) addr = NULL;
+     g_autoptr(virJSONValue) props = NULL;
+     qemuDomainObjPrivate *priv = vm->privateData;
++    const char *path = QGS_UNIX_SOCKET_FILE;
+ 
+     if (tdx->havePolicy)
+         VIR_DEBUG("policy=0x%llx", tdx->policy);
+ 
++    if (tdx->haveQGS) {
++        if (tdx->qgs_unix_path)
++            path = tdx->qgs_unix_path;
++
++        if (virJSONValueObjectAdd(&addr,
++                                  "s:type", "unix",
++                                  "s:path", path,
++                                  NULL) < 0)
++            return -1;
++    }
++
+     if (qemuMonitorCreateObjectProps(&props, "tdx-guest", "lsec0",
+                                      "S:mrconfigid", tdx->mrconfigid,
+                                      "S:mrowner", tdx->mrowner,
+                                      "S:mrownerconfig", tdx->mrownerconfig,
++                                     "A:quote-generation-socket", &addr,
+                                      NULL) < 0)
+         return -1;
+ 
+-- 
+2.51.0

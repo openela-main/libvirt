@@ -1,0 +1,164 @@
+From dec132c0a7598d1d5dfd50e380cf988ac4e0b321 Mon Sep 17 00:00:00 2001
+Message-ID: <dec132c0a7598d1d5dfd50e380cf988ac4e0b321.1759835599.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:08 -0400
+Subject: [PATCH] conf: Expose TDX feature in domain capabilities
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Extend qemu TDX capability to domain capabilities.
+
+Signed-off-by: Chenyi Qiang <chenyi.qiang@intel.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit f87397488337ed596b0961855ccdea81de0e161c)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+RHEL: missing 10.1 data files
+---
+ docs/formatdomaincaps.rst                           |  1 +
+ src/conf/domain_capabilities.c                      |  1 +
+ src/conf/domain_capabilities.h                      |  1 +
+ src/conf/schemas/domaincaps.rng                     |  9 +++++++++
+ src/qemu/qemu_capabilities.c                        | 13 +++++++++++++
+ .../qemu_10.1.0-q35.x86_64+inteltdx.xml             |  1 +
+ .../domaincapsdata/qemu_10.1.0.x86_64+inteltdx.xml  |  1 +
+ tests/domaincapsmock.c                              |  3 ++-
+ 8 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/docs/formatdomaincaps.rst b/docs/formatdomaincaps.rst
+index ed95af4fee..664194b16d 100644
+--- a/docs/formatdomaincaps.rst
++++ b/docs/formatdomaincaps.rst
+@@ -720,6 +720,7 @@ capabilities. All features occur as children of the main ``features`` element.
+        <backingStoreInput supported='yes'/>
+        <backup supported='yes'/>
+        <async-teardown supported='yes'/>
++       <tdx supported='yes'/>
+        <sev>
+          <cbitpos>47</cbitpos>
+          <reduced-phys-bits>1</reduced-phys-bits>
+diff --git a/src/conf/domain_capabilities.c b/src/conf/domain_capabilities.c
+index ab715b19d8..b8f17e6d2f 100644
+--- a/src/conf/domain_capabilities.c
++++ b/src/conf/domain_capabilities.c
+@@ -44,6 +44,7 @@ VIR_ENUM_IMPL(virDomainCapsFeature,
+               "async-teardown",
+               "s390-pv",
+               "ps2",
++              "tdx",
+ );
+ 
+ static virClass *virDomainCapsClass;
+diff --git a/src/conf/domain_capabilities.h b/src/conf/domain_capabilities.h
+index 69dd1a15c1..eacbd6b6b3 100644
+--- a/src/conf/domain_capabilities.h
++++ b/src/conf/domain_capabilities.h
+@@ -274,6 +274,7 @@ typedef enum {
+     VIR_DOMAIN_CAPS_FEATURE_ASYNC_TEARDOWN,
+     VIR_DOMAIN_CAPS_FEATURE_S390_PV,
+     VIR_DOMAIN_CAPS_FEATURE_PS2,
++    VIR_DOMAIN_CAPS_FEATURE_TDX,
+ 
+     VIR_DOMAIN_CAPS_FEATURE_LAST
+ } virDomainCapsFeature;
+diff --git a/src/conf/schemas/domaincaps.rng b/src/conf/schemas/domaincaps.rng
+index 3559d2ae05..850e7d63a0 100644
+--- a/src/conf/schemas/domaincaps.rng
++++ b/src/conf/schemas/domaincaps.rng
+@@ -357,6 +357,9 @@
+       <optional>
+         <ref name="ps2"/>
+       </optional>
++      <optional>
++        <ref name="tdx"/>
++      </optional>
+       <optional>
+         <ref name="sev"/>
+       </optional>
+@@ -421,6 +424,12 @@
+     </element>
+   </define>
+ 
++  <define name="tdx">
++    <element name="tdx">
++      <ref name="supported"/>
++    </element>
++  </define>
++
+   <define name="sev">
+     <element name="sev">
+       <ref name="supported"/>
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index f912b4cf9d..dbec00c99d 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -6968,6 +6968,18 @@ virQEMUCapsFillDomainFeatureHypervCaps(virQEMUCaps *qemuCaps,
+ }
+ 
+ 
++static void
++virQEMUCapsFillDomainFeatureTDXCaps(virQEMUCaps *qemuCaps,
++                                    virDomainCaps *domCaps)
++{
++    if (domCaps->arch == VIR_ARCH_X86_64 &&
++        domCaps->virttype == VIR_DOMAIN_VIRT_KVM &&
++        virQEMUCapsGet(qemuCaps, QEMU_CAPS_TDX_GUEST) &&
++        virQEMUCapsGetKVMSupportsSecureGuest(qemuCaps))
++            domCaps->features[VIR_DOMAIN_CAPS_FEATURE_TDX] = VIR_TRISTATE_BOOL_YES;
++}
++
++
+ int
+ virQEMUCapsFillDomainCaps(virQEMUCaps *qemuCaps,
+                           virArch hostarch,
+@@ -7030,6 +7042,7 @@ virQEMUCapsFillDomainCaps(virQEMUCaps *qemuCaps,
+     virQEMUCapsFillDomainFeaturePS2Caps(qemuCaps, domCaps);
+     virQEMUCapsFillDomainFeatureSGXCaps(qemuCaps, domCaps);
+     virQEMUCapsFillDomainFeatureHypervCaps(qemuCaps, domCaps);
++    virQEMUCapsFillDomainFeatureTDXCaps(qemuCaps, domCaps);
+     virQEMUCapsFillDomainDeviceCryptoCaps(qemuCaps, crypto);
+     virQEMUCapsFillDomainLaunchSecurity(qemuCaps, launchSecurity);
+     virQEMUCapsFillDomainDeviceNetCaps(qemuCaps, net);
+diff --git a/tests/domaincapsdata/qemu_10.1.0-q35.x86_64+inteltdx.xml b/tests/domaincapsdata/qemu_10.1.0-q35.x86_64+inteltdx.xml
+index 385a828d43..1d0f9f1362 100644
+--- a/tests/domaincapsdata/qemu_10.1.0-q35.x86_64+inteltdx.xml
++++ b/tests/domaincapsdata/qemu_10.1.0-q35.x86_64+inteltdx.xml
+@@ -722,6 +722,7 @@
+     <backup supported='yes'/>
+     <async-teardown supported='yes'/>
+     <ps2 supported='yes'/>
++    <tdx supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='yes'>
+       <flc>yes</flc>
+diff --git a/tests/domaincapsdata/qemu_10.1.0.x86_64+inteltdx.xml b/tests/domaincapsdata/qemu_10.1.0.x86_64+inteltdx.xml
+index f689021a96..a5c781c67c 100644
+--- a/tests/domaincapsdata/qemu_10.1.0.x86_64+inteltdx.xml
++++ b/tests/domaincapsdata/qemu_10.1.0.x86_64+inteltdx.xml
+@@ -722,6 +722,7 @@
+     <backup supported='yes'/>
+     <async-teardown supported='yes'/>
+     <ps2 supported='yes'/>
++    <tdx supported='yes'/>
+     <sev supported='no'/>
+     <sgx supported='yes'>
+       <flc>yes</flc>
+diff --git a/tests/domaincapsmock.c b/tests/domaincapsmock.c
+index 6ae0c4ad45..cb6e98dbb8 100644
+--- a/tests/domaincapsmock.c
++++ b/tests/domaincapsmock.c
+@@ -54,7 +54,8 @@ bool
+ virQEMUCapsGetKVMSupportsSecureGuest(virQEMUCaps *qemuCaps)
+ {
+     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_CONFIDENTAL_GUEST_SUPPORT) &&
+-        virQEMUCapsGet(qemuCaps, QEMU_CAPS_S390_PV_GUEST))
++        (virQEMUCapsGet(qemuCaps, QEMU_CAPS_S390_PV_GUEST) ||
++         virQEMUCapsGet(qemuCaps, QEMU_CAPS_TDX_GUEST)))
+         return true;
+ 
+     if (!real_virQEMUCapsGetKVMSupportsSecureGuest)
+-- 
+2.51.0

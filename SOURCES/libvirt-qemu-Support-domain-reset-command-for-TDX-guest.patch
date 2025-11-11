@@ -1,0 +1,150 @@
+From 9a47f88f06ca6c1274c2bb5ca723057faf33e86e Mon Sep 17 00:00:00 2001
+Message-ID: <9a47f88f06ca6c1274c2bb5ca723057faf33e86e.1759835600.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:23 -0400
+Subject: [PATCH] qemu: Support domain reset command for TDX guest
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+TDX guest doesn't support system_reset, so have to kill the old QEMU and
+start a new one to simulate the reset. This can be achieved by calling
+qemuProcessFakeRebootViaRecreate().
+
+Simiar as FakeReboot, QEMU sends SHUTDOWN event with "host-signal" reason
+which can trigger another FakeReset. Check if a FakeReset is ongoing and
+bypass "host-signal" processing which originally comes from FakeReset.
+
+Domain lock is already hold in qemuDomainReset() before calling
+qemuProcessFakeRebootViaRecreate(), so bypass locking in it.
+
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit fcc12f217e7a45ec6049642c2707917bb290d58c)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/qemu/qemu_domain.h  |  1 +
+ src/qemu/qemu_driver.c  | 10 +++++++++-
+ src/qemu/qemu_monitor.c |  6 ++++++
+ src/qemu/qemu_process.c | 14 +++++++++-----
+ src/qemu/qemu_process.h |  2 ++
+ 5 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 3f16f86da8..d787d2a065 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -128,6 +128,7 @@ struct _qemuDomainObjPrivate {
+     char *lockState;
+ 
+     bool fakeReboot;
++    bool fakeReset;
+     bool pausedShutdown;
+     /* allowReboot:
+      *
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 7d0c39c89f..98bfe8124d 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -2008,13 +2008,21 @@ qemuDomainReset(virDomainPtr dom, unsigned int flags)
+     if (virDomainResetEnsureACL(dom->conn, vm->def) < 0)
+         goto cleanup;
+ 
++    priv = vm->privateData;
++
++    if (vm->def->sec &&
++        vm->def->sec->sectype == VIR_DOMAIN_LAUNCH_SECURITY_TDX) {
++        priv->fakeReset = true;
++        ret = qemuProcessFakeRebootViaRecreate(vm, true);
++        goto cleanup;
++    }
++
+     if (virDomainObjBeginJob(vm, VIR_JOB_MODIFY) < 0)
+         goto cleanup;
+ 
+     if (virDomainObjCheckActive(vm) < 0)
+         goto endjob;
+ 
+-    priv = vm->privateData;
+     qemuDomainObjEnterMonitor(vm);
+     ret = qemuMonitorSystemReset(priv->mon);
+     qemuDomainObjExitMonitor(vm);
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 6d19b675d5..a9fe4f2f6b 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1086,6 +1086,12 @@ qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest,
+         if (priv->fakeReboot && STREQ_NULLABLE(reason, "host-signal"))
+             return;
+ 
++        /* Similar as FakeReboot for FakeReset. */
++        if (priv->fakeReset && STREQ_NULLABLE(reason, "host-signal")) {
++            priv->fakeReset = false;
++            return;
++        }
++
+         if ((STREQ_NULLABLE(reason, "guest-shutdown") &&
+              vm->def->onPoweroff == VIR_DOMAIN_LIFECYCLE_ACTION_RESTART) ||
+             (STREQ_NULLABLE(reason, "guest-reset") &&
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 0d4fdf6960..7b6c02bc27 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -450,8 +450,8 @@ qemuProcessHandleReset(qemuMonitor *mon G_GNUC_UNUSED,
+  * Secure guest doesn't support fake reboot via machine CPU reset.
+  * We thus fake reboot via QEMU re-creation.
+  */
+-static void
+-qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
++int
++qemuProcessFakeRebootViaRecreate(virDomainObj *vm, bool locked)
+ {
+     qemuDomainObjPrivate *priv = vm->privateData;
+     virQEMUDriver *driver = priv->driver;
+@@ -460,7 +460,9 @@ qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
+ 
+     VIR_DEBUG("Handle secure guest reboot: destroy phase");
+ 
+-    virObjectLock(vm);
++    if (!locked)
++        virObjectLock(vm);
++
+     if (qemuProcessBeginStopJob(vm, VIR_JOB_DESTROY, 0) < 0)
+         goto cleanup;
+ 
+@@ -513,7 +515,9 @@ qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
+     qemuDomainSetFakeReboot(vm, false);
+     if (ret == -1)
+         ignore_value(qemuProcessKill(vm, VIR_QEMU_PROCESS_KILL_FORCE));
+-    virDomainObjEndAPI(&vm);
++    if (!locked)
++        virDomainObjEndAPI(&vm);
++    return ret;
+ }
+ 
+ 
+@@ -587,7 +591,7 @@ qemuProcessFakeReboot(void *opaque)
+ 
+     if (vm->def->sec &&
+         vm->def->sec->sectype == VIR_DOMAIN_LAUNCH_SECURITY_TDX)
+-        qemuProcessFakeRebootViaRecreate(vm);
++        ignore_value(qemuProcessFakeRebootViaRecreate(vm, false));
+     else
+         qemuProcessFakeRebootViaReset(vm);
+ }
+diff --git a/src/qemu/qemu_process.h b/src/qemu/qemu_process.h
+index fee00ce53b..3074f27b64 100644
+--- a/src/qemu/qemu_process.h
++++ b/src/qemu/qemu_process.h
+@@ -184,6 +184,8 @@ typedef enum {
+ 
+ int qemuProcessKill(virDomainObj *vm, unsigned int flags);
+ 
++int qemuProcessFakeRebootViaRecreate(virDomainObj *vm, bool locked);
++
+ void qemuProcessShutdownOrReboot(virDomainObj *vm);
+ 
+ void qemuProcessAutoDestroy(virDomainObj *dom,
+-- 
+2.51.0

@@ -1,0 +1,211 @@
+From c8561a94d58c4b90ab67f49cc963e6b431972aee Mon Sep 17 00:00:00 2001
+Message-ID: <c8561a94d58c4b90ab67f49cc963e6b431972aee.1759835600.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:24 -0400
+Subject: [PATCH] qemuxmlconftest: Add latest version of 'launch-security-tdx*'
+ test data
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We now have the '+inteltdx' variant dumped from a modern qemu with tdx support,
+add qemuxmlconftest data for that variant.
+
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+(cherry picked from commit 798f748210ff7a43702adadd6037220b713d998e)
+Resolves: https://issues.redhat.com/browse/RHEL-111840
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+RHEL: rename the files to not include +inteltdx
+---
+ .../launch-security-tdx.x86_64-latest.args    | 44 +++++++++++
+ .../launch-security-tdx.x86_64-latest.xml     | 75 +++++++++++++++++++
+ tests/qemuxmlconfdata/launch-security-tdx.xml | 28 +++++++
+ tests/qemuxmlconftest.c                       |  3 +
+ 4 files changed, 150 insertions(+)
+ create mode 100644 tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.args
+ create mode 100644 tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.xml
+ create mode 100644 tests/qemuxmlconfdata/launch-security-tdx.xml
+
+diff --git a/tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.args b/tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.args
+new file mode 100644
+index 0000000000..366d553c93
+--- /dev/null
++++ b/tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.args
+@@ -0,0 +1,44 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-guest \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-guest/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-guest/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-guest/.config \
++/usr/bin/qemu-system-x86_64 \
++-name guest=guest,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-guest/master-key.aes"}' \
++-machine q35,usb=off,dump-guest-core=off,memory-backend=pc.ram,confidential-guest-support=lsec0,acpi=off \
++-accel tcg \
++-cpu qemu64 \
++-m size=4194304k \
++-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":4294967296}' \
++-overcommit mem-lock=off \
++-smp 4,sockets=4,cores=1,threads=1 \
++-uuid 1ccfd97d-5eb4-478a-bbe6-88d254c16db7 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-device '{"driver":"pcie-root-port","port":16,"chassis":1,"id":"pci.1","bus":"pcie.0","multifunction":true,"addr":"0x2"}' \
++-device '{"driver":"pcie-pci-bridge","id":"pci.2","bus":"pci.1","addr":"0x0"}' \
++-device '{"driver":"pcie-root-port","port":17,"chassis":3,"id":"pci.3","bus":"pcie.0","addr":"0x2.0x1"}' \
++-device '{"driver":"piix3-usb-uhci","id":"usb","bus":"pci.2","addr":"0x2"}' \
++-device '{"driver":"lsi","id":"scsi0","bus":"pci.2","addr":"0x3"}' \
++-netdev '{"type":"user","id":"hostnet0"}' \
++-device '{"driver":"rtl8139","netdev":"hostnet0","id":"net0","mac":"52:54:00:09:a4:37","bus":"pci.2","addr":"0x1"}' \
++-chardev pty,id=charserial0 \
++-device '{"driver":"isa-serial","chardev":"charserial0","id":"serial0","index":0}' \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-device '{"driver":"cirrus-vga","id":"video0","bus":"pcie.0","addr":"0x1"}' \
++-global ICH9-LPC.noreboot=off \
++-watchdog-action reset \
++-object '{"qom-type":"tdx-guest","id":"lsec0","mrconfigid":"ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v","mrowner":"ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v","mrownerconfig":"ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v","quote-generation-socket":{"type":"unix","path":"/var/run/tdx-qgs/qgs.socket"},"attributes":268435456}' \
++-device '{"driver":"pvpanic"}' \
++-msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.xml b/tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.xml
+new file mode 100644
+index 0000000000..757fbdabbb
+--- /dev/null
++++ b/tests/qemuxmlconfdata/launch-security-tdx.x86_64-latest.xml
+@@ -0,0 +1,75 @@
++<domain type='qemu'>
++  <name>guest</name>
++  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
++  <memory unit='KiB'>4194304</memory>
++  <currentMemory unit='KiB'>4194304</currentMemory>
++  <vcpu placement='static'>4</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu64</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0' model='piix3-uhci'>
++      <address type='pci' domain='0x0000' bus='0x02' slot='0x02' function='0x0'/>
++    </controller>
++    <controller type='scsi' index='0' model='lsilogic'>
++      <address type='pci' domain='0x0000' bus='0x02' slot='0x03' function='0x0'/>
++    </controller>
++    <controller type='sata' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
++    </controller>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='pci' index='1' model='pcie-root-port'>
++      <model name='pcie-root-port'/>
++      <target chassis='1' port='0x10'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0' multifunction='on'/>
++    </controller>
++    <controller type='pci' index='2' model='pcie-to-pci-bridge'>
++      <model name='pcie-pci-bridge'/>
++      <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
++    </controller>
++    <controller type='pci' index='3' model='pcie-root-port'>
++      <model name='pcie-root-port'/>
++      <target chassis='3' port='0x11'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x1'/>
++    </controller>
++    <interface type='user'>
++      <mac address='52:54:00:09:a4:37'/>
++      <model type='rtl8139'/>
++      <address type='pci' domain='0x0000' bus='0x02' slot='0x01' function='0x0'/>
++    </interface>
++    <serial type='pty'>
++      <target type='isa-serial' port='0'>
++        <model name='isa-serial'/>
++      </target>
++    </serial>
++    <console type='pty'>
++      <target type='serial' port='0'/>
++    </console>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <audio id='1' type='none'/>
++    <video>
++      <model type='cirrus' vram='16384' heads='1' primary='yes'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
++    </video>
++    <watchdog model='itco' action='reset'/>
++    <memballoon model='none'/>
++    <panic model='isa'/>
++  </devices>
++  <launchSecurity type='tdx'>
++    <policy>0x10000000</policy>
++    <mrConfigId>ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v</mrConfigId>
++    <mrOwner>ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v</mrOwner>
++    <mrOwnerConfig>ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v</mrOwnerConfig>
++    <quoteGenerationService path='/var/run/tdx-qgs/qgs.socket'/>
++  </launchSecurity>
++</domain>
+diff --git a/tests/qemuxmlconfdata/launch-security-tdx.xml b/tests/qemuxmlconfdata/launch-security-tdx.xml
+new file mode 100644
+index 0000000000..07e3ae6db8
+--- /dev/null
++++ b/tests/qemuxmlconfdata/launch-security-tdx.xml
+@@ -0,0 +1,28 @@
++<domain type='qemu'>
++  <name>guest</name>
++  <uuid>1ccfd97d-5eb4-478a-bbe6-88d254c16db7</uuid>
++  <memory>4194304</memory>
++  <vcpu>4</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb'/>
++    <controller type='scsi'/>
++    <interface type='user'>
++      <mac address='52:54:00:09:a4:37'/>
++    </interface>
++    <serial type='pty'/>
++    <video/>
++    <memballoon model='none'/>
++    <panic/>
++  </devices>
++  <launchSecurity type='tdx'>
++    <policy>0x10000000</policy>
++    <mrConfigId>ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v</mrConfigId>
++    <mrOwner>ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v</mrOwner>
++    <mrOwnerConfig>ASNFZ4mrze8BI0VniavN7wEjRWeJq83vASNFZ4mrze8BI0VniavN7wEjRWeJq83v</mrOwnerConfig>
++    <quoteGenerationService path='/var/run/tdx-qgs/qgs.socket'/>
++  </launchSecurity>
++</domain>
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index a0af6429d1..5683e76599 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -2893,6 +2893,9 @@ mymain(void)
+ 
+     DO_TEST_CAPS_ARCH_LATEST("launch-security-s390-pv", "s390x");
+ 
++    DO_TEST_CAPS_ARCH_LATEST_FULL("launch-security-tdx", "x86_64",
++                                  ARG_CAPS_VARIANT, "+inteltdx", ARG_END);
++
+     DO_TEST_CAPS_LATEST("vhost-user-fs-fd-memory");
+     DO_TEST_CAPS_LATEST("vhost-user-fs-fd-openfiles");
+     DO_TEST_CAPS_LATEST("vhost-user-fs-hugepages");
+-- 
+2.51.0
