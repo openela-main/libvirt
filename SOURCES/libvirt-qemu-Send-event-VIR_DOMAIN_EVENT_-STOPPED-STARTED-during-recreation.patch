@@ -1,0 +1,138 @@
+From 285324c27451376aabdcb867521f500c864ac894 Mon Sep 17 00:00:00 2001
+Message-ID: <285324c27451376aabdcb867521f500c864ac894.1759908360.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:21 -0400
+Subject: [PATCH] qemu: Send event VIR_DOMAIN_EVENT_[STOPPED|STARTED] during
+ recreation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+For secure guest, FakeReboot kills original QEMU instance and
+create new one which is quite different from normal guest.
+
+To reflect this fact, VIR_DOMAIN_EVENT_[STOPPED|STARTED]
+are sent to control plane with new introduced reasons
+VIR_DOMAIN_EVENT_[STOPPED|STARTED]_RECREATION.
+
+That would let control plane software understand that these
+events are from a fake reboot.
+
+Suggested-by: Daniel P. Berrangé <berrange@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+(cherry picked from commit 1af740c5012bb45dfe96c77bcd6b20c28b6bb45d)
+Resolves: https://issues.redhat.com/browse/RHEL-111863
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ examples/c/misc/event-test.c     |  6 ++++++
+ include/libvirt/libvirt-domain.h |  2 ++
+ src/qemu/qemu_process.c          | 10 ++++++++++
+ tools/virsh-domain-event.c       |  6 ++++--
+ 4 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/examples/c/misc/event-test.c b/examples/c/misc/event-test.c
+index a61dbf4529..bafa929c47 100644
+--- a/examples/c/misc/event-test.c
++++ b/examples/c/misc/event-test.c
+@@ -143,6 +143,9 @@ eventDetailToString(int event,
+             case VIR_DOMAIN_EVENT_STARTED_WAKEUP:
+                 return "Event wakeup";
+ 
++            case VIR_DOMAIN_EVENT_STARTED_RECREATION:
++                return "Recreation";
++
+             case VIR_DOMAIN_EVENT_STARTED_LAST:
+                 break;
+             }
+@@ -227,6 +230,9 @@ eventDetailToString(int event,
+             case VIR_DOMAIN_EVENT_STOPPED_FROM_SNAPSHOT:
+                 return "Snapshot";
+ 
++            case VIR_DOMAIN_EVENT_STOPPED_RECREATION:
++                return "Recreation";
++
+             case VIR_DOMAIN_EVENT_STOPPED_LAST:
+                 break;
+             }
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index 3d05ffc5aa..fad58cf409 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -5051,6 +5051,7 @@ typedef enum {
+     VIR_DOMAIN_EVENT_STARTED_RESTORED = 2, /* Restored from a state file (Since: 0.5.0) */
+     VIR_DOMAIN_EVENT_STARTED_FROM_SNAPSHOT = 3, /* Restored from snapshot (Since: 0.8.0) */
+     VIR_DOMAIN_EVENT_STARTED_WAKEUP = 4,   /* Started due to wakeup event (Since: 0.9.11) */
++    VIR_DOMAIN_EVENT_STARTED_RECREATION = 5, /* Secure guest recreation (Since: 10.1.0) */
+ 
+ # ifdef VIR_ENUM_SENTINELS
+     VIR_DOMAIN_EVENT_STARTED_LAST /* (Since: 0.9.10) */
+@@ -5115,6 +5116,7 @@ typedef enum {
+     VIR_DOMAIN_EVENT_STOPPED_SAVED = 4,     /* Saved to a state file (Since: 0.5.0) */
+     VIR_DOMAIN_EVENT_STOPPED_FAILED = 5,    /* Host emulator/mgmt failed (Since: 0.5.0) */
+     VIR_DOMAIN_EVENT_STOPPED_FROM_SNAPSHOT = 6, /* offline snapshot loaded (Since: 0.8.0) */
++    VIR_DOMAIN_EVENT_STOPPED_RECREATION = 7,    /* Secure guest recreation (Since: 10.1.0) */
+ 
+ # ifdef VIR_ENUM_SENTINELS
+     VIR_DOMAIN_EVENT_STOPPED_LAST /* (Since: 0.9.10) */
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 7c8f785f32..7467a378ad 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -455,6 +455,7 @@ qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
+ {
+     qemuDomainObjPrivate *priv = vm->privateData;
+     virQEMUDriver *driver = priv->driver;
++    virObjectEvent *event = NULL;
+     int ret = -1;
+ 
+     VIR_DEBUG("Handle secure guest reboot: destroy phase");
+@@ -471,6 +472,11 @@ qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
+     qemuProcessStop(vm, VIR_DOMAIN_SHUTOFF_DESTROYED, VIR_ASYNC_JOB_NONE, 0);
+     virDomainAuditStop(vm, "destroyed");
+ 
++    event = virDomainEventLifecycleNewFromObj(vm,
++                                              VIR_DOMAIN_EVENT_STOPPED,
++                                              VIR_DOMAIN_EVENT_STOPPED_RECREATION);
++    virObjectEventStateQueue(driver->domainEventState, event);
++
+     /* skip remove inactive domain from active list */
+     qemuProcessEndStopJob(vm);
+ 
+@@ -491,6 +497,10 @@ qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
+     }
+ 
+     virDomainAuditStart(vm, "booted", true);
++    event = virDomainEventLifecycleNewFromObj(vm,
++                                              VIR_DOMAIN_EVENT_STARTED,
++                                              VIR_DOMAIN_EVENT_STARTED_RECREATION);
++    virObjectEventStateQueue(driver->domainEventState, event);
+ 
+     qemuDomainSaveStatus(vm);
+     ret = 0;
+diff --git a/tools/virsh-domain-event.c b/tools/virsh-domain-event.c
+index de33ed9d74..21dbf6e1d2 100644
+--- a/tools/virsh-domain-event.c
++++ b/tools/virsh-domain-event.c
+@@ -71,7 +71,8 @@ VIR_ENUM_IMPL(virshDomainEventStarted,
+               N_("Migrated"),
+               N_("Restored"),
+               N_("Snapshot"),
+-              N_("Event wakeup"));
++              N_("Event wakeup"),
++              N_("Recreation"));
+ 
+ VIR_ENUM_DECL(virshDomainEventSuspended);
+ VIR_ENUM_IMPL(virshDomainEventSuspended,
+@@ -104,7 +105,8 @@ VIR_ENUM_IMPL(virshDomainEventStopped,
+               N_("Migrated"),
+               N_("Saved"),
+               N_("Failed"),
+-              N_("Snapshot"));
++              N_("Snapshot"),
++              N_("Recreation"));
+ 
+ VIR_ENUM_DECL(virshDomainEventShutdown);
+ VIR_ENUM_IMPL(virshDomainEventShutdown,
+-- 
+2.51.0

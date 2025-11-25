@@ -1,0 +1,137 @@
+From 2840e187716ce3dbcf79a147e3bee58ed3c96502 Mon Sep 17 00:00:00 2001
+Message-ID: <2840e187716ce3dbcf79a147e3bee58ed3c96502.1759908360.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:18 -0400
+Subject: [PATCH] qemu: Add FakeReboot support for TDX guest
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Utilize the existing fake reboot mechanism to do reboot for TDX guest.
+
+Different from normal guest, TDX guest doesn't support system_reset,
+so have to kill the old guest and start a new one to simulate the reboot.
+
+Co-developed-by: Chenyi Qiang <chenyi.qiang@intel.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 4f733348212b3bb4de491aeaab4ac32f0335673d)
+Resolves: https://issues.redhat.com/browse/RHEL-111863
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/qemu/qemu_process.c | 80 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 77 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 529c65b9b0..7c8f785f32 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -446,6 +446,67 @@ qemuProcessHandleReset(qemuMonitor *mon G_GNUC_UNUSED,
+ }
+ 
+ 
++/*
++ * Secure guest doesn't support fake reboot via machine CPU reset.
++ * We thus fake reboot via QEMU re-creation.
++ */
++static void
++qemuProcessFakeRebootViaRecreate(virDomainObj *vm)
++{
++    qemuDomainObjPrivate *priv = vm->privateData;
++    virQEMUDriver *driver = priv->driver;
++    int ret = -1;
++
++    VIR_DEBUG("Handle secure guest reboot: destroy phase");
++
++    virObjectLock(vm);
++    if (qemuProcessBeginStopJob(vm, VIR_JOB_DESTROY, 0) < 0)
++        goto cleanup;
++
++    if (virDomainObjCheckActive(vm) < 0) {
++        qemuProcessEndStopJob(vm);
++        goto cleanup;
++    }
++
++    qemuProcessStop(vm, VIR_DOMAIN_SHUTOFF_DESTROYED, VIR_ASYNC_JOB_NONE, 0);
++    virDomainAuditStop(vm, "destroyed");
++
++    /* skip remove inactive domain from active list */
++    qemuProcessEndStopJob(vm);
++
++    VIR_DEBUG("Handle secure guest reboot: boot phase");
++
++    if (qemuProcessBeginJob(vm, VIR_DOMAIN_JOB_OPERATION_START, 0) < 0) {
++        qemuDomainRemoveInactive(vm, 0, false);
++        goto cleanup;
++    }
++
++    if (qemuProcessStart(NULL, driver, vm, NULL, VIR_ASYNC_JOB_START,
++                         NULL, -1, NULL, NULL, NULL,
++                         VIR_NETDEV_VPORT_PROFILE_OP_CREATE,
++                         0) < 0) {
++        virDomainAuditStart(vm, "booted", false);
++        qemuDomainRemoveInactive(vm, 0, false);
++        goto endjob;
++    }
++
++    virDomainAuditStart(vm, "booted", true);
++
++    qemuDomainSaveStatus(vm);
++    ret = 0;
++
++ endjob:
++    qemuProcessEndJob(vm);
++
++ cleanup:
++    priv->pausedShutdown = false;
++    qemuDomainSetFakeReboot(vm, false);
++    if (ret == -1)
++        ignore_value(qemuProcessKill(vm, VIR_QEMU_PROCESS_KILL_FORCE));
++    virDomainObjEndAPI(&vm);
++}
++
++
+ /*
+  * Since we have the '-no-shutdown' flag set, the
+  * QEMU process will currently have guest OS shutdown
+@@ -455,15 +516,13 @@ qemuProcessHandleReset(qemuMonitor *mon G_GNUC_UNUSED,
+  * guest OS booting up again
+  */
+ static void
+-qemuProcessFakeReboot(void *opaque)
++qemuProcessFakeRebootViaReset(virDomainObj *vm)
+ {
+-    virDomainObj *vm = opaque;
+     qemuDomainObjPrivate *priv = vm->privateData;
+     virQEMUDriver *driver = priv->driver;
+     virDomainRunningReason reason = VIR_DOMAIN_RUNNING_BOOTED;
+     int ret = -1, rc;
+ 
+-    VIR_DEBUG("vm=%p", vm);
+     virObjectLock(vm);
+     if (virDomainObjBeginJob(vm, VIR_JOB_MODIFY) < 0)
+         goto cleanup;
+@@ -509,6 +568,21 @@ qemuProcessFakeReboot(void *opaque)
+ }
+ 
+ 
++static void
++qemuProcessFakeReboot(void *opaque)
++{
++    virDomainObj *vm = opaque;
++
++    VIR_DEBUG("vm=%p", vm);
++
++    if (vm->def->sec &&
++        vm->def->sec->sectype == VIR_DOMAIN_LAUNCH_SECURITY_TDX)
++        qemuProcessFakeRebootViaRecreate(vm);
++    else
++        qemuProcessFakeRebootViaReset(vm);
++}
++
++
+ void
+ qemuProcessShutdownOrReboot(virDomainObj *vm)
+ {
+-- 
+2.51.0

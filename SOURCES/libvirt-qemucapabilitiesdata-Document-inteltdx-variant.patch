@@ -1,0 +1,36 @@
+From e993e972f7e7f6d2e5277c77e67bceeb9a308ca9 Mon Sep 17 00:00:00 2001
+Message-ID: <e993e972f7e7f6d2e5277c77e67bceeb9a308ca9.1759908359.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:05 -0400
+Subject: [PATCH] qemucapabilitiesdata: Document '+inteltdx' variant
+
+Upcoming patch will introduce test data from an TDX-enabled host.
+Document the new variant.
+
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 4c59ff7783d1672b872cc4190df3e89ae8d4130a)
+Resolves: https://issues.redhat.com/browse/RHEL-111863
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ tests/qemucapabilitiesdata/README.rst | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/tests/qemucapabilitiesdata/README.rst b/tests/qemucapabilitiesdata/README.rst
+index 38af651c66..3cc0ec4784 100644
+--- a/tests/qemucapabilitiesdata/README.rst
++++ b/tests/qemucapabilitiesdata/README.rst
+@@ -62,6 +62,11 @@ Known test variants
+   Variant of the test data captured on hosts supporting AMD SEV and AMD SEV_ES
+   security framework.
+ 
++``+inteltdx``
++
++  Variant of the test data captured on hosts supporting INTEL TDX security
++  framework.
++
+ Usage in tests
+ ==============
+ 
+-- 
+2.51.0

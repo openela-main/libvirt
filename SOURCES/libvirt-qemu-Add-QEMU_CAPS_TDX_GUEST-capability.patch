@@ -1,0 +1,70 @@
+From 390dbe0e7dc35d902e038739f011155a26671961 Mon Sep 17 00:00:00 2001
+Message-ID: <390dbe0e7dc35d902e038739f011155a26671961.1759908360.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:07 -0400
+Subject: [PATCH] qemu: Add QEMU_CAPS_TDX_GUEST capability
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+QEMU_CAPS_TDX_GUEST set means TDX supported with this QEMU.
+
+Signed-off-by: Chenyi Qiang <chenyi.qiang@intel.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 121fd199420e0f3f645177de78e285dfa3502935)
+Resolves: https://issues.redhat.com/browse/RHEL-111863
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                               | 2 ++
+ src/qemu/qemu_capabilities.h                               | 1 +
+ tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml | 1 +
+ 3 files changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 732c89fe29..3def894a22 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -741,6 +741,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "amd-iommu", /* QEMU_CAPS_AMD_IOMMU */
+               "amd-iommu.pci-id", /* QEMU_CAPS_AMD_IOMMU_PCI_ID */
+               "usb-bot", /* QEMU_CAPS_DEVICE_USB_BOT */
++              "tdx-guest", /* QEMU_CAPS_TDX_GUEST */
+     );
+ 
+ 
+@@ -1429,6 +1430,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
+     { "nvme-ns", QEMU_CAPS_DEVICE_NVME_NS },
+     { "amd-iommu", QEMU_CAPS_AMD_IOMMU },
+     { "usb-bot", QEMU_CAPS_DEVICE_USB_BOT },
++    { "tdx-guest", QEMU_CAPS_TDX_GUEST},
+ };
+ 
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 966e30fa11..2c78ea14f3 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -722,6 +722,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_AMD_IOMMU, /* -device amd-iommu */
+     QEMU_CAPS_AMD_IOMMU_PCI_ID, /* amd-iommu.pci-id */
+     QEMU_CAPS_DEVICE_USB_BOT, /* -device usb-bot */
++    QEMU_CAPS_TDX_GUEST, /* -object tdx-guest,... */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml b/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml
+index 5744a7a305..4be89b68d9 100644
+--- a/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml
++++ b/tests/qemucapabilitiesdata/caps_10.1.0_x86_64+inteltdx.xml
+@@ -191,6 +191,7 @@
+   <flag name='amd-iommu'/>
+   <flag name='amd-iommu.pci-id'/>
+   <flag name='usb-bot'/>
++  <flag name='tdx-guest'/>
+   <version>10000050</version>
+   <microcodeVersion>43100286</microcodeVersion>
+   <package>v10.0.0-1724-gf9a3def17b</package>
+-- 
+2.51.0

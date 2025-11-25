@@ -1,0 +1,141 @@
+From 19ca835c960b1b391d7926a5c860b73d2751a555 Mon Sep 17 00:00:00 2001
+Message-ID: <19ca835c960b1b391d7926a5c860b73d2751a555.1759908360.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:16 -0400
+Subject: [PATCH] conf: Add Intel TDX Quote Generation Service(QGS) support
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add element "quoteGenerationService" to tdx launch security type.
+It contains only an optional unix socket address attribute,
+when omitted, libvirt will use default QGS server address
+"/var/run/tdx-qgs/qgs.socket".
+
+UNIX sockets offer the required functionality with greater
+security than vsock, so libvirt only provides support for unix
+socket.
+
+XML example:
+
+  <launchSecurity type='tdx'>
+    <policy>0x10000001</policy>
+    <mrConfigId>xxx</mrConfigId>
+    <mrOwner>xxx</mrOwner>
+    <mrOwnerConfig>xxx</mrOwnerConfig>
+    <quoteGenerationService path='/var/run/tdx-qgs/qgs.socket'/>
+  </launchSecurity>
+
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+(cherry picked from commit 8214980432191138f052c2e32d12ae284597c8b8)
+Resolves: https://issues.redhat.com/browse/RHEL-111863
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/conf/domain_conf.c            | 35 ++++++++++++++++++++++++++++++-
+ src/conf/domain_conf.h            |  2 ++
+ src/conf/schemas/domaincommon.rng |  9 ++++++++
+ 3 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index d2f01a9397..3eb3ab35f1 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -3963,6 +3963,7 @@ virDomainSecDefFree(virDomainSecDef *def)
+         g_free(def->data.tdx.mrconfigid);
+         g_free(def->data.tdx.mrowner);
+         g_free(def->data.tdx.mrownerconfig);
++        g_free(def->data.tdx.qgs_unix_path);
+         break;
+     case VIR_DOMAIN_LAUNCH_SECURITY_PV:
+     case VIR_DOMAIN_LAUNCH_SECURITY_NONE:
+@@ -14210,6 +14211,33 @@ virDomainSEVSNPDefParseXML(virDomainSEVSNPDef *def,
+ }
+ 
+ 
++static int
++virDomainTDXQGSDefParseXML(virDomainTDXDef *def, xmlXPathContextPtr ctxt)
++{
++    g_autofree xmlNodePtr *nodes = NULL;
++    xmlNodePtr node;
++    int n;
++
++    if ((n = virXPathNodeSet("./quoteGenerationService", ctxt, &nodes)) < 0)
++        return -1;
++
++    if (!n)
++        return 0;
++
++    if (n > 1) {
++        virReportError(VIR_ERR_XML_ERROR, "%s",
++                       _("only a single QGS element is supported"));
++        return -1;
++    }
++    node = nodes[0];
++
++    def->haveQGS = true;
++    def->qgs_unix_path = virXMLPropString(node, "path");
++
++    return 0;
++}
++
++
+ static int
+ virDomainTDXDefParseXML(virDomainTDXDef *def,
+                         xmlXPathContextPtr ctxt)
+@@ -14229,7 +14257,7 @@ virDomainTDXDefParseXML(virDomainTDXDef *def,
+     def->mrowner = virXPathString("string(./mrOwner)", ctxt);
+     def->mrownerconfig = virXPathString("string(./mrOwnerConfig)", ctxt);
+ 
+-    return 0;
++    return virDomainTDXQGSDefParseXML(def, ctxt);
+ }
+ 
+ 
+@@ -27746,6 +27774,11 @@ virDomainTDXDefFormat(virBuffer *childBuf, virDomainTDXDef *def)
+     virBufferEscapeString(childBuf, "<mrConfigId>%s</mrConfigId>\n", def->mrconfigid);
+     virBufferEscapeString(childBuf, "<mrOwner>%s</mrOwner>\n", def->mrowner);
+     virBufferEscapeString(childBuf, "<mrOwnerConfig>%s</mrOwnerConfig>\n", def->mrownerconfig);
++    if (def->haveQGS) {
++        virBufferAddLit(childBuf, "<quoteGenerationService");
++        virBufferEscapeString(childBuf, " path='%s'", def->qgs_unix_path);
++        virBufferAddLit(childBuf, "/>\n");
++    }
+ }
+ 
+ 
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 51c05a3f18..cf5437f642 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -3005,6 +3005,8 @@ struct _virDomainTDXDef {
+     char *mrconfigid;
+     char *mrowner;
+     char *mrownerconfig;
++    bool haveQGS;
++    char *qgs_unix_path;
+ };
+ 
+ 
+diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
+index 56dbddcb43..0e13f79e99 100644
+--- a/src/conf/schemas/domaincommon.rng
++++ b/src/conf/schemas/domaincommon.rng
+@@ -673,6 +673,15 @@
+           <data type="string"/>
+         </element>
+       </optional>
++      <optional>
++        <element name="quoteGenerationService">
++          <optional>
++            <attribute name="path">
++              <ref name="absFilePath"/>
++            </attribute>
++          </optional>
++        </element>
++      </optional>
+     </interleave>
+   </define>
+ 
+-- 
+2.51.0

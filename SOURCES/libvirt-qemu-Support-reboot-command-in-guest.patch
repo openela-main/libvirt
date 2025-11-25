@@ -1,0 +1,96 @@
+From 0a5602be0bed2e4dc13aa85ec28b3e012649c64e Mon Sep 17 00:00:00 2001
+Message-ID: <0a5602be0bed2e4dc13aa85ec28b3e012649c64e.1759908360.git.jdenemar@redhat.com>
+From: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Date: Thu, 10 Jul 2025 03:21:19 -0400
+Subject: [PATCH] qemu: Support reboot command in guest
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We can reboot a TDX guest with 'virsh reboot' or 'virsh shutdown' if action
+for onPoweroff is 'restart'. But running reboot command in guest shell will
+always lead to shutdown.
+
+This behavior is not consistent with normal guest, fix it by checking
+shutdown reason and action configuration to trigger FakeReboot.
+
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 312c3afa48936c7a9676408abdd5a44cb9ad2baa)
+Resolves: https://issues.redhat.com/browse/RHEL-111863
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+ src/qemu/qemu_monitor.c      | 18 +++++++++++++++++-
+ src/qemu/qemu_monitor.h      |  2 +-
+ src/qemu/qemu_monitor_json.c |  6 +++++-
+ 3 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index b06949ab66..6d984df412 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1060,10 +1060,26 @@ qemuMonitorEmitEvent(qemuMonitor *mon, const char *event,
+ 
+ 
+ void
+-qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest)
++qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest,
++                        const char *reason)
+ {
++    virDomainObj *vm = mon->vm;
++
+     VIR_DEBUG("mon=%p guest=%u", mon, guest);
+ 
++    /* This isn't best place to set FakeReboot but we need to access
++     * mon->vm which is defined in this file. Reboot command in guest
++     * will trigger SHUTDOWN event for TDX guest, so we has to deal
++     * with it here. */
++    if (vm->def->sec &&
++        vm->def->sec->sectype == VIR_DOMAIN_LAUNCH_SECURITY_TDX) {
++        if ((STREQ_NULLABLE(reason, "guest-shutdown") &&
++             vm->def->onPoweroff == VIR_DOMAIN_LIFECYCLE_ACTION_RESTART) ||
++            (STREQ_NULLABLE(reason, "guest-reset") &&
++             vm->def->onReboot == VIR_DOMAIN_LIFECYCLE_ACTION_RESTART))
++            qemuDomainSetFakeReboot(vm, true);
++    }
++
+     QEMU_MONITOR_CALLBACK(mon, domainShutdown, mon->vm, guest);
+ }
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 98eabbb89f..755f347e17 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -460,7 +460,7 @@ int qemuMonitorUpdateVideoVram64Size(qemuMonitor *mon,
+ void qemuMonitorEmitEvent(qemuMonitor *mon, const char *event,
+                           long long seconds, unsigned int micros,
+                           const char *details);
+-void qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest);
++void qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest, const char *reason);
+ void qemuMonitorEmitReset(qemuMonitor *mon);
+ void qemuMonitorEmitStop(qemuMonitor *mon);
+ void qemuMonitorEmitResume(qemuMonitor *mon);
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 6697b747b0..9f51421478 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -548,12 +548,16 @@ qemuMonitorJSONMakeCommand(const char *cmdname,
+ static void qemuMonitorJSONHandleShutdown(qemuMonitor *mon, virJSONValue *data)
+ {
+     bool guest = false;
++    const char *reason = NULL;
+     virTristateBool guest_initiated = VIR_TRISTATE_BOOL_ABSENT;
+ 
+     if (data && virJSONValueObjectGetBoolean(data, "guest", &guest) == 0)
+         guest_initiated = virTristateBoolFromBool(guest);
+ 
+-    qemuMonitorEmitShutdown(mon, guest_initiated);
++    if (data)
++        reason = virJSONValueObjectGetString(data, "reason");
++
++    qemuMonitorEmitShutdown(mon, guest_initiated, reason);
+ }
+ 
+ static void qemuMonitorJSONHandleReset(qemuMonitor *mon, virJSONValue *data G_GNUC_UNUSED)
+-- 
+2.51.0
