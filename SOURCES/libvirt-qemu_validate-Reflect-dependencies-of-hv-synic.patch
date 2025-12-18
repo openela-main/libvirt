@@ -1,0 +1,89 @@
+From a8ad71a626a29d6c8b855d32132a5a5f1cfee941 Mon Sep 17 00:00:00 2001
+Message-ID: <a8ad71a626a29d6c8b855d32132a5a5f1cfee941.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 8 Oct 2025 09:56:50 +0200
+Subject: [PATCH] qemu_validate: Reflect dependencies of hv-synic
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Per QEMU documentation (docs/system/i386/hyperv.rst):
+
+``hv-synic``
+  Enables Hyper-V Synthetic interrupt controller <snip/>
+
+  Requires: ``hv-vpindex``
+
+Reflect this dependency when validating domain definition.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 1822d030c32d9857020ee8385b0a8808a29a472f)
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_validate.c | 42 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 34 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index 6c711444eb..f7543cbc14 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -88,6 +88,38 @@ qemuValidateDomainDefPSeriesFeature(const virDomainDef *def,
+ }
+ 
+ 
++#define CHECK_HV_FEAT(feat, requires) \
++    if (def->hyperv_features[feat] == VIR_TRISTATE_SWITCH_ON && \
++        def->hyperv_features[requires] != VIR_TRISTATE_SWITCH_ON) { \
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, \
++                       _("'%1$s' hyperv feature requires '%2$s' feature"), \
++                       virDomainHypervTypeToString(feat), \
++                       virDomainHypervTypeToString(requires)); \
++        return -1; \
++    }
++
++static int
++qemuValidateDomainDefHypervFeatures(const virDomainDef *def)
++{
++    if (def->features[VIR_DOMAIN_FEATURE_HYPERV] == VIR_DOMAIN_HYPERV_MODE_NONE)
++        return 0;
++
++    if (!ARCH_IS_X86(def->os.arch) && !qemuDomainIsARMVirt(def)) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Hyperv features are not supported for architecture '%1$s' or machine type '%2$s'"),
++                       virArchToString(def->os.arch),
++                       def->os.machine);
++        return -1;
++    }
++
++    CHECK_HV_FEAT(VIR_DOMAIN_HYPERV_SYNIC, VIR_DOMAIN_HYPERV_VPINDEX);
++
++    return 0;
++}
++
++#undef CHECK_HV_FEAT
++
++
+ static int
+ qemuValidateDomainDefFeatures(const virDomainDef *def,
+                               virQEMUCaps *qemuCaps)
+@@ -187,14 +219,8 @@ qemuValidateDomainDefFeatures(const virDomainDef *def,
+             break;
+ 
+         case VIR_DOMAIN_FEATURE_HYPERV:
+-            if (def->features[i] != VIR_DOMAIN_HYPERV_MODE_NONE &&
+-                !ARCH_IS_X86(def->os.arch) && !qemuDomainIsARMVirt(def)) {
+-                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-                               _("Hyperv features are not supported for architecture '%1$s' or machine type '%2$s'"),
+-                                 virArchToString(def->os.arch),
+-                                 def->os.machine);
+-                 return -1;
+-            }
++            if (qemuValidateDomainDefHypervFeatures(def) < 0)
++                return -1;
+             break;
+ 
+         case VIR_DOMAIN_FEATURE_PMU:
+-- 
+2.51.1

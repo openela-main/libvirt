@@ -1,0 +1,125 @@
+From b8d1da3b78332fca2555c125c0510a70c7df8d7b Mon Sep 17 00:00:00 2001
+Message-ID: <b8d1da3b78332fca2555c125c0510a70c7df8d7b.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Oct 2025 09:32:47 +0200
+Subject: [PATCH] src: Drop needless typecast to virDomainTimerNameType
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This was missed in v8.10.0-rc1~229 which switched the 'name'
+member of _virDomainTimerDef struct from int to
+virDomainTimerNameType.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 6b71d327793bbd6d31c953ad33365c160899cc2b)
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/libxl/libxl_conf.c   | 2 +-
+ src/libxl/xen_common.c   | 2 +-
+ src/lxc/lxc_cgroup.c     | 2 +-
+ src/lxc/lxc_controller.c | 2 +-
+ src/qemu/qemu_command.c  | 6 +++---
+ src/qemu/qemu_validate.c | 2 +-
+ 6 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/libxl/libxl_conf.c b/src/libxl/libxl_conf.c
+index 7d845b97ec..7fe681f1fd 100644
+--- a/src/libxl/libxl_conf.c
++++ b/src/libxl/libxl_conf.c
+@@ -397,7 +397,7 @@ libxlMakeDomBuildInfo(virDomainDef *def,
+     }
+ 
+     for (i = 0; i < clock.ntimers; i++) {
+-        switch ((virDomainTimerNameType) clock.timers[i]->name) {
++        switch (clock.timers[i]->name) {
+         case VIR_DOMAIN_TIMER_NAME_TSC:
+             switch (clock.timers[i]->mode) {
+             case VIR_DOMAIN_TIMER_MODE_NATIVE:
+diff --git a/src/libxl/xen_common.c b/src/libxl/xen_common.c
+index 3a64f565f7..0e98b6f9c1 100644
+--- a/src/libxl/xen_common.c
++++ b/src/libxl/xen_common.c
+@@ -2097,7 +2097,7 @@ xenFormatHypervisorFeatures(virConf *conf, virDomainDef *def)
+     }
+ 
+     for (i = 0; i < def->clock.ntimers; i++) {
+-        switch ((virDomainTimerNameType)def->clock.timers[i]->name) {
++        switch (def->clock.timers[i]->name) {
+         case VIR_DOMAIN_TIMER_NAME_TSC:
+             switch (def->clock.timers[i]->mode) {
+             case VIR_DOMAIN_TIMER_MODE_NATIVE:
+diff --git a/src/lxc/lxc_cgroup.c b/src/lxc/lxc_cgroup.c
+index 7c889667ba..02e44441b0 100644
+--- a/src/lxc/lxc_cgroup.c
++++ b/src/lxc/lxc_cgroup.c
+@@ -335,7 +335,7 @@ static int virLXCCgroupSetupDeviceACL(virDomainDef *def,
+         if (timer->present == VIR_TRISTATE_BOOL_NO)
+             continue;
+ 
+-        switch ((virDomainTimerNameType)timer->name) {
++        switch (timer->name) {
+         case VIR_DOMAIN_TIMER_NAME_PLATFORM:
+         case VIR_DOMAIN_TIMER_NAME_TSC:
+         case VIR_DOMAIN_TIMER_NAME_KVMCLOCK:
+diff --git a/src/lxc/lxc_controller.c b/src/lxc/lxc_controller.c
+index 7b432a1160..d45e023645 100644
+--- a/src/lxc/lxc_controller.c
++++ b/src/lxc/lxc_controller.c
+@@ -1504,7 +1504,7 @@ virLXCControllerSetupTimers(virLXCController *ctrl)
+         if (timer->present == VIR_TRISTATE_BOOL_NO)
+             continue;
+ 
+-        switch ((virDomainTimerNameType)timer->name) {
++        switch (timer->name) {
+         case VIR_DOMAIN_TIMER_NAME_PLATFORM:
+         case VIR_DOMAIN_TIMER_NAME_TSC:
+         case VIR_DOMAIN_TIMER_NAME_KVMCLOCK:
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index c6b826a007..5fe39f45ff 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -5878,7 +5878,7 @@ qemuBuildClockCommandLine(virCommand *cmd,
+     }
+ 
+     for (i = 0; i < def->clock.ntimers; i++) {
+-        switch ((virDomainTimerNameType)def->clock.timers[i]->name) {
++        switch (def->clock.timers[i]->name) {
+         case VIR_DOMAIN_TIMER_NAME_PLATFORM:
+             /* qemuDomainDefValidateClockTimers will handle this
+              * error condition  */
+@@ -6319,7 +6319,7 @@ qemuBuildCpuCommandLine(virCommand *cmd,
+     for (i = 0; i < def->clock.ntimers; i++) {
+         virDomainTimerDef *timer = def->clock.timers[i];
+ 
+-        switch ((virDomainTimerNameType)timer->name) {
++        switch (timer->name) {
+         case VIR_DOMAIN_TIMER_NAME_KVMCLOCK:
+             if (timer->present != VIR_TRISTATE_BOOL_ABSENT) {
+                 /* QEMU expects on/off -> virTristateSwitch. */
+@@ -7023,7 +7023,7 @@ qemuBuildMachineCommandLine(virCommand *cmd,
+     }
+ 
+     for (i = 0; i < def->clock.ntimers; i++) {
+-        switch ((virDomainTimerNameType)def->clock.timers[i]->name) {
++        switch (def->clock.timers[i]->name) {
+         case VIR_DOMAIN_TIMER_NAME_HPET:
+             /* qemuBuildClockCommandLine handles the old-style config via '-no-hpet' */
+             if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_HPET) &&
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index bbd838c7f0..6c711444eb 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -462,7 +462,7 @@ qemuValidateDomainDefClockTimers(const virDomainDef *def,
+     for (i = 0; i < def->clock.ntimers; i++) {
+         virDomainTimerDef *timer = def->clock.timers[i];
+ 
+-        switch ((virDomainTimerNameType)timer->name) {
++        switch (timer->name) {
+         case VIR_DOMAIN_TIMER_NAME_PLATFORM:
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                            _("unsupported timer type (name) '%1$s'"),
+-- 
+2.51.1

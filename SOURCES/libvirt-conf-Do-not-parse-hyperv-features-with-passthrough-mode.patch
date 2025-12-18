@@ -1,0 +1,35 @@
+From 9e481e4b77d05a8951845272ec4ee51013b245ee Mon Sep 17 00:00:00 2001
+Message-ID: <9e481e4b77d05a8951845272ec4ee51013b245ee.1763133104.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 10 Jan 2025 15:56:34 +0100
+Subject: [PATCH] conf: Do not parse hyperv features with passthrough mode
+
+The schema does not allow that anyway and we then format them all back
+which leads to libvirt producing an invalid XML.
+
+Resolves: https://issues.redhat.com/browse/RHEL-70656
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit a4def2eb9597b83c7c6a4b9f8b08c995cbf7ee1a)
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/conf/domain_conf.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 38179a7e59..8c69feda6e 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -16735,6 +16735,9 @@ virDomainFeaturesHyperVDefParse(virDomainDef *def,
+ 
+     def->features[VIR_DOMAIN_FEATURE_HYPERV] = mode;
+ 
++    if (mode == VIR_DOMAIN_HYPERV_MODE_PASSTHROUGH)
++        return 0;
++
+     node = xmlFirstElementChild(node);
+     while (node != NULL) {
+         int feature;
+-- 
+2.51.1

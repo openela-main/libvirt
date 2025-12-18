@@ -1,0 +1,79 @@
+From 44eca2ab460f77453733a0c3403ba440f8ecec9c Mon Sep 17 00:00:00 2001
+Message-ID: <44eca2ab460f77453733a0c3403ba440f8ecec9c.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Oct 2025 13:42:03 +0200
+Subject: [PATCH] conf: Introduce virDomainDefHasTimer()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is a simple helper to tell whether domain definition has
+certain type of timer or not.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 359909749ae9af9d23a916b9906e97d69945fc81)
+
+Conflicts:
+- src/conf/domain_conf.h:
+- src/libvirt_private.syms: Both context.
+
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/conf/domain_conf.c   | 17 +++++++++++++++++
+ src/conf/domain_conf.h   |  4 ++++
+ src/libvirt_private.syms |  1 +
+ 3 files changed, 22 insertions(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 8c69feda6e..7fd5f76fb6 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -31927,3 +31927,20 @@ virDomainWatchdogDefFind(const virDomainDef *def,
+ 
+     return -1;
+ }
++
++
++bool
++virDomainDefHasTimer(const virDomainDef *def,
++                     virDomainTimerNameType name)
++{
++    size_t i;
++
++    for (i = 0; i < def->clock.ntimers; i++) {
++        if (def->clock.timers[i]->name == name &&
++            def->clock.timers[i]->present == VIR_TRISTATE_BOOL_YES) {
++            return true;
++        }
++    }
++
++    return false;
++}
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 15aacc71c1..24a1089552 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -4641,3 +4641,7 @@ virDomainObjGetMessages(virDomainObj *vm,
+ 
+ bool
+ virDomainDefHasSpiceGraphics(const virDomainDef *def);
++
++bool
++virDomainDefHasTimer(const virDomainDef *def,
++                     virDomainTimerNameType name);
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index be313ad67b..0a1235e6d8 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -344,6 +344,7 @@ virDomainDefHasOldStyleROUEFI;
+ virDomainDefHasOldStyleUEFI;
+ virDomainDefHasPCIHostdev;
+ virDomainDefHasSpiceGraphics;
++virDomainDefHasTimer;
+ virDomainDefHasUSB;
+ virDomainDefHasVcpusOffline;
+ virDomainDefHasVDPANet;
+-- 
+2.51.1

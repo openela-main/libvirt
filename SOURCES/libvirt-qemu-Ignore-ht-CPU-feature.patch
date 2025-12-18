@@ -1,0 +1,290 @@
+From b9646a88096cda2840560b907ce8c68f0de2f36b Mon Sep 17 00:00:00 2001
+Message-ID: <b9646a88096cda2840560b907ce8c68f0de2f36b.1763747165.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 24 Oct 2025 14:17:56 +0200
+Subject: [PATCH] qemu: Ignore "ht" CPU feature
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The feature does not do anything, QEMU will always set it according to
+the CPU topology completely ignoring what we asked for. Unfortunately,
+the way the state of "ht" is reported changed in QEMU 10.0.0 (commit
+c6bd2dd634208).
+
+QEMU older than 10.0.0 would just report whatever was specified on the
+command line totally ignoring the actual state of the feature visible to
+a guest. But after the change QEMU reports ht=on in case it enabled "ht"
+based on the CPU topology. In all other cases QEMU still reports the
+state requested on the command line.
+
+As a result of this change a domain with multiple CPU threads started on
+QEMU < 10.0.0 could not be migrated to QEMU >= 10.0.0 unless "ht" was
+explicitly enabled in the domain XML because libvirt would see "ht"
+enabled on the destination, but disabled on the source (the guest would
+see "ht" enabled in both cases anyway). Outgoing migration of domains
+started on QEMU >= 10.0.0 is not affected.
+
+To fix this issue we can completely ignore "ht" both in the domain XML
+and in the CPU properties reported by QEMU. With this fix incoming
+migration to QEMU >= 10.0.0 works again.
+
+Fixes: https://gitlab.com/libvirt/libvirt/-/issues/821
+Fixes: https://issues.redhat.com/browse/RHEL-104216
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit ba16113c76050a10bbccaae0192a0d30f97de5ae)
+
+https://issues.redhat.com/browse/RHEL-126096
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                                    | 1 +
+ tests/qemuxmlconfdata/cpu-cache-disable3.x86_64-latest.args     | 2 +-
+ .../cpu-check-default-partial.x86_64-latest.args                | 2 +-
+ tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.args  | 2 +-
+ tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.xml   | 1 -
+ tests/qemuxmlconfdata/cpu-exact2-nofallback.xml                 | 1 -
+ tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.args             | 2 +-
+ tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.xml              | 1 -
+ tests/qemuxmlconfdata/cpu-exact2.xml                            | 1 -
+ tests/qemuxmlconfdata/cpu-host-model-cmt.x86_64-latest.args     | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-vendor.x86_64-latest.args  | 2 +-
+ tests/qemuxmlconfdata/cpu-minimum1.x86_64-latest.args           | 2 +-
+ tests/qemuxmlconfdata/cpu-minimum2.x86_64-latest.args           | 2 +-
+ tests/qemuxmlconfdata/cpu-phys-bits-emulate2.x86_64-latest.args | 2 +-
+ tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.args            | 2 +-
+ tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.xml             | 1 -
+ tests/qemuxmlconfdata/cpu-strict1.xml                           | 1 -
+ tests/qemuxmlconfdata/cpu-tsc-frequency.x86_64-latest.args      | 2 +-
+ 18 files changed, 12 insertions(+), 17 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 6e79bd98c8..b75ecd5046 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -3725,6 +3725,7 @@ const char *ignoredFeatures[] = {
+     "osxsave", "ospke",              /* dropped from QEMU */
+     "vmx-ept-uc", "vmx-ept-wb",      /* never supported by QEMU */
+     "vmx-invvpid-single-context",    /* never supported by QEMU */
++    "ht",                            /* ignored by QEMU, set according to topology */
+ };
+ 
+ bool
+diff --git a/tests/qemuxmlconfdata/cpu-cache-disable3.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-cache-disable3.x86_64-latest.args
+index 4adf20b55a..1e962589c9 100644
+--- a/tests/qemuxmlconfdata/cpu-cache-disable3.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-cache-disable3.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-foo/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-foo/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,l3-cache=off \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,l3-cache=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-check-default-partial.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-check-default-partial.x86_64-latest.args
+index a92da44bd8..fe553fd31b 100644
+--- a/tests/qemuxmlconfdata/cpu-check-default-partial.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-check-default-partial.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.args
+index 20b0306268..7464609aba 100644
+--- a/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu core2duo,ds=on,ht=on,tm=on,ds-cpl=on,xtpr=on,3dnowext=on,lahf-lm=on,nx=off,cx16=off,tm2=off,pbe=off,ss=off,sse4a=off,wdt=off \
++-cpu core2duo,ds=on,tm=on,ds-cpl=on,xtpr=on,3dnowext=on,lahf-lm=on,nx=off,cx16=off,tm2=off,pbe=off,ss=off,sse4a=off,wdt=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.xml b/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.xml
+index d66d0a182b..05c78334ab 100644
+--- a/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/cpu-exact2-nofallback.x86_64-latest.xml
+@@ -11,7 +11,6 @@
+   <cpu mode='custom' match='exact' check='partial'>
+     <model fallback='forbid'>core2duo</model>
+     <feature policy='require' name='ds'/>
+-    <feature policy='require' name='ht'/>
+     <feature policy='optional' name='tm'/>
+     <feature policy='require' name='ds_cpl'/>
+     <feature policy='require' name='xtpr'/>
+diff --git a/tests/qemuxmlconfdata/cpu-exact2-nofallback.xml b/tests/qemuxmlconfdata/cpu-exact2-nofallback.xml
+index 4cd1d18216..d7c3e4f40f 100644
+--- a/tests/qemuxmlconfdata/cpu-exact2-nofallback.xml
++++ b/tests/qemuxmlconfdata/cpu-exact2-nofallback.xml
+@@ -11,7 +11,6 @@
+   <cpu match='exact'>
+     <model fallback='forbid'>core2duo</model>
+     <feature name='ds' policy='require'/>
+-    <feature name='ht' policy='require'/>
+     <feature name='tm' policy='optional'/>
+     <feature name='ds_cpl' policy='require'/>
+     <feature name='xtpr' policy='require'/>
+diff --git a/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.args
+index 20b0306268..7464609aba 100644
+--- a/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu core2duo,ds=on,ht=on,tm=on,ds-cpl=on,xtpr=on,3dnowext=on,lahf-lm=on,nx=off,cx16=off,tm2=off,pbe=off,ss=off,sse4a=off,wdt=off \
++-cpu core2duo,ds=on,tm=on,ds-cpl=on,xtpr=on,3dnowext=on,lahf-lm=on,nx=off,cx16=off,tm2=off,pbe=off,ss=off,sse4a=off,wdt=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.xml b/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.xml
+index 7dccf6902c..cf9d241372 100644
+--- a/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/cpu-exact2.x86_64-latest.xml
+@@ -11,7 +11,6 @@
+   <cpu mode='custom' match='exact' check='partial'>
+     <model fallback='allow'>core2duo</model>
+     <feature policy='require' name='ds'/>
+-    <feature policy='require' name='ht'/>
+     <feature policy='optional' name='tm'/>
+     <feature policy='require' name='ds_cpl'/>
+     <feature policy='require' name='xtpr'/>
+diff --git a/tests/qemuxmlconfdata/cpu-exact2.xml b/tests/qemuxmlconfdata/cpu-exact2.xml
+index 4239796f31..b4800262f6 100644
+--- a/tests/qemuxmlconfdata/cpu-exact2.xml
++++ b/tests/qemuxmlconfdata/cpu-exact2.xml
+@@ -11,7 +11,6 @@
+   <cpu match='exact'>
+     <model>core2duo</model>
+     <feature name='ds' policy='require'/>
+-    <feature name='ht' policy='require'/>
+     <feature name='tm' policy='optional'/>
+     <feature name='ds_cpl' policy='require'/>
+     <feature name='xtpr' policy='require'/>
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-cmt.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-host-model-cmt.x86_64-latest.args
+index 510e19bba6..d6b57d40a3 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-cmt.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-cmt.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel tcg \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-vendor.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-host-model-vendor.x86_64-latest.args
+index c258a1ab36..ef7d442d5b 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-vendor.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-vendor.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel tcg \
+--cpu 'Haswell,vendor=Libvirt QEMU,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on' \
++-cpu 'Haswell,vendor=Libvirt QEMU,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on' \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-minimum1.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-minimum1.x86_64-latest.args
+index a92da44bd8..fe553fd31b 100644
+--- a/tests/qemuxmlconfdata/cpu-minimum1.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-minimum1.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-minimum2.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-minimum2.x86_64-latest.args
+index 62e0101568..ddd0c64080 100644
+--- a/tests/qemuxmlconfdata/cpu-minimum2.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-minimum2.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,syscall=off,nx=off,lm=off,svm=off \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,syscall=off,nx=off,lm=off,svm=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-phys-bits-emulate2.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-phys-bits-emulate2.x86_64-latest.args
+index 92c719b553..3808af7399 100644
+--- a/tests/qemuxmlconfdata/cpu-phys-bits-emulate2.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-phys-bits-emulate2.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-foo/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-foo/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,phys-bits=42 \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,phys-bits=42 \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.args
+index 3f9c3516bb..7e870db393 100644
+--- a/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,ds=on,acpi=on,ht=on,tm=on,ds-cpl=on,vmx=on,est=on,xtpr=on,3dnowext=on,lahf-lm=on,nx=off,cx16=off,tm2=off,pbe=off,ss=off,sse4a=off,wdt=off,vme=off,invtsc=off,abm=off,pdpe1gb=off,rdrand=off,f16c=off,pdcm=off,smx=off,monitor=off,dtes64=off \
++-cpu Haswell,ds=on,acpi=on,tm=on,ds-cpl=on,vmx=on,est=on,xtpr=on,3dnowext=on,lahf-lm=on,nx=off,cx16=off,tm2=off,pbe=off,ss=off,sse4a=off,wdt=off,vme=off,invtsc=off,abm=off,pdpe1gb=off,rdrand=off,f16c=off,pdcm=off,smx=off,monitor=off,dtes64=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.xml b/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.xml
+index beeaf5c682..9c5e083aee 100644
+--- a/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/cpu-strict1.x86_64-latest.xml
+@@ -12,7 +12,6 @@
+     <model fallback='allow'>Haswell</model>
+     <feature policy='require' name='ds'/>
+     <feature policy='optional' name='acpi'/>
+-    <feature policy='require' name='ht'/>
+     <feature policy='optional' name='tm'/>
+     <feature policy='require' name='ds_cpl'/>
+     <feature policy='optional' name='vmx'/>
+diff --git a/tests/qemuxmlconfdata/cpu-strict1.xml b/tests/qemuxmlconfdata/cpu-strict1.xml
+index 63db54ecad..c0548b3dca 100644
+--- a/tests/qemuxmlconfdata/cpu-strict1.xml
++++ b/tests/qemuxmlconfdata/cpu-strict1.xml
+@@ -12,7 +12,6 @@
+     <model>Haswell</model>
+     <feature name='ds' policy='require'/>
+     <feature name='acpi' policy='optional'/>
+-    <feature name='ht' policy='require'/>
+     <feature name='tm' policy='optional'/>
+     <feature name='ds_cpl' policy='require'/>
+     <feature name='vmx' policy='optional'/>
+diff --git a/tests/qemuxmlconfdata/cpu-tsc-frequency.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-tsc-frequency.x86_64-latest.args
+index 4353d65ac2..e926d309f5 100644
+--- a/tests/qemuxmlconfdata/cpu-tsc-frequency.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-tsc-frequency.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu Haswell,vme=on,ds=on,acpi=on,ss=on,ht=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,invtsc=on,tsc-frequency=4567890000 \
++-cpu Haswell,vme=on,ds=on,acpi=on,ss=on,tm=on,pbe=on,dtes64=on,monitor=on,ds-cpl=on,vmx=on,smx=on,est=on,tm2=on,xtpr=on,pdcm=on,f16c=on,rdrand=on,pdpe1gb=on,abm=on,lahf-lm=on,invtsc=on,tsc-frequency=4567890000 \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+-- 
+2.51.1

@@ -1,0 +1,114 @@
+From ee8d4bd99dcfbd853d066cda904b989a0c8156c7 Mon Sep 17 00:00:00 2001
+Message-ID: <ee8d4bd99dcfbd853d066cda904b989a0c8156c7.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Oct 2025 11:54:21 +0200
+Subject: [PATCH] qemuxmlconfdata: Adjust hv-stimer related tests
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In QEMU, hv-stimer and hv-stimer-direct require hv-time. Reflect
+this fact in our tests.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit da76c1e8fe40ee2bb0b6f0176fd14908e6a21fb6)
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.args | 2 +-
+ tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.xml  | 4 +++-
+ tests/qemuxmlconfdata/hyperv-stimer-direct.xml                | 4 +++-
+ tests/qemuxmlconfdata/hyperv.x86_64-latest.args               | 2 +-
+ tests/qemuxmlconfdata/hyperv.x86_64-latest.xml                | 4 +++-
+ tests/qemuxmlconfdata/hyperv.xml                              | 4 +++-
+ 6 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.args b/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.args
+index b665e5365d..0a6d84fbd2 100644
+--- a/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=on \
+ -accel tcg \
+--cpu qemu64,hv-vpindex=on,hv-synic=on,hv-stimer=on,hv-stimer-direct=on \
++-cpu qemu64,hv-time=on,hv-vpindex=on,hv-synic=on,hv-stimer=on,hv-stimer-direct=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.xml b/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.xml
+index efb9d0072e..5f6223bf3e 100644
+--- a/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/hyperv-stimer-direct.x86_64-latest.xml
+@@ -21,7 +21,9 @@
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+   </cpu>
+-  <clock offset='utc'/>
++  <clock offset='utc'>
++    <timer name='hypervclock' present='yes'/>
++  </clock>
+   <on_poweroff>destroy</on_poweroff>
+   <on_reboot>restart</on_reboot>
+   <on_crash>destroy</on_crash>
+diff --git a/tests/qemuxmlconfdata/hyperv-stimer-direct.xml b/tests/qemuxmlconfdata/hyperv-stimer-direct.xml
+index 21163b41ad..4116b7a450 100644
+--- a/tests/qemuxmlconfdata/hyperv-stimer-direct.xml
++++ b/tests/qemuxmlconfdata/hyperv-stimer-direct.xml
+@@ -18,7 +18,9 @@
+       </stimer>
+     </hyperv>
+   </features>
+-  <clock offset='utc'/>
++  <clock offset='utc'>
++    <timer name='hypervclock' present='yes'/>
++  </clock>
+   <on_poweroff>destroy</on_poweroff>
+   <on_reboot>restart</on_reboot>
+   <on_crash>destroy</on_crash>
+diff --git a/tests/qemuxmlconfdata/hyperv.x86_64-latest.args b/tests/qemuxmlconfdata/hyperv.x86_64-latest.args
+index 5a32b80e71..30d63bae6b 100644
+--- a/tests/qemuxmlconfdata/hyperv.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/hyperv.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=on \
+ -accel tcg \
+--cpu 'qemu64,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x2fff,hv-vpindex=on,hv-runtime=on,hv-synic=on,hv-stimer=on,hv-reset=on,hv-vendor-id=KVM Hv,hv-frequencies=on,hv-reenlightenment=on,hv-tlbflush=on,hv-tlbflush-direct=on,hv-tlbflush-ext=on,hv-ipi=on,hv-evmcs=on,hv-avic=on,hv-emsr-bitmap=on,hv-xmm-input=on' \
++-cpu 'qemu64,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x2fff,hv-vpindex=on,hv-runtime=on,hv-synic=on,hv-stimer=on,hv-reset=on,hv-vendor-id=KVM Hv,hv-frequencies=on,hv-reenlightenment=on,hv-tlbflush=on,hv-tlbflush-direct=on,hv-tlbflush-ext=on,hv-ipi=on,hv-evmcs=on,hv-avic=on,hv-emsr-bitmap=on,hv-xmm-input=on' \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/hyperv.x86_64-latest.xml b/tests/qemuxmlconfdata/hyperv.x86_64-latest.xml
+index 49537188af..ee412164ed 100644
+--- a/tests/qemuxmlconfdata/hyperv.x86_64-latest.xml
++++ b/tests/qemuxmlconfdata/hyperv.x86_64-latest.xml
+@@ -36,7 +36,9 @@
+   <cpu mode='custom' match='exact' check='none'>
+     <model fallback='forbid'>qemu64</model>
+   </cpu>
+-  <clock offset='utc'/>
++  <clock offset='utc'>
++    <timer name='hypervclock' present='yes'/>
++  </clock>
+   <on_poweroff>destroy</on_poweroff>
+   <on_reboot>restart</on_reboot>
+   <on_crash>destroy</on_crash>
+diff --git a/tests/qemuxmlconfdata/hyperv.xml b/tests/qemuxmlconfdata/hyperv.xml
+index 8c323f6578..44aec004a8 100644
+--- a/tests/qemuxmlconfdata/hyperv.xml
++++ b/tests/qemuxmlconfdata/hyperv.xml
+@@ -33,7 +33,9 @@
+       <xmm_input state='on'/>
+     </hyperv>
+   </features>
+-  <clock offset='utc'/>
++  <clock offset='utc'>
++    <timer name='hypervclock' present='yes'/>
++  </clock>
+   <on_poweroff>destroy</on_poweroff>
+   <on_reboot>restart</on_reboot>
+   <on_crash>destroy</on_crash>
+-- 
+2.51.1

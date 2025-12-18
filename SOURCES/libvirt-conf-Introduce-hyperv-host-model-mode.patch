@@ -1,0 +1,251 @@
+From d90f7c57e9cd6a146788726a5a0d1c6ba3de4a19 Mon Sep 17 00:00:00 2001
+Message-ID: <d90f7c57e9cd6a146788726a5a0d1c6ba3de4a19.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 29 Sep 2025 10:20:41 +0200
+Subject: [PATCH] conf: Introduce hyperv host-model mode
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+So far we have two modes for hyperv features:
+
+1) custom, where users have to enable features explicitly, and
+2) passthrough, where hypervisor enables features automagically.
+
+Problem with 'custom' mode is that some features are not plain
+on/off switches but expect int/string value. Until very recently,
+these were not reported in domcaps. And even if they were it's a
+bit cumbersome.
+
+Problem with 'passthrough' mode is that users don't get to see
+the expanded list of enlightenments enabled.
+
+Therefore, mimic what we're already doing with CPUs: have
+'host-model' which gets expanded at domain startup and is fixed
+throughout domain's run.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit c181c7dd1358ee1a2d125a869a44f46eee393452)
+
+Conflicts:
+src/libxl/libxl_conf.c: Not enabled in RHEL, so nobody cares.
+
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/formatdomain.rst                         |  6 ++++
+ src/conf/domain_conf.c                        |  4 ++-
+ src/conf/domain_conf.h                        |  1 +
+ src/conf/schemas/domaincommon.rng             |  3 ++
+ src/qemu/qemu_command.c                       |  1 +
+ .../hyperv-host-model.x86_64-latest.args      | 32 ++++++++++++++++++
+ .../hyperv-host-model.x86_64-latest.xml       | 33 +++++++++++++++++++
+ tests/qemuxmlconfdata/hyperv-host-model.xml   | 27 +++++++++++++++
+ tests/qemuxmlconftest.c                       |  1 +
+ 9 files changed, 107 insertions(+), 1 deletion(-)
+ create mode 100644 tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.args
+ create mode 100644 tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.xml
+ create mode 100644 tests/qemuxmlconfdata/hyperv-host-model.xml
+
+diff --git a/docs/formatdomain.rst b/docs/formatdomain.rst
+index bfe28759e7..3dba9e3073 100644
+--- a/docs/formatdomain.rst
++++ b/docs/formatdomain.rst
+@@ -2126,6 +2126,12 @@ are:
+       virtual CPU may or may not contain features which may block migration
+       even to an identical host.
+ 
++   ``host-model``
++      Similar to the ``passthrough`` mode, except libvirt detects which
++      enlightenments are supported by hypervisor and expands them on domain
++      startup into the live XML. In a sense, this is similar to ``host-model``
++      CPU mode (See `CPU model and topology`_). :since:`Since 11.9.0`
++
+    The ``mode`` attribute can be omitted and will default to ``custom``.
+ 
+ ``pvspinlock``
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 67f8ef4676..b869ac885b 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -145,6 +145,7 @@ VIR_ENUM_IMPL(virDomainHyperVMode,
+               "none",
+               "custom",
+               "passthrough",
++              "host-model",
+ );
+ 
+ VIR_ENUM_IMPL(virDomainBoot,
+@@ -16742,7 +16743,8 @@ virDomainFeaturesHyperVDefParse(virDomainDef *def,
+ 
+     def->features[VIR_DOMAIN_FEATURE_HYPERV] = mode;
+ 
+-    if (mode == VIR_DOMAIN_HYPERV_MODE_PASSTHROUGH)
++    if (mode == VIR_DOMAIN_HYPERV_MODE_PASSTHROUGH ||
++        mode == VIR_DOMAIN_HYPERV_MODE_HOST_MODEL)
+         return 0;
+ 
+     node = xmlFirstElementChild(node);
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 643deefec2..abb50dd5cf 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -164,6 +164,7 @@ typedef enum {
+     VIR_DOMAIN_HYPERV_MODE_NONE = 0,
+     VIR_DOMAIN_HYPERV_MODE_CUSTOM,
+     VIR_DOMAIN_HYPERV_MODE_PASSTHROUGH,
++    VIR_DOMAIN_HYPERV_MODE_HOST_MODEL,
+ 
+     VIR_DOMAIN_HYPERV_MODE_LAST
+ } virDomainHyperVMode;
+diff --git a/src/conf/schemas/domaincommon.rng b/src/conf/schemas/domaincommon.rng
+index 93bc128dec..58dbe478af 100644
+--- a/src/conf/schemas/domaincommon.rng
++++ b/src/conf/schemas/domaincommon.rng
+@@ -8038,6 +8038,9 @@
+         <attribute name="mode">
+           <value>passthrough</value>
+         </attribute>
++        <attribute name="mode">
++          <value>host-model</value>
++        </attribute>
+         <group>
+           <optional>
+             <attribute name="mode">
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 3f290931a1..61aeb14757 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6289,6 +6289,7 @@ qemuBuildCpuHypervCommandLine(virBuffer *buf,
+ 
+     switch ((virDomainHyperVMode) def->features[VIR_DOMAIN_FEATURE_HYPERV]) {
+     case VIR_DOMAIN_HYPERV_MODE_CUSTOM:
++    case VIR_DOMAIN_HYPERV_MODE_HOST_MODEL:
+         break;
+ 
+     case VIR_DOMAIN_HYPERV_MODE_PASSTHROUGH:
+diff --git a/tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.args b/tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.args
+new file mode 100644
+index 0000000000..2ed72fcd1b
+--- /dev/null
++++ b/tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.args
+@@ -0,0 +1,32 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1 \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.local/share \
++XDG_CACHE_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.cache \
++XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
++/usr/bin/qemu-system-x86_64 \
++-name guest=QEMUGuest1,debug-threads=on \
++-S \
++-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
++-machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=on \
++-accel tcg \
++-cpu qemu64 \
++-m size=219136k \
++-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
++-overcommit mem-lock=off \
++-smp 6,sockets=6,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server=on,wait=off \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-device '{"driver":"piix3-usb-uhci","id":"usb","bus":"pci.0","addr":"0x1.0x2"}' \
++-audiodev '{"id":"audio1","driver":"none"}' \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.xml b/tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.xml
+new file mode 100644
+index 0000000000..453a43b3c9
+--- /dev/null
++++ b/tests/qemuxmlconfdata/hyperv-host-model.x86_64-latest.xml
+@@ -0,0 +1,33 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>6</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='network'/>
++  </os>
++  <features>
++    <acpi/>
++    <hyperv mode='host-model'/>
++  </features>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu64</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0' model='piix3-uhci'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
++    </controller>
++    <controller type='pci' index='0' model='pci-root'/>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <audio id='1' type='none'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconfdata/hyperv-host-model.xml b/tests/qemuxmlconfdata/hyperv-host-model.xml
+new file mode 100644
+index 0000000000..fae00d86dd
+--- /dev/null
++++ b/tests/qemuxmlconfdata/hyperv-host-model.xml
+@@ -0,0 +1,27 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>6</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='network'/>
++  </os>
++  <features>
++    <acpi/>
++    <hyperv mode='host-model'/>
++  </features>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0'/>
++    <controller type='pci' index='0' model='pci-root'/>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxmlconftest.c b/tests/qemuxmlconftest.c
+index 5683e76599..009849950a 100644
+--- a/tests/qemuxmlconftest.c
++++ b/tests/qemuxmlconftest.c
+@@ -1507,6 +1507,7 @@ mymain(void)
+     DO_TEST_CAPS_VER("hyperv-passthrough", "6.1.0");
+     DO_TEST_CAPS_LATEST("hyperv-passthrough");
+     DO_TEST_CAPS_LATEST("hyperv-stimer-direct");
++    DO_TEST_CAPS_LATEST("hyperv-host-model");
+ 
+     DO_TEST_CAPS_LATEST("kvm-features");
+     DO_TEST_CAPS_LATEST("kvm-features-off");
+-- 
+2.51.1

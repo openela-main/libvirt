@@ -1,0 +1,42 @@
+From 552bba4e9631fd324b061d2405d0ae3a49f116e3 Mon Sep 17 00:00:00 2001
+Message-ID: <552bba4e9631fd324b061d2405d0ae3a49f116e3.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 8 Oct 2025 10:51:53 +0200
+Subject: [PATCH] qemu_validate: Reflect dependencies of hv-evmcs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Per QEMU documentation (docs/system/i386/hyperv.rst):
+
+``hv-evmcs``
+  The enlightenment is nested specific, it targets Hyper-V on KVM guests. <snip/>
+
+  Requires: ``hv-vapic``
+
+Reflect this dependency when validating domain definition.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit c6114de13c473bfd131fd64863ad9ccd18238ae5)
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_validate.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index 8e8c9c5c1d..3d07c23ea5 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -131,6 +131,8 @@ qemuValidateDomainDefHypervFeatures(const virDomainDef *def)
+ 
+     CHECK_HV_FEAT(VIR_DOMAIN_HYPERV_IPI, VIR_DOMAIN_HYPERV_VPINDEX);
+ 
++    CHECK_HV_FEAT(VIR_DOMAIN_HYPERV_EVMCS, VIR_DOMAIN_HYPERV_VAPIC);
++
+     return 0;
+ }
+ 
+-- 
+2.51.1

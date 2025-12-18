@@ -1,0 +1,138 @@
+From 2da81198df9206a69c368a29da1771e9bce94583 Mon Sep 17 00:00:00 2001
+Message-ID: <2da81198df9206a69c368a29da1771e9bce94583.1763747165.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 24 Oct 2025 15:07:45 +0200
+Subject: [PATCH] cpu_conf: Make virCPUDefFilterFeatures return void
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The only thing that can fail inside virCPUDefFilterFeatures is
+VIR_DELETE_ELEMENT_INPLACE macro. The macro just calls
+virDeleteElementsN, which reports a warning when all elements to be
+removed are not within the array bounds and returns -1. The function
+succeeds otherwise. But since VIR_DELETE_ELEMENT_INPLACE sets the number
+of elements to be removed to 1 and we call it with i < cpu->nfeatures,
+the safety check in virDeleteElementsN will never fail. And even if we
+theoretically called it with wrong arguments, it just wouldn't do
+anything.
+
+Thus we can safely assume VIR_DELETE_ELEMENT_INPLACE always succeeds in
+virCPUDefFilterFeatures and avoid reporting any errors to simplify
+callers.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit fd6cf1b44accd1856a4611933ad51c0e04221aaa)
+
+https://issues.redhat.com/browse/RHEL-126096
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/cpu_conf.c          |  9 ++++-----
+ src/conf/cpu_conf.h          |  2 +-
+ src/qemu/qemu_capabilities.c | 15 ++++++---------
+ src/qemu/qemu_domain.c       |  3 +--
+ src/qemu/qemu_process.c      |  5 ++---
+ 5 files changed, 14 insertions(+), 20 deletions(-)
+
+diff --git a/src/conf/cpu_conf.c b/src/conf/cpu_conf.c
+index 31425783ba..7aeedf64f5 100644
+--- a/src/conf/cpu_conf.c
++++ b/src/conf/cpu_conf.c
+@@ -1017,7 +1017,7 @@ virCPUDefListExplicitFeatures(const virCPUDef *def)
+ }
+ 
+ 
+-int
++void
+ virCPUDefFilterFeatures(virCPUDef *cpu,
+                         virCPUDefFeatureFilter filter,
+                         void *opaque)
+@@ -1031,11 +1031,10 @@ virCPUDefFilterFeatures(virCPUDef *cpu,
+         }
+ 
+         VIR_FREE(cpu->features[i].name);
+-        if (VIR_DELETE_ELEMENT_INPLACE(cpu->features, i, cpu->nfeatures) < 0)
+-            return -1;
+-    }
+ 
+-    return 0;
++        /* Safe to ignore as an error is returned only for invalid arguments */
++        ignore_value(VIR_DELETE_ELEMENT_INPLACE(cpu->features, i, cpu->nfeatures));
++    }
+ }
+ 
+ 
+diff --git a/src/conf/cpu_conf.h b/src/conf/cpu_conf.h
+index 28e26303ef..cfb8f1a461 100644
+--- a/src/conf/cpu_conf.h
++++ b/src/conf/cpu_conf.h
+@@ -260,7 +260,7 @@ virCPUFeatureDef *
+ virCPUDefFindFeature(const virCPUDef *def,
+                      const char *name);
+ 
+-int
++void
+ virCPUDefFilterFeatures(virCPUDef *cpu,
+                         virCPUDefFeatureFilter filter,
+                         void *opaque);
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 7273f59175..6e79bd98c8 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -4085,17 +4085,14 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+ 
+     if (ARCH_IS_X86(qemuCaps->arch) &&
+         !virQEMUCapsGet(qemuCaps, QEMU_CAPS_CPU_UNAVAILABLE_FEATURES)) {
+-        if (cpu &&
+-            virCPUDefFilterFeatures(cpu, virCPUx86FeatureFilterDropMSR, NULL) < 0)
+-            goto error;
++        if (cpu)
++            virCPUDefFilterFeatures(cpu, virCPUx86FeatureFilterDropMSR, NULL);
+ 
+-        if (migCPU &&
+-            virCPUDefFilterFeatures(migCPU, virCPUx86FeatureFilterDropMSR, NULL) < 0)
+-            goto error;
++        if (migCPU)
++            virCPUDefFilterFeatures(migCPU, virCPUx86FeatureFilterDropMSR, NULL);
+ 
+-        if (fullCPU &&
+-            virCPUDefFilterFeatures(fullCPU, virCPUx86FeatureFilterDropMSR, NULL) < 0)
+-            goto error;
++        if (fullCPU)
++            virCPUDefFilterFeatures(fullCPU, virCPUx86FeatureFilterDropMSR, NULL);
+     }
+ 
+     if (virQEMUCapsTypeIsAccelerated(type))
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 56d8bb4827..21a4169c58 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5101,8 +5101,7 @@ qemuDomainMakeCPUMigratable(virArch arch,
+             g_auto(GStrv) keep = virCPUDefListExplicitFeatures(origCPU);
+             data.keep = keep;
+ 
+-            if (virCPUDefFilterFeatures(cpu, qemuDomainDropAddedCPUFeatures, &data) < 0)
+-                return -1;
++            virCPUDefFilterFeatures(cpu, qemuDomainDropAddedCPUFeatures, &data);
+         }
+     }
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index e2e2822013..f5f9d4a348 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6516,9 +6516,8 @@ qemuProcessUpdateGuestCPU(virDomainDef *def,
+         def->cpu->fallback = VIR_CPU_FALLBACK_FORBID;
+     }
+ 
+-    if (virCPUDefFilterFeatures(def->cpu, virQEMUCapsCPUFilterFeatures,
+-                                &def->os.arch) < 0)
+-        return -1;
++    virCPUDefFilterFeatures(def->cpu, virQEMUCapsCPUFilterFeatures,
++                            &def->os.arch);
+ 
+     if (def->cpu->deprecated_feats &&
+         !virQEMUCapsGet(qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION_DEPRECATED_PROPS)) {
+-- 
+2.51.1

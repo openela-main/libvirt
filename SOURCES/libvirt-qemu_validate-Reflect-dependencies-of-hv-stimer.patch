@@ -1,0 +1,53 @@
+From edef2af6d026dd6293f9acec5581851554825ed4 Mon Sep 17 00:00:00 2001
+Message-ID: <edef2af6d026dd6293f9acec5581851554825ed4.1763133105.git.jdenemar@redhat.com>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 7 Oct 2025 13:42:19 +0200
+Subject: [PATCH] qemu_validate: Reflect dependencies of hv-stimer
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Per QEMU documentation (docs/system/i386/hyperv.rst):
+
+``hv-stimer``
+  Enables Hyper-V synthetic timers. <snip/>
+
+  Requires: ``hv-vpindex``, ``hv-synic``, ``hv-time``
+
+Reflect these dependencies when validating domain definition.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit da261327ea94300d1aa2d3b76ba9dcd4de6160f6)
+Resolves: https://issues.redhat.com/browse/RHEL-122930
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_validate.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
+index f7543cbc14..4cbbc59f2c 100644
+--- a/src/qemu/qemu_validate.c
++++ b/src/qemu/qemu_validate.c
+@@ -114,6 +114,19 @@ qemuValidateDomainDefHypervFeatures(const virDomainDef *def)
+ 
+     CHECK_HV_FEAT(VIR_DOMAIN_HYPERV_SYNIC, VIR_DOMAIN_HYPERV_VPINDEX);
+ 
++    if (def->hyperv_features[VIR_DOMAIN_HYPERV_STIMER] == VIR_TRISTATE_SWITCH_ON) {
++        if (!virDomainDefHasTimer(def, VIR_DOMAIN_TIMER_NAME_HYPERVCLOCK)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("'%1$s' hyperv feature requires '%2$s' timer"),
++                           virDomainHypervTypeToString(VIR_DOMAIN_HYPERV_STIMER),
++                           virDomainTimerNameTypeToString(VIR_DOMAIN_TIMER_NAME_HYPERVCLOCK));
++            return -1;
++        }
++    }
++
++    CHECK_HV_FEAT(VIR_DOMAIN_HYPERV_STIMER, VIR_DOMAIN_HYPERV_VPINDEX);
++    CHECK_HV_FEAT(VIR_DOMAIN_HYPERV_STIMER, VIR_DOMAIN_HYPERV_SYNIC);
++
+     return 0;
+ }
+ 
+-- 
+2.51.1

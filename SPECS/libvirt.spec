@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 15.1%{?dist}%{?extra_release}
+Release: 15.4%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -473,6 +473,37 @@ Patch173: libvirt-qemu-Send-event-VIR_DOMAIN_EVENT_-STOPPED-STARTED-during-recre
 Patch174: libvirt-qemu-Support-domain-reset-command-for-TDX-guest.patch
 Patch175: libvirt-qemuxmlconftest-Add-latest-version-of-launch-security-tdx-test-data.patch
 Patch176: libvirt-docs-domain-Add-documentation-for-Intel-TDX-guest.patch
+Patch177: libvirt-conf-Do-not-parse-hyperv-features-with-passthrough-mode.patch
+Patch178: libvirt-src-Drop-needless-typecast-to-virDomainTimerNameType.patch
+Patch179: libvirt-conf-Introduce-virDomainDefHasTimer.patch
+Patch180: libvirt-qemuxmlconfdata-Adjust-hv-stimer-related-tests.patch
+Patch181: libvirt-qemu_validate-Reflect-dependencies-of-hv-synic.patch
+Patch182: libvirt-qemu_validate-Reflect-dependencies-of-hv-stimer.patch
+Patch183: libvirt-qemu_validate-Reflect-dependencies-of-hv-tlbflush.patch
+Patch184: libvirt-qemu_validate-Reflect-dependencies-of-hv-ipi.patch
+Patch185: libvirt-qemu_validate-Reflect-dependencies-of-hv-evmcs.patch
+Patch186: libvirt-qemu_validate-Reflect-dependencies-of-hv-tlbflush-direct.patch
+Patch187: libvirt-virxml-Introduce-virXPathTristateSwitch.patch
+Patch188: libvirt-virxml-Introduce-virXPathTristateBool.patch
+Patch189: libvirt-qemu-Use-virXPathTristateBool.patch
+Patch190: libvirt-domain_conf-Move-format-of-hyperv-features-into-a-function.patch
+Patch191: libvirt-domain_conf-Use-virXMLFormatElement-to-format-hyperv-features.patch
+Patch192: libvirt-qemu_caps-Prefer-VIR_DOMAIN_CAPS_ENUM_IS_SET.patch
+Patch193: libvirt-qemu_command-Move-hyperv-cmd-line-generation-into-a-function.patch
+Patch194: libvirt-qemu_command-Prefer-virBufferAddLit-in-qemuBuildCpuHypervCommandLine.patch
+Patch195: libvirt-conf-More-hyperv-related-members-into-a-single-struct.patch
+Patch196: libvirt-conf-Report-default-hyperv-values-in-domain-capabilities.patch
+Patch197: libvirt-qemu_capabilities-Format-and-parse-new-hyperv-domcaps-members.patch
+Patch198: libvirt-qemu_capabilities-Fetch-new-hyperv-domcaps.patch
+Patch199: libvirt-qemu_caps-Introduce-virQEMUCapsGetHypervCapabilities.patch
+Patch200: libvirt-conf-Introduce-hyperv-host-model-mode.patch
+Patch201: libvirt-qemu_process-Populate-hyperv-features-for-host-model.patch
+Patch202: libvirt-cpu_conf-Make-virCPUDefFilterFeatures-return-void.patch
+Patch203: libvirt-qemu_domain-Simplify-qemuDomainFixupCPUs.patch
+Patch204: libvirt-qemu_domain-Fix-qemuDomainFixupCPUs.patch
+Patch205: libvirt-qemu_process-Always-fix-CPUs-on-reconnect.patch
+Patch206: libvirt-qemu_monitor-Filter-CPU-features-reported-by-QEMU.patch
+Patch207: libvirt-qemu-Ignore-ht-CPU-feature.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2798,6 +2829,52 @@ exit 0
 %endif
 
 %changelog
+* Fri Nov 21 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.4.el9_7
+- cpu_conf: Make virCPUDefFilterFeatures return void (RHEL-126096)
+- qemu_domain: Simplify qemuDomainFixupCPUs (RHEL-126096)
+- qemu_domain: Fix qemuDomainFixupCPUs (RHEL-126096)
+- qemu_process: Always fix CPUs on reconnect (RHEL-126096)
+- qemu_monitor: Filter CPU features reported by QEMU (RHEL-126096)
+- qemu: Ignore "ht" CPU feature (RHEL-126096)
+
+* Fri Nov 14 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.3.el9_7
+- conf: Do not parse hyperv features with passthrough mode (RHEL-122930)
+- src: Drop needless typecast to virDomainTimerNameType (RHEL-122930)
+- conf: Introduce virDomainDefHasTimer() (RHEL-122930)
+- qemuxmlconfdata: Adjust hv-stimer related tests (RHEL-122930)
+- qemu_validate: Reflect dependencies of hv-synic (RHEL-122930)
+- qemu_validate: Reflect dependencies of hv-stimer (RHEL-122930)
+- qemu_validate: Reflect dependencies of hv-tlbflush (RHEL-122930)
+- qemu_validate: Reflect dependencies of hv-ipi (RHEL-122930)
+- qemu_validate: Reflect dependencies of hv-evmcs (RHEL-122930)
+- qemu_validate: Reflect dependencies of hv-tlbflush-direct (RHEL-122930)
+- virxml: Introduce virXPathTristateSwitch() (RHEL-122930)
+- virxml: Introduce virXPathTristateBool() (RHEL-122930)
+- qemu: Use virXPathTristateBool() (RHEL-122930)
+- domain_conf: Move format of hyperv features into a function (RHEL-122930)
+- domain_conf: Use virXMLFormatElement() to format hyperv features (RHEL-122930)
+- qemu_caps: Prefer VIR_DOMAIN_CAPS_ENUM_IS_SET() (RHEL-122930)
+- qemu_command: Move hyperv cmd line generation into a function (RHEL-122930)
+- qemu_command: Prefer virBufferAddLit() in qemuBuildCpuHypervCommandLine() (RHEL-122930)
+- conf: More hyperv related members into a single struct (RHEL-122930)
+- conf: Report default hyperv values in domain capabilities (RHEL-122930)
+- qemu_capabilities: Format and parse new hyperv domcaps members (RHEL-122930)
+- qemu_capabilities: Fetch new hyperv domcaps (RHEL-122930)
+- qemu_caps: Introduce virQEMUCapsGetHypervCapabilities() (RHEL-122930)
+- conf: Introduce hyperv host-model mode (RHEL-122930)
+- qemu_process: Populate hyperv features for host-model (RHEL-122930)
+- RHEL: Remove patches from invalid 10.10.0-15.2.el9_7 build (RHEL-122930)
+
+* Wed Nov 12 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.2.el9_7
+- virBitmapFormat: Don't check return value (RHEL-122930)
+- domain_conf: Make virDomainMemoryDefFormat() return void (RHEL-122930)
+- domain_conf: Switch to virXMLFormatElement() in virDomainMemoryDefFormat() (RHEL-122930)
+- conf: Introduce virDomainMemoryIsVirtioModel() (RHEL-122930)
+- qemu: Use virDomainMemoryIsVirtioModel() (RHEL-122930)
+- conf: Introduce virtio options for virtio memory models (RHEL-122930)
+- qemu_command: Generate virtio options for memory device (RHEL-122930)
+- domain_conf: Avoid memory leak in virDomainMemoryDefFree() (RHEL-122930)
+
 * Tue Oct  7 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.1.el9_7
 - tools: Secure guest check for Intel in virt-host-validate (RHEL-111840)
 - qemu: Check if INTEL Trust Domain Extention support is enabled (RHEL-111840)
