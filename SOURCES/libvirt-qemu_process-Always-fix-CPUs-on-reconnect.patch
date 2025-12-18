@@ -1,0 +1,46 @@
+From bf6a6eab87178c3b0438d8f574447eb16669013b Mon Sep 17 00:00:00 2001
+Message-ID: <bf6a6eab87178c3b0438d8f574447eb16669013b.1763729878.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 24 Oct 2025 15:36:18 +0200
+Subject: [PATCH] qemu_process: Always fix CPUs on reconnect
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We fix CPUs (i.e., remove ignored CPU features) only when libvirt/QEMU
+combo used to start the domain is very old and doesn't support
+query-cpu-model-expansion, in which case the CPU definition may contain
+features that are unknown to QEMU. But even if both libvirt and QEMU are
+new enough, we still want to remove features that do nothing to minimize
+confusion or to avoid false migration issues.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit c15ae99dab903004b82f8447f44df09973696f72)
+
+https://issues.redhat.com/browse/RHEL-126094
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 192b015482..13dae2aa6a 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -9415,12 +9415,7 @@ qemuProcessRefreshCPU(virQEMUDriver *driver,
+ 
+         if (qemuProcessUpdateCPU(vm, VIR_ASYNC_JOB_NONE) < 0)
+             return -1;
+-    } else if (!virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION)) {
+-        /* We only try to fix CPUs when the libvirt/QEMU combo used to start
+-         * the domain did not know about query-cpu-model-expansion in which
+-         * case the host-model is known to not contain features which QEMU
+-         * doesn't know about.
+-         */
++    } else {
+         qemuDomainFixupCPUs(vm, priv->origCPU);
+     }
+ 
+-- 
+2.51.1

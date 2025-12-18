@@ -1,0 +1,182 @@
+From 8b3f1c5a62ada0014cb1dc245ffc67679f3e26df Mon Sep 17 00:00:00 2001
+Message-ID: <8b3f1c5a62ada0014cb1dc245ffc67679f3e26df.1763729878.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 24 Oct 2025 17:16:32 +0200
+Subject: [PATCH] qemu_monitor: Filter CPU features reported by QEMU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Some features may be on our ignore list because they do nothing even
+though QEMU still supports them and reports their state. But as the
+features do nothing, the state reported by QEMU may not correspond to
+what the guest sees. To avoid possible confusion we may just pretend
+QEMU did not report any of the features on our ignore list.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 4d5c1bc24119e90dfbcdae6a120027e5c1ede608)
+
+https://issues.redhat.com/browse/RHEL-126094
+
+Conflicts:
+	src/qemu/qemu_monitor.c
+	src/qemu/qemu_monitor.h
+	src/qemu/qemu_monitor_json.c
+	src/qemu/qemu_process.c
+	tests/qemumonitorjsontest.c
+            - the qom-list-get series optimizing CPU feature probing was
+              not backported
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_monitor.c      |  6 ++++--
+ src/qemu/qemu_monitor.h      |  1 +
+ src/qemu/qemu_monitor_json.c | 18 +++++++++++++++---
+ src/qemu/qemu_monitor_json.h |  1 +
+ src/qemu/qemu_process.c      |  1 +
+ 5 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index c1fef8d5de..67182c41b9 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -3729,7 +3729,8 @@ qemuMonitorGetGuestCPUx86(qemuMonitor *mon,
+  * @arch: CPU architecture
+  * @cpuQOMPath: QOM path of a CPU to probe
+  * @translate: callback for translating CPU feature names from QEMU to libvirt
+- * @opaque: data for @translate callback
++ * @filter: callback for filtering ignored features, a pointer to @arch is
++ *      passed as opaque pointer to the callback
+  * @enabled: returns the CPU data for all enabled features
+  * @disabled: returns the CPU data for features which we asked for
+  *      (either explicitly or via a named CPU model) but QEMU disabled them
+@@ -3743,6 +3744,7 @@ qemuMonitorGetGuestCPU(qemuMonitor *mon,
+                        virArch arch,
+                        const char *cpuQOMPath,
+                        qemuMonitorCPUFeatureTranslationCallback translate,
++                       virCPUDefFeatureFilter filter,
+                        virCPUData **enabled,
+                        virCPUData **disabled)
+ {
+@@ -3756,7 +3758,7 @@ qemuMonitorGetGuestCPU(qemuMonitor *mon,
+         *disabled = NULL;
+ 
+     return qemuMonitorJSONGetGuestCPU(mon, arch, cpuQOMPath, translate,
+-                                      enabled, disabled);
++                                      filter, enabled, disabled);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 755f347e17..dea2c21921 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -1281,6 +1281,7 @@ int qemuMonitorGetGuestCPU(qemuMonitor *mon,
+                            virArch arch,
+                            const char *cpuQOMPath,
+                            qemuMonitorCPUFeatureTranslationCallback translate,
++                           virCPUDefFeatureFilter filter,
+                            virCPUData **enabled,
+                            virCPUData **disabled);
+ 
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 9f51421478..78a276a004 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -6841,6 +6841,7 @@ static int
+ qemuMonitorJSONGetCPUData(qemuMonitor *mon,
+                           const char *cpuQOMPath,
+                           qemuMonitorCPUFeatureTranslationCallback translate,
++                          virCPUDefFeatureFilter filter,
+                           virCPUData *data)
+ {
+     qemuMonitorJSONObjectProperty prop = { .type = QEMU_MONITOR_OBJECT_PROPERTY_BOOLEAN };
+@@ -6862,6 +6863,9 @@ qemuMonitorJSONGetCPUData(qemuMonitor *mon,
+         if (translate)
+             name = translate(data->arch, name);
+ 
++        if (filter && !filter(name, VIR_CPU_FEATURE_REQUIRE, &data->arch))
++            continue;
++
+         if (virCPUDataAddFeature(data, name) < 0)
+             return -1;
+     }
+@@ -6874,6 +6878,7 @@ static int
+ qemuMonitorJSONGetCPUDataDisabled(qemuMonitor *mon,
+                                   const char *cpuQOMPath,
+                                   qemuMonitorCPUFeatureTranslationCallback translate,
++                                  virCPUDefFeatureFilter filter,
+                                   virCPUData *data)
+ {
+     g_auto(GStrv) props = NULL;
+@@ -6889,6 +6894,9 @@ qemuMonitorJSONGetCPUDataDisabled(qemuMonitor *mon,
+         if (translate)
+             name = translate(data->arch, name);
+ 
++        if (filter && !filter(name, VIR_CPU_FEATURE_REQUIRE, &data->arch))
++            continue;
++
+         if (virCPUDataAddFeature(data, name) < 0)
+             return -1;
+     }
+@@ -6903,7 +6911,8 @@ qemuMonitorJSONGetCPUDataDisabled(qemuMonitor *mon,
+  * @arch: CPU architecture
+  * @cpuQOMPath: QOM path of a CPU to probe
+  * @translate: callback for translating CPU feature names from QEMU to libvirt
+- * @opaque: data for @translate callback
++ * @filter: callback for filtering ignored features, a pointer to @arch is
++ *      passed as opaque pointer to the callback
+  * @enabled: returns the CPU data for all enabled features
+  * @disabled: returns the CPU data for features which we asked for
+  *      (either explicitly or via a named CPU model) but QEMU disabled them
+@@ -6917,6 +6926,7 @@ qemuMonitorJSONGetGuestCPU(qemuMonitor *mon,
+                            virArch arch,
+                            const char *cpuQOMPath,
+                            qemuMonitorCPUFeatureTranslationCallback translate,
++                           virCPUDefFeatureFilter filter,
+                            virCPUData **enabled,
+                            virCPUData **disabled)
+ {
+@@ -6927,11 +6937,13 @@ qemuMonitorJSONGetGuestCPU(qemuMonitor *mon,
+         !(cpuDisabled = virCPUDataNew(arch)))
+         return -1;
+ 
+-    if (qemuMonitorJSONGetCPUData(mon, cpuQOMPath, translate, cpuEnabled) < 0)
++    if (qemuMonitorJSONGetCPUData(mon, cpuQOMPath, translate, filter,
++                                  cpuEnabled) < 0)
+         return -1;
+ 
+     if (disabled &&
+-        qemuMonitorJSONGetCPUDataDisabled(mon, cpuQOMPath, translate, cpuDisabled) < 0)
++        qemuMonitorJSONGetCPUDataDisabled(mon, cpuQOMPath, translate, filter,
++                                          cpuDisabled) < 0)
+         return -1;
+ 
+     *enabled = g_steal_pointer(&cpuEnabled);
+diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
+index bd437f7938..3971d5854a 100644
+--- a/src/qemu/qemu_monitor_json.h
++++ b/src/qemu/qemu_monitor_json.h
+@@ -579,6 +579,7 @@ qemuMonitorJSONGetGuestCPU(qemuMonitor *mon,
+                            virArch arch,
+                            const char *cpuQOMPath,
+                            qemuMonitorCPUFeatureTranslationCallback translate,
++                           virCPUDefFeatureFilter filter,
+                            virCPUData **enabled,
+                            virCPUData **disabled);
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 13dae2aa6a..7d5d2f6478 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -4596,6 +4596,7 @@ qemuProcessFetchGuestCPU(virDomainObj *vm,
+                                     vm->def->os.arch,
+                                     cpuQOMPath,
+                                     virQEMUCapsCPUFeatureFromQEMU,
++                                    virQEMUCapsCPUFilterFeatures,
+                                     &dataEnabled, &dataDisabled);
+     } else {
+         rc = qemuMonitorGetGuestCPUx86(priv->mon, cpuQOMPath, &dataEnabled, &dataDisabled);
+-- 
+2.51.1

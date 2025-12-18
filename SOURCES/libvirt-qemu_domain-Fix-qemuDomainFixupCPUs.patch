@@ -1,0 +1,74 @@
+From 7d2418e14565d6f5786aa1dec41a40c2d0bec23d Mon Sep 17 00:00:00 2001
+Message-ID: <7d2418e14565d6f5786aa1dec41a40c2d0bec23d.1763729878.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 24 Oct 2025 15:27:03 +0200
+Subject: [PATCH] qemu_domain: Fix qemuDomainFixupCPUs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function was apparently created when the list of ignored CPU
+features contained just cmt and related features. The list grew quite a
+bit since then and this function stopped making sense as it would remove
+all ignored features from CPU definitions but only if cmt was present.
+The issue with cmt is long gone and this function was not really doing
+anything. Surprisingly this didn't cause any real issues as we don't
+update CPU definitions with features unknown to QEMU. But we may still
+want to remove ignored features even though QEMU knows about them for
+compatibility reasons.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit 2ab6925218df7298c17f0186425624aa792a5e84)
+
+https://issues.redhat.com/browse/RHEL-126094
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 219b857e95..be7f50b34e 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -9467,15 +9467,20 @@ qemuDomainUpdateCPU(virDomainObj *vm,
+ 
+ 
+ /**
+- * qemuDomainFixupCPUS:
++ * qemuDomainFixupCPUs:
+  * @vm: domain object
+  * @origCPU: original CPU used when the domain was started
+  *
+  * Libvirt older than 3.9.0 could have messed up the expansion of host-model
+  * CPU when reconnecting to a running domain by adding features QEMU does not
+- * support (such as cmt). This API fixes both the actual CPU provided by QEMU
+- * (stored in the domain object) and the @origCPU used when starting the
+- * domain.
++ * support (such as cmt).
++ *
++ * Newer libvirt would not include feature unknown to QEMU, but the CPU
++ * definitions could contain features that were removed from QEMU and added to
++ * our list of ignored features as they were not actually doing anything.
++ *
++ * This API fixes both the actual CPU provided by QEMU (stored in the domain
++ * object) and the @origCPU used when starting the domain.
+  *
+  * This is safe even if the original CPU definition used mode='custom' (rather
+  * than host-model) since we know QEMU was able to start the domain and thus
+@@ -9505,11 +9510,8 @@ qemuDomainFixupCPUs(virDomainObj *vm,
+     if (!origCPU)
+         return;
+ 
+-    if (virCPUDefFindFeature(vm->def->cpu, "cmt"))
+-        virCPUDefFilterFeatures(vm->def->cpu, virQEMUCapsCPUFilterFeatures, &arch);
+-
+-    if (virCPUDefFindFeature(origCPU, "cmt"))
+-        virCPUDefFilterFeatures(origCPU, virQEMUCapsCPUFilterFeatures, &arch);
++    virCPUDefFilterFeatures(vm->def->cpu, virQEMUCapsCPUFilterFeatures, &arch);
++    virCPUDefFilterFeatures(origCPU, virQEMUCapsCPUFilterFeatures, &arch);
+ }
+ 
+ 
+-- 
+2.51.1

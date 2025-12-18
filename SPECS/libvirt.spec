@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.5.0
-Release: 4.1%{?dist}%{?extra_release}
+Release: 4.2%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -339,6 +339,12 @@ Patch39: libvirt-qemu-Send-event-VIR_DOMAIN_EVENT_-STOPPED-STARTED-during-recrea
 Patch40: libvirt-qemu-Support-domain-reset-command-for-TDX-guest.patch
 Patch41: libvirt-qemuxmlconftest-Add-latest-version-of-launch-security-tdx-test-data.patch
 Patch42: libvirt-docs-domain-Add-documentation-for-Intel-TDX-guest.patch
+Patch43: libvirt-cpu_conf-Make-virCPUDefFilterFeatures-return-void.patch
+Patch44: libvirt-qemu_domain-Simplify-qemuDomainFixupCPUs.patch
+Patch45: libvirt-qemu_domain-Fix-qemuDomainFixupCPUs.patch
+Patch46: libvirt-qemu_process-Always-fix-CPUs-on-reconnect.patch
+Patch47: libvirt-qemu_monitor-Filter-CPU-features-reported-by-QEMU.patch
+Patch48: libvirt-qemu-Ignore-ht-CPU-feature.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2734,6 +2740,14 @@ exit 0
 %endif
 
 %changelog
+* Fri Nov 21 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.2.el10_1
+- cpu_conf: Make virCPUDefFilterFeatures return void (RHEL-126094)
+- qemu_domain: Simplify qemuDomainFixupCPUs (RHEL-126094)
+- qemu_domain: Fix qemuDomainFixupCPUs (RHEL-126094)
+- qemu_process: Always fix CPUs on reconnect (RHEL-126094)
+- qemu_monitor: Filter CPU features reported by QEMU (RHEL-126094)
+- qemu: Ignore "ht" CPU feature (RHEL-126094)
+
 * Wed Oct  8 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.1.el10_1
 - tools: Secure guest check for Intel in virt-host-validate (RHEL-111863)
 - qemu: Check if INTEL Trust Domain Extention support is enabled (RHEL-111863)

@@ -1,0 +1,108 @@
+From b95e494f61c603876875cda69ce0dcbe77918fa8 Mon Sep 17 00:00:00 2001
+Message-ID: <b95e494f61c603876875cda69ce0dcbe77918fa8.1763729878.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 24 Oct 2025 15:13:49 +0200
+Subject: [PATCH] qemu_domain: Simplify qemuDomainFixupCPUs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Since virCPUDefFilterFeatures never fails, we can use it for in-place
+modifications instead of modifying a temporary virCPUDef copy.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+(cherry picked from commit fbf44bc8cf63ab5c7641f1aa04aaf7fb5eaab62e)
+
+https://issues.redhat.com/browse/RHEL-126094
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c  | 26 ++++++--------------------
+ src/qemu/qemu_domain.h  |  2 +-
+ src/qemu/qemu_process.c |  4 ++--
+ 3 files changed, 9 insertions(+), 23 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 852ff34303..219b857e95 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -9486,7 +9486,7 @@ qemuDomainUpdateCPU(virDomainObj *vm,
+  */
+ void
+ qemuDomainFixupCPUs(virDomainObj *vm,
+-                    virCPUDef **origCPU)
++                    virCPUDef *origCPU)
+ {
+     virArch arch = vm->def->os.arch;
+ 
+@@ -9502,28 +9502,14 @@ qemuDomainFixupCPUs(virDomainObj *vm,
+      * we asked for or libvirt was too old to mess up the translation from
+      * host-model.
+      */
+-    if (!*origCPU)
++    if (!origCPU)
+         return;
+ 
+-    if (virCPUDefFindFeature(vm->def->cpu, "cmt")) {
+-        g_autoptr(virCPUDef) fixedCPU = virCPUDefCopyWithoutModel(vm->def->cpu);
++    if (virCPUDefFindFeature(vm->def->cpu, "cmt"))
++        virCPUDefFilterFeatures(vm->def->cpu, virQEMUCapsCPUFilterFeatures, &arch);
+ 
+-        virCPUDefCopyModelFilter(fixedCPU, vm->def->cpu, false,
+-                                 virQEMUCapsCPUFilterFeatures, &arch);
+-
+-        virCPUDefFree(vm->def->cpu);
+-        vm->def->cpu = g_steal_pointer(&fixedCPU);
+-    }
+-
+-    if (virCPUDefFindFeature(*origCPU, "cmt")) {
+-        g_autoptr(virCPUDef) fixedOrig = virCPUDefCopyWithoutModel(*origCPU);
+-
+-        virCPUDefCopyModelFilter(fixedOrig, *origCPU, false,
+-                                 virQEMUCapsCPUFilterFeatures, &arch);
+-
+-        virCPUDefFree(*origCPU);
+-        *origCPU = g_steal_pointer(&fixedOrig);
+-    }
++    if (virCPUDefFindFeature(origCPU, "cmt"))
++        virCPUDefFilterFeatures(origCPU, virQEMUCapsCPUFilterFeatures, &arch);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 16e04829c4..dc0600a061 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -996,7 +996,7 @@ qemuDomainUpdateCPU(virDomainObj *vm,
+ 
+ void
+ qemuDomainFixupCPUs(virDomainObj *vm,
+-                    virCPUDef **origCPU);
++                    virCPUDef *origCPU);
+ 
+ char *
+ qemuDomainGetMachineName(virDomainObj *vm);
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 24af907afb..192b015482 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -8599,7 +8599,7 @@ qemuProcessStartWithMemoryState(virConnectPtr conn,
+      * the CPU definitions.
+      */
+     if (cookie)
+-        qemuDomainFixupCPUs(vm, &cookie->cpu);
++        qemuDomainFixupCPUs(vm, cookie->cpu);
+ 
+     if (cookie && !cookie->slirpHelper)
+         priv->disableSlirp = true;
+@@ -9421,7 +9421,7 @@ qemuProcessRefreshCPU(virQEMUDriver *driver,
+          * case the host-model is known to not contain features which QEMU
+          * doesn't know about.
+          */
+-        qemuDomainFixupCPUs(vm, &priv->origCPU);
++        qemuDomainFixupCPUs(vm, priv->origCPU);
+     }
+ 
+     return 0;
+-- 
+2.51.1
