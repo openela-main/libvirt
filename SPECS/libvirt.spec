@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 15.4%{?dist}%{?extra_release}
+Release: 15.6%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -504,6 +504,8 @@ Patch204: libvirt-qemu_domain-Fix-qemuDomainFixupCPUs.patch
 Patch205: libvirt-qemu_process-Always-fix-CPUs-on-reconnect.patch
 Patch206: libvirt-qemu_monitor-Filter-CPU-features-reported-by-QEMU.patch
 Patch207: libvirt-qemu-Ignore-ht-CPU-feature.patch
+Patch208: libvirt-qemu-tpm-Account-for-possible-migration-without-actually-sharing-storage.patch
+Patch209: libvirt-qemu-correctly-detect-working-TDX-support.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2829,6 +2831,12 @@ exit 0
 %endif
 
 %changelog
+* Thu Dec 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.6.el9_7
+- qemu: correctly detect working TDX support (RHEL-136239)
+
+* Thu Dec 11 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.5.el9_7
+- qemu: tpm: Account for possible migration without actually sharing storage (RHEL-132345)
+
 * Fri Nov 21 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.4.el9_7
 - cpu_conf: Make virCPUDefFilterFeatures return void (RHEL-126096)
 - qemu_domain: Simplify qemuDomainFixupCPUs (RHEL-126096)

@@ -1,0 +1,151 @@
+From 020c4bc3213cc2466e2a03bef5d81a95d6331f5f Mon Sep 17 00:00:00 2001
+Message-ID: <020c4bc3213cc2466e2a03bef5d81a95d6331f5f.1766050330.git.jdenemar@redhat.com>
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Thu, 20 Nov 2025 06:24:31 -0500
+Subject: [PATCH] qemu: correctly detect working TDX support
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Querying existence of the 'tdx-guest' type merely tells us whether
+QEMU has been compiled with TDX support, not whether it is usable
+on the host. Thus QEMU was incorrectly reporting
+
+    <tdx supported='yes'/>
+    ...
+    <launchSecurity supported='yes'>
+      <enum name='sectype'>
+        <value>tdx</value>
+      </enum>
+    </launchSecurity>
+
+on every platform with new enough QEMU.
+
+Unfortunately an earlier patch for a 'query-tdx-capabilities' QMP
+command in QEMU was dropped, so there is no way to ask QEMU whether
+it can launch a TDX guest. Libvirt must directly query the KVM
+device and ask for supported VM types.
+
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 62d14ba496634d5a98f7becc3875b9311cb38931)
+[DB: replace ATTRIBUTE_MOCKABLE with G_NO_INLINE]
+https://issues.redhat.com/browse/RHEL-136239
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 51 ++++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_capabilities.h |  3 +++
+ tests/domaincapsmock.c       |  6 +++++
+ 3 files changed, 60 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index b75ecd5046..c7ee5da225 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -54,11 +54,17 @@
+ # include <sys/types.h>
+ # include <sys/sysctl.h>
+ #endif
++#ifdef WITH_LINUX_KVM_H
++# include <linux/kvm.h>
++# include <sys/ioctl.h>
++#endif
+ 
+ #define VIR_FROM_THIS VIR_FROM_QEMU
+ 
+ VIR_LOG_INIT("qemu.qemu_capabilities");
+ 
++#define KVM_DEVICE "/dev/kvm"
++
+ /* While not public, these strings must not change. They
+  * are used in domain status files which are read on
+  * daemon restarts
+@@ -3690,6 +3696,50 @@ virQEMUCapsProbeQMPSEVCapabilities(virQEMUCaps *qemuCaps,
+ }
+ 
+ 
++bool
++virQEMUCapsKVMSupportsVMTypeTDX(void)
++{
++#if defined(KVM_CAP_VM_TYPES) && defined(KVM_X86_TDX_VM)
++    VIR_AUTOCLOSE kvmfd = -1;
++    int types;
++
++    if (!virFileExists(KVM_DEVICE))
++        return false;
++
++    if ((kvmfd = open(KVM_DEVICE, O_RDONLY)) < 0) {
++        VIR_DEBUG("Unable to open %s, cannot check TDX", KVM_DEVICE);
++        return false;
++    }
++
++    if ((types = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_VM_TYPES)) < 0)
++        types = 0;
++
++    VIR_DEBUG("KVM VM types: 0x%x", types);
++
++    return !!(types & (1 << KVM_X86_TDX_VM));
++#else
++    VIR_DEBUG("KVM not compiled");
++    return false;
++#endif
++}
++
++
++/* This ought to be virQEMUCapsProbeQMPTDXCapabilities,
++ * but there is no 'query-tdx-capabilities' command
++ * available in QEMU currently. If one arrives, rename
++ * this method & switch to using that on new enough QEMU
++ */
++static void
++virQEMUCapsProbeTDXCapabilities(virQEMUCaps *qemuCaps)
++{
++    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_TDX_GUEST))
++        return;
++
++    if (!virQEMUCapsKVMSupportsVMTypeTDX())
++        virQEMUCapsClear(qemuCaps, QEMU_CAPS_TDX_GUEST);
++}
++
++
+ static int
+ virQEMUCapsProbeQMPSGXCapabilities(virQEMUCaps *qemuCaps,
+                                    qemuMonitor *mon)
+@@ -5880,6 +5930,7 @@ virQEMUCapsInitQMPMonitor(virQEMUCaps *qemuCaps,
+         return -1;
+     if (virQEMUCapsProbeQMPSGXCapabilities(qemuCaps, mon) < 0)
+         return -1;
++    virQEMUCapsProbeTDXCapabilities(qemuCaps);
+ 
+     virQEMUCapsInitProcessCaps(qemuCaps);
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 9cce91d643..86eac19583 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -954,3 +954,6 @@ int
+ virQEMUCapsProbeQMPMachineTypes(virQEMUCaps *qemuCaps,
+                                 virDomainVirtType virtType,
+                                 qemuMonitor *mon);
++
++bool
++virQEMUCapsKVMSupportsVMTypeTDX(void) G_NO_INLINE;
+diff --git a/tests/domaincapsmock.c b/tests/domaincapsmock.c
+index cb6e98dbb8..7bece6c8c1 100644
+--- a/tests/domaincapsmock.c
++++ b/tests/domaincapsmock.c
+@@ -48,6 +48,12 @@ virHostCPUGetPhysAddrSize(const virArch hostArch,
+ }
+ 
+ #if WITH_QEMU
++bool
++virQEMUCapsKVMSupportsVMTypeTDX(void)
++{
++    return true;
++}
++
+ static bool (*real_virQEMUCapsGetKVMSupportsSecureGuest)(virQEMUCaps *qemuCaps);
+ 
+ bool
+-- 
+2.52.0
