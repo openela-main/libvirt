@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.5.0
-Release: 4.2%{?dist}%{?extra_release}
+Release: 4.5%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -345,6 +345,11 @@ Patch45: libvirt-qemu_domain-Fix-qemuDomainFixupCPUs.patch
 Patch46: libvirt-qemu_process-Always-fix-CPUs-on-reconnect.patch
 Patch47: libvirt-qemu_monitor-Filter-CPU-features-reported-by-QEMU.patch
 Patch48: libvirt-qemu-Ignore-ht-CPU-feature.patch
+Patch49: libvirt-qemu-tpm-Account-for-possible-migration-without-actually-sharing-storage.patch
+Patch50: libvirt-qemu-correctly-detect-working-TDX-support.patch
+Patch51: libvirt-esx-Allow-disk-images-in-subdirectories.patch
+Patch52: libvirt-esx_util-Introduce-esxUtil_EscapeInventoryObject.patch
+Patch53: libvirt-esx-URI-encode-inventory-objects-twice.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2740,6 +2745,17 @@ exit 0
 %endif
 
 %changelog
+* Tue Jan 13 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.5.el10_1
+- esx: Allow disk images in subdirectories (RHEL-140865)
+- esx_util: Introduce esxUtil_EscapeInventoryObject() (RHEL-140465)
+- esx: URI encode inventory objects twice (RHEL-140465)
+
+* Thu Dec 18 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.4.el10_1
+- qemu: correctly detect working TDX support (RHEL-129673)
+
+* Thu Dec 11 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.3.el10_1
+- qemu: tpm: Account for possible migration without actually sharing storage (RHEL-132920)
+
 * Fri Nov 21 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.2.el10_1
 - cpu_conf: Make virCPUDefFilterFeatures return void (RHEL-126094)
 - qemu_domain: Simplify qemuDomainFixupCPUs (RHEL-126094)
