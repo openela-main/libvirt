@@ -210,7 +210,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 8.0.0
-Release: 23.4%{?dist}%{?extra_release}
+Release: 23.5%{?dist}%{?extra_release}
 License: LGPLv2+
 URL: https://libvirt.org/
 
@@ -331,6 +331,7 @@ Patch108: libvirt-libvirt-domain-introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_D
 Patch109: libvirt-qemu_capabilities-filter-deprecated-features-if-requested.patch
 Patch110: libvirt-virsh-add-disable-deprecated-features-flag-to-domcapabilities.patch
 Patch111: libvirt-conf-add-deprecated_features-attribute.patch
+Patch112: libvirt-virsh-Add-option-no-pkttyagent.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2210,6 +2211,9 @@ exit 0
 
 
 %changelog
+* Wed Jan 14 2026 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.5.el8
+- virsh: Add option '--no-pkttyagent' (RHEL-134972)
+
 * Thu Jun  5 2025 Jiri Denemark <jdenemar@redhat.com> - 8.0.0-23.4.el8
 - util: xml: Introduce virXMLNodeGetSubelementList (RHEL-88716)
 - util: xml: Return GPtrArray from virXMLNodeGetSubelement [partial] (RHEL-88716)

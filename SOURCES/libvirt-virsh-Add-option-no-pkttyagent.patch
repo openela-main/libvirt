@@ -1,0 +1,106 @@
+From c268a42ad9f4c368c4d4507a80c554a28c169f26 Mon Sep 17 00:00:00 2001
+Message-ID: <c268a42ad9f4c368c4d4507a80c554a28c169f26.1768389640.git.jdenemar@redhat.com>
+From: Jens Schmidt <farblos@vodafonemail.de>
+Date: Sat, 17 May 2025 18:32:16 +0200
+Subject: [PATCH] virsh: Add option '--no-pkttyagent'
+
+In scripts repeated execution of virsh can result in a lot of
+journal noise when pkttyagent gets registered with polkitd each
+time.
+
+Closes: https://gitlab.com/libvirt/libvirt/-/issues/757
+Signed-off-by: Jens Schmidt <farblos@vodafonemail.de>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 0eea768f4b0513f3fababa0f085f9e54afba04dc)
+
+Conflicts:
+tools/virsh.c: Context. Upstream the opt[] array in
+               virshParseArgv() was reformatted in
+               4b90adf65a80c33f3359ba9af01759a2551b51cc.
+
+Resolves: https://issues.redhat.com/browse/RHEL-134972
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/manpages/virsh.rst |  8 ++++++++
+ tools/virsh.c           | 13 ++++++++++++-
+ tools/vsh.h             |  1 +
+ 3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/docs/manpages/virsh.rst b/docs/manpages/virsh.rst
+index 3adbf42280..58a994c65e 100644
+--- a/docs/manpages/virsh.rst
++++ b/docs/manpages/virsh.rst
+@@ -140,6 +140,14 @@ Output elapsed time information for each command.
+ 
+ 
+ 
++- ``--no-pkttyagent``
++
++Do not register ``pkttyagent`` as authentication agent with the
++polkit system daemon, even if ``virsh`` has been started from a
++terminal.
++
++
++
+ - ``-v``, ``--version[=short]``
+ 
+ Ignore all other arguments, and prints the version of the libvirt library
+diff --git a/tools/virsh.c b/tools/virsh.c
+index 5234a3decb..9dd11fca27 100644
+--- a/tools/virsh.c
++++ b/tools/virsh.c
+@@ -129,7 +129,8 @@ virshConnect(vshControl *ctl, const char *uri, bool readonly)
+         keepalive_forced = true;
+     }
+ 
+-    if (virPolkitAgentAvailable() &&
++    if (!ctl->no_pkttyagent &&
++        virPolkitAgentAvailable() &&
+         !(pkagent = virPolkitAgentCreate()))
+         virResetLastError();
+ 
+@@ -461,6 +462,7 @@ virshUsage(void)
+                       "    -q | --quiet            quiet mode\n"
+                       "    -r | --readonly         connect readonly\n"
+                       "    -t | --timing           print timing information\n"
++                      "         --no-pkttyagent    suppress registration of pkttyagent\n"
+                       "    -v                      short version\n"
+                       "    -V                      long version\n"
+                       "         --version[=TYPE]   version, TYPE is short or long (default short)\n"
+@@ -658,6 +660,7 @@ virshParseArgv(vshControl *ctl, int argc, char **argv)
+         {"quiet", no_argument, NULL, 'q'},
+         {"readonly", no_argument, NULL, 'r'},
+         {"timing", no_argument, NULL, 't'},
++        {"no-pkttyagent", no_argument, NULL, 0},
+         {"version", optional_argument, NULL, 'v'},
+         {NULL, 0, NULL, 0}
+     };
+@@ -755,6 +758,14 @@ virshParseArgv(vshControl *ctl, int argc, char **argv)
+         case 'V':
+             virshShowVersion(ctl);
+             exit(EXIT_SUCCESS);
++        case 0:
++            if (STREQ(opt[longindex].name, "no-pkttyagent")) {
++                ctl->no_pkttyagent = true;
++                break;
++            } else {
++                vshError(ctl, "%s", _("unknown option"));
++                exit(EXIT_FAILURE);
++            }
+         case ':':
+             for (i = 0; opt[i].name != NULL; i++) {
+                 if (opt[i].val == optopt)
+diff --git a/tools/vsh.h b/tools/vsh.h
+index e208d957bb..d48ade564e 100644
+--- a/tools/vsh.h
++++ b/tools/vsh.h
+@@ -203,6 +203,7 @@ struct _vshControl {
+     bool imode;                 /* interactive mode? */
+     bool quiet;                 /* quiet mode */
+     bool timing;                /* print timing info? */
++    bool no_pkttyagent;         /* suppress registration of pkttyagent? */
+     int debug;                  /* print debug messages? */
+     char *logfile;              /* log file name */
+     int log_fd;                 /* log file descriptor */
+-- 
+2.52.0
