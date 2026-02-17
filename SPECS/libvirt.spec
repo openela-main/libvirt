@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 15.6%{?dist}%{?extra_release}
+Release: 15.7%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -506,6 +506,8 @@ Patch206: libvirt-qemu_monitor-Filter-CPU-features-reported-by-QEMU.patch
 Patch207: libvirt-qemu-Ignore-ht-CPU-feature.patch
 Patch208: libvirt-qemu-tpm-Account-for-possible-migration-without-actually-sharing-storage.patch
 Patch209: libvirt-qemu-correctly-detect-working-TDX-support.patch
+Patch210: libvirt-qemu_validate-Drop-VIR_DOMAIN_HYPERV_SYNIC-dependency-on-VIR_DOMAIN_HYPERV_VPINDEX.patch
+Patch211: libvirt-qemu_validate-Drop-VIR_DOMAIN_HYPERV_STIMER-dependency-on-VIR_DOMAIN_HYPERV_VPINDEX.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2831,6 +2833,10 @@ exit 0
 %endif
 
 %changelog
+* Fri Jan 23 2026 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.7.el9_7
+- qemu_validate: Drop VIR_DOMAIN_HYPERV_SYNIC dependency on VIR_DOMAIN_HYPERV_VPINDEX (RHEL-140916)
+- qemu_validate: Drop VIR_DOMAIN_HYPERV_STIMER dependency on VIR_DOMAIN_HYPERV_VPINDEX (RHEL-140916)
+
 * Thu Dec 18 2025 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.6.el9_7
 - qemu: correctly detect working TDX support (RHEL-136239)
 
