@@ -1,0 +1,29 @@
+From ec2b306dfe705937dd5eab5c136af6fac7525f23 Mon Sep 17 00:00:00 2001
+Message-ID: <ec2b306dfe705937dd5eab5c136af6fac7525f23.1769616662.git.jdenemar@redhat.com>
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Date: Mon, 26 Jan 2026 10:38:02 +0000
+Subject: [PATCH] esx: Debug URL just before opening with curl
+
+Signed-off-by: Richard W.M. Jones <rjones@redhat.com>
+(cherry picked from commit 38c952d89317f5b4bd23223f9a9d8be086ef7a40)
+Resolves: https://issues.redhat.com/browse/RHEL-142863
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/esx/esx_vi.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/esx/esx_vi.c b/src/esx/esx_vi.c
+index d25f819bc5..44b24e3c91 100644
+--- a/src/esx/esx_vi.c
++++ b/src/esx/esx_vi.c
+@@ -231,6 +231,8 @@ esxVI_CURL_Perform(esxVI_CURL *curl, const char *url)
+     long responseCode = 0;
+     const char *redirectUrl = NULL;
+ 
++    VIR_DEBUG("URL: %s", url);
++
+     errorCode = curl_easy_perform(curl->handle);
+ 
+     if (errorCode != CURLE_OK) {
+-- 
+2.52.0

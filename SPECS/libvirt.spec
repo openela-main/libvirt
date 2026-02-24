@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.5.0
-Release: 4.5%{?dist}%{?extra_release}
+Release: 4.7%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -350,6 +350,10 @@ Patch50: libvirt-qemu-correctly-detect-working-TDX-support.patch
 Patch51: libvirt-esx-Allow-disk-images-in-subdirectories.patch
 Patch52: libvirt-esx_util-Introduce-esxUtil_EscapeInventoryObject.patch
 Patch53: libvirt-esx-URI-encode-inventory-objects-twice.patch
+Patch54: libvirt-esx-Allow-connecting-to-IPv6-server.patch
+Patch55: libvirt-esx-Debug-URL-just-before-opening-with-curl.patch
+Patch56: libvirt-esx-Abstract-all-URL-creation-code-into-one-function.patch
+Patch57: libvirt-esx-Switch-to-creating-URLs-using-virURIFormat.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2745,6 +2749,14 @@ exit 0
 %endif
 
 %changelog
+* Wed Jan 28 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.7.el10_1
+- esx: Debug URL just before opening with curl (RHEL-142863)
+- esx: Abstract all URL-creation code into one function (RHEL-142863)
+- esx: Switch to creating URLs using virURIFormat (RHEL-142863)
+
+* Fri Jan 23 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.6.el10_1
+- esx: Allow connecting to IPv6 server (RHEL-142863)
+
 * Tue Jan 13 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.5.el10_1
 - esx: Allow disk images in subdirectories (RHEL-140865)
 - esx_util: Introduce esxUtil_EscapeInventoryObject() (RHEL-140465)
