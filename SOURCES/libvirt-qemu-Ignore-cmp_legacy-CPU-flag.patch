@@ -1,0 +1,402 @@
+From c9e94ac936d4f9de638b1c06856dbb14a5998988 Mon Sep 17 00:00:00 2001
+Message-ID: <c9e94ac936d4f9de638b1c06856dbb14a5998988.1770825171.git.jdenemar@redhat.com>
+From: Jean-Louis Dupond <jean-louis@dupond.be>
+Date: Thu, 5 Feb 2026 14:18:42 +0100
+Subject: [PATCH] qemu: Ignore cmp_legacy CPU flag
+
+Since commit 99a637a8 in qemu 10.0, the way the cmp_legacy flag is
+reported changed. The same way as happend with the 'ht' flag in commit
+c6bd2dd634208, which was fixed in libvirt since commit ba16113c.
+
+This causes migrations from a hypervisor running a qemu version before
+that commit to a hypervisor running qemu after that commit fails
+with the following error:
+guest CPU doesn't match specification: extra features: cmp_legacy
+
+We can just ignore this flag, just like we did with the 'ht' flag.
+
+Signed-off-by: Jean-Louis Dupond <jean-louis@dupond.be>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit fc5840b4980045a05b8973900cdbe36162e48331)
+
+https://issues.redhat.com/browse/RHEL-148502
+
+Conflicts:
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-latest.args
+	tests/qemuxmlconfdata/cpu-host-model-features.x86_64-latest.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-latest.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-latest.args
+            - the -cpu option was different downstream as several
+              unrelated upstream commits were not backported
+
+	tests/qemuxmlconfdata/cpu-host-model-fallback-tcg.x86_64-latest.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-tcg.x86_64-latest.args
+	tests/qemuxmlconfdata/cpu-host-model-tcg.x86_64-latest.args
+            - no change required, downstream -cpu option does not
+              contain cmp_legacy feaature
+
+	tests/qemuxmlconfdata/memory-hotplug-numa-preferred.x86_64-latest.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-10.0.0.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-10.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.2.0.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-9.0.0.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-9.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-9.2.0.args
+	tests/qemuxmlconfdata/cpu-host-model-fallback-tcg.x86_64-10.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-10.0.0.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-10.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.2.0.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-9.0.0.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-9.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-9.2.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-10.0.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-10.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.2.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-9.0.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-9.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-9.2.0.args
+	tests/qemuxmlconfdata/cpu-host-model-nofallback-tcg.x86_64-10.1.0.args
+	tests/qemuxmlconfdata/cpu-host-model-tcg.x86_64-10.1.0.args
+            - missing downstream, added upstream after the last rebase
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                                    | 1 +
+ .../cpu-host-model-fallback-kvm.x86_64-6.2.0.args               | 2 +-
+ .../cpu-host-model-fallback-kvm.x86_64-7.0.0.args               | 2 +-
+ .../cpu-host-model-fallback-kvm.x86_64-7.1.0.args               | 2 +-
+ .../cpu-host-model-fallback-kvm.x86_64-7.2.0.args               | 2 +-
+ .../cpu-host-model-fallback-kvm.x86_64-8.0.0.args               | 2 +-
+ .../cpu-host-model-fallback-kvm.x86_64-8.1.0.args               | 2 +-
+ .../cpu-host-model-fallback-kvm.x86_64-latest.args              | 2 +-
+ .../qemuxmlconfdata/cpu-host-model-features.x86_64-latest.args  | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-6.2.0.args      | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.0.0.args      | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.1.0.args      | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.2.0.args      | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.0.0.args      | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.1.0.args      | 2 +-
+ tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-latest.args     | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-6.2.0.args             | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-7.0.0.args             | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-7.1.0.args             | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-7.2.0.args             | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-8.0.0.args             | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-8.1.0.args             | 2 +-
+ .../cpu-host-model-nofallback-kvm.x86_64-latest.args            | 2 +-
+ tests/qemuxmlconfdata/cpu-translation.x86_64-latest.args        | 2 +-
+ 24 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 9365891ddf..f15b5867a3 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -3739,6 +3739,7 @@ const char *ignoredFeatures[] = {
+     "vmx-ept-uc", "vmx-ept-wb",      /* never supported by QEMU */
+     "vmx-invvpid-single-context",    /* never supported by QEMU */
+     "ht",                            /* ignored by QEMU, set according to topology */
++    "cmp_legacy",                    /* ignored by QEMU, set according to topology */
+ };
+ 
+ bool
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-6.2.0.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-6.2.0.args
+index 4aa9011fe8..e8a9aceb4a 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-6.2.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-6.2.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-6.2,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.0.0.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.0.0.args
+index e944e69cfd..0df6ce9e3d 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.0.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.0.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-7.0,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.1.0.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.1.0.args
+index d9edda2733..b4a91fa921 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.1.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.1.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-7.1,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,vmcb-clean=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,vmcb-clean=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.2.0.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.2.0.args
+index 1d1839b7fa..5d69199876 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.2.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-7.2.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-7.2,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.0.0.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.0.0.args
+index 8278629ee7..e7b424819e 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.0.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.0.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-8.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.1.0.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.1.0.args
+index 3b733a3c5d..58ad565dba 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.1.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-8.1.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-8.1,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,xsaves=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,xsaves=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-latest.args
+index a0247e4310..0481de137e 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-fallback-kvm.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-features.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-host-model-features.x86_64-latest.args
+index a60ce4dee0..7b51f6643a 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-features.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-features.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off,abm=on,ds=on,invtsc=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off,abm=on,ds=on,invtsc=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-6.2.0.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-6.2.0.args
+index f65444948e..4402bad82d 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-6.2.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-6.2.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-q35-6.2,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.0.0.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.0.0.args
+index 8f8b1645d5..d6dfadc3b2 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.0.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.0.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-q35-7.0,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.1.0.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.1.0.args
+index df03bafab3..09e220487d 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.1.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.1.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-q35-7.1,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,vmcb-clean=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,vmcb-clean=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.2.0.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.2.0.args
+index 7a796812fa..7e90b309a9 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.2.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-7.2.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-q35-7.2,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.0.0.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.0.0.args
+index d63438e81c..fc02c9a7e0 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.0.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.0.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-q35-8.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.1.0.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.1.0.args
+index 901f279a02..8360dc02ef 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.1.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-8.1.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-q35-8.1,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,xsaves=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,xsaves=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-latest.args
+index e2e6d08246..f5984cbf22 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-kvm.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine q35,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-6.2.0.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-6.2.0.args
+index 4aa9011fe8..e8a9aceb4a 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-6.2.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-6.2.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-6.2,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.0.0.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.0.0.args
+index e944e69cfd..0df6ce9e3d 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.0.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.0.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-7.0,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.1.0.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.1.0.args
+index d9edda2733..b4a91fa921 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.1.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.1.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-7.1,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,vmcb-clean=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,tsc-scale=on,vmcb-clean=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.2.0.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.2.0.args
+index 1d1839b7fa..5d69199876 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.2.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-7.2.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-7.2,usb=off,dump-guest-core=off,memory-backend=pc.ram \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.0.0.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.0.0.args
+index 8278629ee7..e7b424819e 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.0.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.0.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-8.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,xsaves=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.1.0.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.1.0.args
+index 3b733a3c5d..58ad565dba 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.1.0.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-8.1.0.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc-i440fx-8.1,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,xsaves=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,xsaves=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-latest.args
+index a0247e4310..0481de137e 100644
+--- a/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-host-model-nofallback-kvm.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel kvm \
+--cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,cmp-legacy=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off \
++-cpu EPYC-Rome,x2apic=on,tsc-deadline=on,hypervisor=on,tsc-adjust=on,stibp=on,arch-capabilities=on,ssbd=on,overflow-recov=on,succor=on,amd-ssbd=on,virt-ssbd=on,lbrv=on,tsc-scale=on,vmcb-clean=on,flushbyasid=on,pause-filter=on,pfthreshold=on,v-vmsave-vmload=on,vgif=on,svme-addr-chk=on,lfence-always-serializing=on,null-sel-clr-base=on,ibpb-brtype=on,rdctl-no=on,skip-l1dfl-vmentry=on,mds-no=on,pschange-mc-no=on,gds-no=on,rfds-no=on,xsaves=off \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+diff --git a/tests/qemuxmlconfdata/cpu-translation.x86_64-latest.args b/tests/qemuxmlconfdata/cpu-translation.x86_64-latest.args
+index 49e1b590dd..d425866c67 100644
+--- a/tests/qemuxmlconfdata/cpu-translation.x86_64-latest.args
++++ b/tests/qemuxmlconfdata/cpu-translation.x86_64-latest.args
+@@ -12,7 +12,7 @@ XDG_CONFIG_HOME=/var/lib/libvirt/qemu/domain--1-QEMUGuest1/.config \
+ -object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain--1-QEMUGuest1/master-key.aes"}' \
+ -machine pc,usb=off,dump-guest-core=off,memory-backend=pc.ram,acpi=off \
+ -accel tcg \
+--cpu Haswell,pclmulqdq=on,ds-cpl=on,tsc-adjust=on,fxsr-opt=on,lahf-lm=on,cmp-legacy=on,nodeid-msr=on,perfctr-core=on,perfctr-nb=on,kvm-pv-eoi=on,kvm-pv-unhalt=on \
++-cpu Haswell,pclmulqdq=on,ds-cpl=on,tsc-adjust=on,fxsr-opt=on,lahf-lm=on,nodeid-msr=on,perfctr-core=on,perfctr-nb=on,kvm-pv-eoi=on,kvm-pv-unhalt=on \
+ -m size=219136k \
+ -object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":224395264}' \
+ -overcommit mem-lock=off \
+-- 
+2.53.0

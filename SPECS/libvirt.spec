@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.5.0
-Release: 4.7%{?dist}%{?extra_release}
+Release: 4.8%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -354,6 +354,7 @@ Patch54: libvirt-esx-Allow-connecting-to-IPv6-server.patch
 Patch55: libvirt-esx-Debug-URL-just-before-opening-with-curl.patch
 Patch56: libvirt-esx-Abstract-all-URL-creation-code-into-one-function.patch
 Patch57: libvirt-esx-Switch-to-creating-URLs-using-virURIFormat.patch
+Patch58: libvirt-qemu-Ignore-cmp_legacy-CPU-flag.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2749,6 +2750,9 @@ exit 0
 %endif
 
 %changelog
+* Wed Feb 11 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.8.el10_1
+- qemu: Ignore cmp_legacy CPU flag (RHEL-148502)
+
 * Wed Jan 28 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.7.el10_1
 - esx: Debug URL just before opening with curl (RHEL-142863)
 - esx: Abstract all URL-creation code into one function (RHEL-142863)
