@@ -289,7 +289,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 10.10.0
-Release: 15.8%{?dist}%{?extra_release}
+Release: 15.9%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -509,6 +509,10 @@ Patch209: libvirt-qemu-correctly-detect-working-TDX-support.patch
 Patch210: libvirt-qemu_validate-Drop-VIR_DOMAIN_HYPERV_SYNIC-dependency-on-VIR_DOMAIN_HYPERV_VPINDEX.patch
 Patch211: libvirt-qemu_validate-Drop-VIR_DOMAIN_HYPERV_STIMER-dependency-on-VIR_DOMAIN_HYPERV_VPINDEX.patch
 Patch212: libvirt-qemu-Ignore-cmp_legacy-CPU-flag.patch
+Patch213: libvirt-Introduce-EXPAND_CPU_FEATURES-flag-for-domain-capabilities.patch
+Patch214: libvirt-qemu-Implement-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES.patch
+Patch215: libvirt-virsh-Add-expand-cpu-features-option-for-domcapabilities.patch
+Patch216: libvirt-docs-Clarify-host-model-description-in-domain-capabilities.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2834,6 +2838,12 @@ exit 0
 %endif
 
 %changelog
+* Wed Mar 11 2026 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.9.el9_7
+- Introduce EXPAND_CPU_FEATURES flag for domain capabilities (RHEL-154551)
+- qemu: Implement VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES (RHEL-154551)
+- virsh: Add --expand-cpu-features option for domcapabilities (RHEL-154551)
+- docs: Clarify host-model description in domain capabilities (RHEL-154551)
+
 * Wed Feb 11 2026 Jiri Denemark <jdenemar@redhat.com> - 10.10.0-15.8.el9_7
 - qemu: Ignore cmp_legacy CPU flag (RHEL-148500)
 
