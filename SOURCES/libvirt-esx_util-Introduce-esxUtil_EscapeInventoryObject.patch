@@ -1,5 +1,5 @@
-From b6acf18d7eb7391a59a57930a6d96d693de9ae7f Mon Sep 17 00:00:00 2001
-Message-ID: <b6acf18d7eb7391a59a57930a6d96d693de9ae7f.1768319110.git.jdenemar@redhat.com>
+From 0776d3a966522785927456bf85037503a9d85bd7 Mon Sep 17 00:00:00 2001
+Message-ID: <0776d3a966522785927456bf85037503a9d85bd7.1769699749.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Wed, 7 Jan 2026 10:34:25 +0100
 Subject: [PATCH] esx_util: Introduce esxUtil_EscapeInventoryObject()
@@ -21,7 +21,7 @@ Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Richard W.M. Jones <rjones@redhat.com>
 (cherry picked from commit ffe74c7c551bd641cbcaa2512ed0ad4a25d3980b)
-Resolves: https://issues.redhat.com/browse/RHEL-140465
+Resolves: https://issues.redhat.com/browse/RHEL-140196
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/esx/esx_util.c | 18 ++++++++++++++++++
@@ -29,7 +29,7 @@ Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
  2 files changed, 21 insertions(+)
 
 diff --git a/src/esx/esx_util.c b/src/esx/esx_util.c
-index 7ee0e5f7c0..9b714d90ba 100644
+index 12a34a2275..963bcd0a75 100644
 --- a/src/esx/esx_util.c
 +++ b/src/esx/esx_util.c
 @@ -448,3 +448,21 @@ esxUtil_EscapeForXml(const char *string)

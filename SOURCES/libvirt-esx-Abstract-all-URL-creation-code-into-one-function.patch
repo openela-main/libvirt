@@ -1,5 +1,5 @@
-From 7dd390b47953b389ecabdc62ac3eec3091a8be3d Mon Sep 17 00:00:00 2001
-Message-ID: <7dd390b47953b389ecabdc62ac3eec3091a8be3d.1769616662.git.jdenemar@redhat.com>
+From 95ff5dcad20269f8e26eda628c85168dd4702285 Mon Sep 17 00:00:00 2001
+Message-ID: <95ff5dcad20269f8e26eda628c85168dd4702285.1769699749.git.jdenemar@redhat.com>
 From: "Richard W.M. Jones" <rjones@redhat.com>
 Date: Mon, 26 Jan 2026 10:47:01 +0000
 Subject: [PATCH] esx: Abstract all URL-creation code into one function
@@ -9,17 +9,17 @@ refactoring and should not change the behaviour.
 
 Signed-off-by: Richard W.M. Jones <rjones@redhat.com>
 (cherry picked from commit e013d5b5cae732ddeae479098165b9331b8ea441)
-Resolves: https://issues.redhat.com/browse/RHEL-142863
+Resolves: https://issues.redhat.com/browse/RHEL-138300
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/esx/esx_driver.c | 53 +++++++++++++++++++++++++++++++++++---------
  1 file changed, 43 insertions(+), 10 deletions(-)
 
 diff --git a/src/esx/esx_driver.c b/src/esx/esx_driver.c
-index 8614ba3f32..432853c88a 100644
+index 9f965811b1..29735e359f 100644
 --- a/src/esx/esx_driver.c
 +++ b/src/esx/esx_driver.c
-@@ -589,7 +589,37 @@ esxCapsInit(esxPrivate *priv)
+@@ -582,7 +582,37 @@ esxCapsInit(esxPrivate *priv)
      return NULL;
  }
  
@@ -57,7 +57,7 @@ index 8614ba3f32..432853c88a 100644
  
  static int
  esxConnectToHost(esxPrivate *priv,
-@@ -626,8 +656,8 @@ esxConnectToHost(esxPrivate *priv,
+@@ -619,8 +649,8 @@ esxConnectToHost(esxPrivate *priv,
                                          conn->uri->server)))
          goto cleanup;
  
@@ -68,7 +68,7 @@ index 8614ba3f32..432853c88a 100644
  
      if (esxVI_Context_Alloc(&priv->host) < 0 ||
          esxVI_Context_Connect(priv->host, url, ipAddress, username, password,
-@@ -713,8 +743,8 @@ esxConnectToVCenter(esxPrivate *priv,
+@@ -706,8 +736,8 @@ esxConnectToVCenter(esxPrivate *priv,
      if (!(password = virAuthGetPassword(conn, auth, "esx", username, hostname)))
          return -1;
  
@@ -79,7 +79,7 @@ index 8614ba3f32..432853c88a 100644
  
      if (esxVI_Context_Alloc(&priv->vCenter) < 0 ||
          esxVI_Context_Connect(priv->vCenter, url, ipAddress, username,
-@@ -2364,8 +2394,9 @@ esxDomainScreenshot(virDomainPtr domain, virStreamPtr stream,
+@@ -2357,8 +2387,9 @@ esxDomainScreenshot(virDomainPtr domain, virStreamPtr stream,
      }
  
      /* Build URL */
@@ -91,7 +91,7 @@ index 8614ba3f32..432853c88a 100644
      virBufferURIEncodeString(&buffer, virtualMachine->obj->value);
  
      url = virBufferContentAndReset(&buffer);
-@@ -2570,8 +2601,9 @@ esxDomainGetXMLDesc(virDomainPtr domain, unsigned int flags)
+@@ -2563,8 +2594,9 @@ esxDomainGetXMLDesc(virDomainPtr domain, unsigned int flags)
          goto cleanup;
      }
  
@@ -102,8 +102,8 @@ index 8614ba3f32..432853c88a 100644
 +                       "/folder/");
      virBufferURIEncodeString(&buffer, directoryAndFileName);
      virBufferAddLit(&buffer, "?dcPath=");
-     esxUtil_EscapeInventoryObject(&buffer, priv->primary->datacenterPath);
-@@ -2994,8 +3026,9 @@ esxDomainDefineXMLFlags(virConnectPtr conn, const char *xml, unsigned int flags)
+     virBufferURIEncodeString(&buffer, priv->primary->datacenterPath);
+@@ -2987,8 +3019,9 @@ esxDomainDefineXMLFlags(virConnectPtr conn, const char *xml, unsigned int flags)
          goto cleanup;
      }
  

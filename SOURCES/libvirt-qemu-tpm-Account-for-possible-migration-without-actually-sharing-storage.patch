@@ -1,5 +1,5 @@
-From 37eccd8775799d5914f21df0a62279df23478576 Mon Sep 17 00:00:00 2001
-Message-ID: <37eccd8775799d5914f21df0a62279df23478576.1765457625.git.jdenemar@redhat.com>
+From 8e9dc8aed52c98c3683949dfe1127061bd9df47a Mon Sep 17 00:00:00 2001
+Message-ID: <8e9dc8aed52c98c3683949dfe1127061bd9df47a.1766070439.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 1 Dec 2025 11:35:32 +0100
 Subject: [PATCH] qemu: tpm: Account for possible migration without actually
@@ -25,13 +25,13 @@ Fixes: 68103e9daf633b789428fedef56f816c92f6ee75
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 (cherry picked from commit d56d0560946770d4364a4918cc289e6a7fe5d15c)
-https://issues.redhat.com/browse/RHEL-132920
+https://issues.redhat.com/browse/RHEL-132534
 ---
  src/qemu/qemu_tpm.c | 29 ++++++++++++++++++++---------
  1 file changed, 20 insertions(+), 9 deletions(-)
 
 diff --git a/src/qemu/qemu_tpm.c b/src/qemu/qemu_tpm.c
-index 2e5ec823b2..671eed002a 100644
+index 4c9445d72c..660410bcba 100644
 --- a/src/qemu/qemu_tpm.c
 +++ b/src/qemu/qemu_tpm.c
 @@ -158,6 +158,7 @@ qemuTPMEmulatorGetPid(const char *swtpmStateDir,

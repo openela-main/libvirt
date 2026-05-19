@@ -1,5 +1,5 @@
-From 33029bf5194d6562c8ffd20c9cc286ea298fb4b2 Mon Sep 17 00:00:00 2001
-Message-ID: <33029bf5194d6562c8ffd20c9cc286ea298fb4b2.1769195688.git.jdenemar@redhat.com>
+From 16276aad5c682651e2a5aabe7d5a7258dda251c1 Mon Sep 17 00:00:00 2001
+Message-ID: <16276aad5c682651e2a5aabe7d5a7258dda251c1.1769173967.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Tue, 20 Jan 2026 10:08:29 +0100
 Subject: [PATCH] esx: Allow connecting to IPv6 server
@@ -19,14 +19,13 @@ Resolves: https://issues.redhat.com/browse/RHEL-138300
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 845210011a9ffd9d17e30c51cbc81ba67c5d3166)
-Resolves: https://issues.redhat.com/browse/RHEL-142863
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/esx/esx_util.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/esx/esx_util.c b/src/esx/esx_util.c
-index 9b714d90ba..963bcd0a75 100644
+index 7ee0e5f7c0..12a34a2275 100644
 --- a/src/esx/esx_util.c
 +++ b/src/esx/esx_util.c
 @@ -280,8 +280,8 @@ esxUtil_ResolveHostname(const char *hostname, char **ipAddress)

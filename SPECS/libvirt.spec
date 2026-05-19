@@ -6,7 +6,7 @@
 %define min_rhel 9
 %define min_fedora 41
 
-%define arches_qemu_kvm         %{ix86} x86_64 %{power64} %{arm} aarch64 s390x riscv64
+%define arches_qemu_kvm         %{ix86} x86_64 %{power64} aarch64 s390x riscv64
 %if 0%{?rhel}
     %if 0%{?rhel} >= 10
         %define arches_qemu_kvm     x86_64 aarch64 s390x riscv64
@@ -32,11 +32,21 @@
 %define arches_ch               x86_64 aarch64
 
 # The hypervisor drivers that run in libvirtd
-%define with_qemu          0%{!?_without_qemu:1}
 %define with_lxc           0%{!?_without_lxc:1}
 %define with_libxl         0%{!?_without_libxl:1}
 %define with_vbox          0%{!?_without_vbox:1}
 %define with_ch            0%{!?_without_ch:1}
+
+%ifarch %{arches_64bit}
+    %define with_qemu      0%{!?_without_qemu:1}
+%else
+    # QEMU drops 32-bit in Fedora 44
+    %if 0%{?fedora} > 43
+        %define with_qemu  0
+    %else
+        %define with_qemu  0%{!?_without_qemu:1}
+    %endif
+%endif
 
 %ifarch %{arches_qemu_kvm}
     %define with_qemu_kvm      %{with_qemu}
@@ -76,8 +86,10 @@
     %define with_storage_gluster 0
 %endif
 
-# Fedora had zfs-fuse until F43
-%if 0%{?fedora} && 0%{?fedora} < 43
+# On Fedora 43, the 'zfs-fuse' package was removed, but is obtainable via
+# other means. Build the backend, but it's no longer considered to be part
+# of 'daemon-driver-storage'.
+%if 0%{?fedora}
     %define with_storage_zfs      0%{!?_without_storage_zfs:1}
 %else
     %define with_storage_zfs      0
@@ -91,7 +103,6 @@
 
 # Other optional features
 %define with_numactl          0%{!?_without_numactl:1}
-%define with_userfaultfd_sysctl 0%{!?_without_userfaultfd_sysctl:1}
 
 # A few optional bits off by default, we enable later
 %define with_fuse             0
@@ -259,12 +270,6 @@
     %define enable_werror -Dwerror=false -Dgit_werror=disabled
 %endif
 
-# Fedora and RHEL-9 are new enough to support /dev/userfaultfd, which
-# does not require enabling vm.unprivileged_userfaultfd sysctl.
-%if 0%{?fedora} || 0%{?rhel}
-    %define with_userfaultfd_sysctl 0
-%endif
-
 %define tls_priority "@LIBVIRT,SYSTEM"
 
 # libvirt 8.1.0 stops distributing any sysconfig files.
@@ -288,8 +293,8 @@
 
 Summary: Library providing a simple virtualization API
 Name: libvirt
-Version: 11.5.0
-Release: 4.8%{?dist}%{?extra_release}
+Version: 11.10.0
+Release: 12.1%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -297,64 +302,165 @@ URL: https://libvirt.org/
     %define mainturl stable_updates/
 %endif
 Source: https://download.libvirt.org/%{?mainturl}libvirt-%{version}.tar.xz
-Patch1: libvirt-virSystemdCreateMachine-Document-maxthreds.patch
-Patch2: libvirt-cgroup-Unexport-virDomainCgroupInitCgroup.patch
-Patch3: libvirt-qemu-conf-Store-autoShutdown-config-in-virDomainDriverAutoShutdownConfig.patch
-Patch4: libvirt-hypervisor-domain-Extract-logic-for-auto-shutdown-to-virDomainDriverAutoShutdownActive.patch
-Patch5: libvirt-virSystemdCreateMachine-Add-flag-to-invert-machined-unit-dependencies.patch
-Patch6: libvirt-cgroup-Plumb-the-daemonDomainShutdown-parameter-of-virSystemdCreateMachine-to-drivers.patch
-Patch7: libvirt-qemu-Fix-auto-shutdown-of-qemu-VMs-by-the-qemu-driver.patch
-Patch8: libvirt-hypervisor-Split-out-individual-steps-out-of-virDomainDriverAutoShutdown.patch
-Patch9: libvirt-virDomainDriverAutoShutdownDoSave-Don-t-attempt-to-save-transient-VMs.patch
-Patch10: libvirt-virDomainDriverAutoShutdown-Refactor-selection-logic-for-VMs.patch
-Patch11: libvirt-tls-Don-t-require-keyEncipherment-to-be-enabled-altoghther.patch
-Patch12: libvirt-kbase-tlscerts-Drop-encryption_key-feature-request.patch
-Patch13: libvirt-tests-virnettls-test-Drop-use-of-GNUTLS_KEY_KEY_ENCIPHERMENT.patch
-Patch14: libvirt-qemu_tpm-Rename-qemuTPMHasSharedStorage-qemuTPMDomainHasSharedStorage.patch
-Patch15: libvirt-qemu_tpm-Extract-per-TPM-functionality-from-qemuTPMDomainHasSharedStorage.patch
-Patch16: libvirt-qemu_tpm-Only-warn-about-missing-locking-feature-on-shared-filesystems.patch
-Patch17: libvirt-qemu_tpm-Do-not-use-persistent-definition-during-pre-start-checks.patch
-Patch18: libvirt-qemu-fix-order-of-VNC-TLS-config-entries.patch
-Patch19: libvirt-qemu-sanitize-blank-lines-in-config-file.patch
-Patch20: libvirt-qemu-add-ability-to-set-TLS-priority-string-with-QEMU.patch
-Patch21: libvirt-tools-Secure-guest-check-for-Intel-in-virt-host-validate.patch
-Patch22: libvirt-qemu-Check-if-INTEL-Trust-Domain-Extention-support-is-enabled.patch
-Patch23: libvirt-qemucapabilitiesdata-Document-inteltdx-variant.patch
-Patch24: libvirt-qemucapabilitiestest-Add-data-for-the-qemu-10.1.0-dev-cycle-on-x86_64-for-the-inteltdx-variant.patch
-Patch25: libvirt-qemu-Add-QEMU_CAPS_TDX_GUEST-capability.patch
-Patch26: libvirt-conf-Expose-TDX-feature-in-domain-capabilities.patch
-Patch27: libvirt-conf-Add-tdx-as-launch-security-type.patch
-Patch28: libvirt-conf-Validate-TDX-launchSecurity-element-mrConfigId-mrOwner-mrOwnerConfig.patch
-Patch29: libvirt-qemu-Add-command-line-and-validation-for-TDX-type.patch
-Patch30: libvirt-conf-Expose-TDX-type-in-domain-launch-security-capability.patch
-Patch31: libvirt-qemu-Force-special-parameters-enabled-for-TDX-guest.patch
-Patch32: libvirt-qemu-log-the-crash-information-for-TDX.patch
-Patch33: libvirt-qemu_firmware-Pick-the-right-firmware-for-TDX-guests.patch
-Patch34: libvirt-conf-Add-Intel-TDX-Quote-Generation-Service-QGS-support.patch
-Patch35: libvirt-qemu-Add-command-line-for-TDX-Quote-Generation-Service-QGS.patch
-Patch36: libvirt-qemu-Add-FakeReboot-support-for-TDX-guest.patch
-Patch37: libvirt-qemu-Support-reboot-command-in-guest.patch
-Patch38: libvirt-qemu-Avoid-duplicate-FakeReboot-for-secure-guest.patch
-Patch39: libvirt-qemu-Send-event-VIR_DOMAIN_EVENT_-STOPPED-STARTED-during-recreation.patch
-Patch40: libvirt-qemu-Support-domain-reset-command-for-TDX-guest.patch
-Patch41: libvirt-qemuxmlconftest-Add-latest-version-of-launch-security-tdx-test-data.patch
-Patch42: libvirt-docs-domain-Add-documentation-for-Intel-TDX-guest.patch
-Patch43: libvirt-cpu_conf-Make-virCPUDefFilterFeatures-return-void.patch
-Patch44: libvirt-qemu_domain-Simplify-qemuDomainFixupCPUs.patch
-Patch45: libvirt-qemu_domain-Fix-qemuDomainFixupCPUs.patch
-Patch46: libvirt-qemu_process-Always-fix-CPUs-on-reconnect.patch
-Patch47: libvirt-qemu_monitor-Filter-CPU-features-reported-by-QEMU.patch
-Patch48: libvirt-qemu-Ignore-ht-CPU-feature.patch
-Patch49: libvirt-qemu-tpm-Account-for-possible-migration-without-actually-sharing-storage.patch
-Patch50: libvirt-qemu-correctly-detect-working-TDX-support.patch
-Patch51: libvirt-esx-Allow-disk-images-in-subdirectories.patch
-Patch52: libvirt-esx_util-Introduce-esxUtil_EscapeInventoryObject.patch
-Patch53: libvirt-esx-URI-encode-inventory-objects-twice.patch
-Patch54: libvirt-esx-Allow-connecting-to-IPv6-server.patch
-Patch55: libvirt-esx-Debug-URL-just-before-opening-with-curl.patch
-Patch56: libvirt-esx-Abstract-all-URL-creation-code-into-one-function.patch
-Patch57: libvirt-esx-Switch-to-creating-URLs-using-virURIFormat.patch
-Patch58: libvirt-qemu-Ignore-cmp_legacy-CPU-flag.patch
+Patch1: libvirt-tests-add-test-for-a-single-per-device-smmuv3.patch
+Patch2: libvirt-qemu-Use-pci_bus-to-identify-multi-smmuv3-model.patch
+Patch3: libvirt-qemu-tpm-Account-for-possible-migration-without-actually-sharing-storage.patch
+Patch4: libvirt-tests-Test-virFileIsSharedFSOverride.patch
+Patch5: libvirt-util-Fix-race-condition-in-virFileIsSharedFSType.patch
+Patch6: libvirt-util-Fix-race-condition-in-virFileIsSharedFSOverride.patch
+Patch7: libvirt-util-Rework-virFileIsSharedFSOverride-using-virFileCheckParents.patch
+Patch8: libvirt-util-json-Increase-JSON-nesting-limit-when-parsing-to-300.patch
+Patch9: libvirt-virjsontest-Add-test-for-nesting-depth.patch
+Patch10: libvirt-qemuSecurityMoveImageMetadata-Move-seclabels-only-to-virStorageSource-of-same-type.patch
+Patch11: libvirt-esx-Allow-connecting-to-IPv6-server.patch
+Patch12: libvirt-qemuDomainSetThrottleGroup-Enforce-non-zero-groupname-string-length.patch
+Patch13: libvirt-qemuDomainSetBlockIoTuneField-Move-setting-of-group_name-out-of-the-loop.patch
+Patch14: libvirt-qemuDomainSetThrottleGroup-Always-honour-thottle-group-name-passed-as-argument.patch
+Patch15: libvirt-qemuDomainSetThrottleGroup-Don-t-put-group-name-into-the-tunable-event-twice.patch
+Patch16: libvirt-qemuSnapshotDiskHasBackingDisk-Avoid-call-of-virStorageSourceIsSameLocation-with-NULL-argument.patch
+Patch17: libvirt-qemuSnapshotUpdateBackingStore-Remove-stale-comment.patch
+Patch18: libvirt-qemuSnapshotDiskHasBackingDisk-Use-proper-max_depth-when-calling-virStorageSourceGetMetadata.patch
+Patch19: libvirt-virDomainSnapshotDefAssignExternalNames-Improve-error-message.patch
+Patch20: libvirt-qemuSnapshotUpdateBackingStore-Retry-as-curent-user-if-qemu-img-fails.patch
+Patch21: libvirt-esx-Debug-URL-just-before-opening-with-curl.patch
+Patch22: libvirt-esx-Abstract-all-URL-creation-code-into-one-function.patch
+Patch23: libvirt-esx-Switch-to-creating-URLs-using-virURIFormat.patch
+Patch24: libvirt-esx_util-Introduce-esxUtil_EscapeInventoryObject.patch
+Patch25: libvirt-esx-URI-encode-inventory-objects-twice.patch
+Patch26: libvirt-qemublocktest-Iterate-all-nodenames-in-testQemuDetectBitmaps.patch
+Patch27: libvirt-qemu-monitor-Detect-list-of-bitmaps-from-qcow2-format-specific-data.patch
+Patch28: libvirt-qemuMigrationDstPrepareAnyBlockDirtyBitmaps-Fix-check-for-existing-bitmaps.patch
+Patch29: libvirt-qemu-migration-Always-offer-block-dirty-bitmaps-during-migration.patch
+Patch30: libvirt-qemuMigrationDstPrepareAnyBlockDirtyBitmaps-Always-consider-offered-bitmaps.patch
+Patch31: libvirt-qemu-Implement-support-for-associating-iommufd-to-hostdev.patch
+Patch32: libvirt-qemu-Introduce-privateData-for-hostdevs.patch
+Patch33: libvirt-qemu-Support-per-process-memory-accounting-for-iommufd.patch
+Patch34: libvirt-qemu-open-VFIO-FDs-from-libvirt-backend.patch
+Patch35: libvirt-qemu-open-iommufd-FD-from-libvirt-backend.patch
+Patch36: libvirt-qemu-Update-Cgroup-namespace-and-seclabel-for-iommufd.patch
+Patch37: libvirt-tests-qemuxmlconfdata-provide-iommufd-sample-XML-and-CLI-args.patch
+Patch38: libvirt-src-Use-device-alias-when-ifname-is-unset-in-virDomainInterfaceAddresses.patch
+Patch39: libvirt-src-esx-esx_vi.c-Debug-path-element-comparisons.patch
+Patch40: libvirt-qemu-Ignore-cmp_legacy-CPU-flag.patch
+Patch41: libvirt-qemu-capabilities-Probe-properties-of-scsi-block-and-scsi-generic-devices.patch
+Patch42: libvirt-qemu-capabilities-Introduce-QEMU_CAPS_DEVICE_SCSI_BLOCK_MIGRATE_PR.patch
+Patch43: libvirt-RHEL-ONLY-backport-test-data-for-migrate-pr-capability-of-scsi-block.patch
+Patch44: libvirt-qemu-Implement-support-for-persistent-reservation-migration-control.patch
+Patch45: libvirt-qemu-Extract-disk-setup-done-via-QMP-into-a-separate-helper.patch
+Patch46: libvirt-qemu-process-Rename-qemuProcessSetupDiskThrottling-to-qemuProcessSetupDisks.patch
+Patch47: libvirt-qemu-monitor-Extract-block-latency-histogram-stats-into-qemuBlockStats.patch
+Patch48: libvirt-Expose-latency-histograms-via-virConnectGetAllDomainStats.patch
+Patch49: libvirt-qemu-monitor-Add-handlers-for-block-latency-histogram-set.patch
+Patch50: libvirt-docs-formatdomain-Fix-indentation-of-docs-for-disk-driver-statistics-element.patch
+Patch51: libvirt-docs-formatdomain-Reword-section-about-the-statistics-element-under-disk-driver.patch
+Patch52: libvirt-Introduce-support-for-disk-operation-latency-histogram-collection.patch
+Patch53: libvirt-qemu-Setup-disk-latency-histograms-on-startup-hotplug-update.patch
+Patch54: libvirt-qemu-Introduce-QEMU_CAPS_OBJECT_IOMMUFD.patch
+Patch55: libvirt-qemu-Move-IOMMUFD-validation-to-qemu_validate.patch
+Patch56: libvirt-util-Move-openning-IOMMU-device-to-viriommufd.patch
+Patch57: libvirt-qemu_process-Refactor-qemuProcessOpenIommuFd.patch
+Patch58: libvirt-util-Move-openning-VFIO-device-to-virpci.patch
+Patch59: libvirt-qemu_process-Refactor-qemuProcessOpenVfioDeviceFd.patch
+Patch60: libvirt-util-Use-virPCIDevice-as-argument-in-virPCIDeviceGetVfioPath.patch
+Patch61: libvirt-conf-Introduce-virHostdevIsPCIDeviceWithIOMMUFD.patch
+Patch62: libvirt-conf-Introduce-virDomainDefHasPCIHostdevWithIOMMUFD.patch
+Patch63: libvirt-qemu_domain-Add-missing-IOMMUFD-cleanup.patch
+Patch64: libvirt-qemu_process-Fix-FD-leak-with-multiple-host-devices-using-IOMMUFD.patch
+Patch65: libvirt-qemu_process-Refactor-qemuProcessOpenVfioFds.patch
+Patch66: libvirt-qemuxmlconftest-Refactor-host-device-preparation.patch
+Patch67: libvirt-qemuxmlconftest-Rename-and-refactor-testSetupHostdevPrivateData.patch
+Patch68: libvirt-qemuxmlconftest-Set-fake-FD-for-IOMMUFD.patch
+Patch69: libvirt-qemu-Convert-IOMMUFD-to-qemuFDPassDirect.patch
+Patch70: libvirt-qemu-Convert-vfioDeviceFd-to-qemuFDPassDirect.patch
+Patch71: libvirt-qemu_command-Don-t-use-host-property-if-IOMMUFD-is-used.patch
+Patch72: libvirt-qemu-Save-IOMMUFD-state-into-status-XML.patch
+Patch73: libvirt-qemu_hotplug-Remove-iommufd-object-if-no-longer-needed.patch
+Patch74: libvirt-qemu_command-Extract-building-IOMMUFD-props-to-function.patch
+Patch75: libvirt-qemu_hotplug-Add-support-to-hotplug-host-device-with-IOMMUFD.patch
+Patch76: libvirt-conf-Introduce-iommufd-enum-for-domaincaps.patch
+Patch77: libvirt-qemu-Fill-iommufd-domain-capability.patch
+Patch78: libvirt-tests-properly-mock-VFIO-and-IOMMU-checks.patch
+Patch79: libvirt-iommufd-fix-FD-leak-in-case-of-error.patch
+Patch80: libvirt-qemu_firmware-Drop-support-for-kernel-descriptors.patch
+Patch81: libvirt-qemu_firmware-Drop-nvram-local-variable.patch
+Patch82: libvirt-qemu_firmware-Move-format-raw-compat-exception.patch
+Patch83: libvirt-qemu_firmware-Move-copying-of-nvram.format-to-loader.format.patch
+Patch84: libvirt-tests-Add-firmware-manual-efi-rw-nvram.patch
+Patch85: libvirt-domain_validate-Reject-NVRAM-with-read-write-firmware.patch
+Patch86: libvirt-tests-Add-firmware-auto-bios-rw.patch
+Patch87: libvirt-tests-Add-firmware-manual-bios-rw.patch
+Patch88: libvirt-domain_validate-Reject-read-write-ROMs.patch
+Patch89: libvirt-tests-Add-firmware-auto-efi-format-loader-qcow2-rom.patch
+Patch90: libvirt-domain_validate-Reject-ROMs-with-format-other-than-raw.patch
+Patch91: libvirt-qemu_firmware-Ignore-stateless-combined-when-NVRAM-is-configured.patch
+Patch92: libvirt-qemu_firmware-Drop-fallback-for-absent-nvramTemplateFormat.patch
+Patch93: libvirt-schemas-Allow-templateFormat-without-template-path.patch
+Patch94: libvirt-tests-Add-firmware-manual-efi-nvram-template-nonstandard-format.patch
+Patch95: libvirt-tests-Add-firmware-manual-efi-nvram-template-nonstandard-legacy-paths.patch
+Patch96: libvirt-tests-Add-firmware-auto-efi-format-nvram-raw.patch
+Patch97: libvirt-tests-Add-firmware-auto-efi-format-nvram-raw-loader-path.patch
+Patch98: libvirt-tests-Add-firmware-auto-efi-format-nvram-raw-nvramtemplate-path.patch
+Patch99: libvirt-tests-Add-firmware-auto-efi-format-nvramtemplate-qcow2.patch
+Patch100: libvirt-tests-Add-firmware-auto-efi-format-mismatch-nvramtemplate.patch
+Patch101: libvirt-qemu_firmware-Introduce-qemuFirmwareFillDomainCustom.patch
+Patch102: libvirt-qemu_firmware-Set-templateFormat-for-custom-paths.patch
+Patch103: libvirt-qemu_firmware-Simplify-handling-of-legacy-paths.patch
+Patch104: libvirt-qemu_firmware-Refactor-setting-NVRAM-format.patch
+Patch105: libvirt-qemu_firmware-Prefer-template-format-to-loader-format.patch
+Patch106: libvirt-qemu_firmware-Retain-user-specified-NVRAM-format.patch
+Patch107: libvirt-qemu_firmware-Take-templateFormat-into-account-when-matching.patch
+Patch108: libvirt-qemu_firmware-Take-NVRAM-format-into-account-when-matching.patch
+Patch109: libvirt-qemu_firmware-Remove-NVRAM-to-loader-format-copy-hack.patch
+Patch110: libvirt-tests-Add-firmware-manual-efi-sev-snp.patch
+Patch111: libvirt-tests-Add-firmware-manual-efi-tdx.patch
+Patch112: libvirt-qemu_firmware-ROM-firmware-is-always-in-raw-format.patch
+Patch113: libvirt-qemu_firmware-Don-t-skip-autoselection-for-ROM.patch
+Patch114: libvirt-qemu_firmware-Allow-matching-both-UEFI-and-BIOS-for-ROM-loader.patch
+Patch115: libvirt-schema-Add-firmwareFeatures-element-for-domaincaps.patch
+Patch116: libvirt-conf-Add-firmwareFeatures-element-for-domaincaps.patch
+Patch117: libvirt-qemu-Fill-in-firmwareFeature-element-for-domaincaps.patch
+Patch118: libvirt-docs-Document-firmwareFeature-element-for-domaincaps.patch
+Patch119: libvirt-docs-Rename-BIOS-bootloader-section-to-guest-firmware.patch
+Patch120: libvirt-docs-Improvement-related-to-firmware-selection.patch
+Patch121: libvirt-qemu_firmware-Only-set-format-for-custom-loader-if-path-is-present.patch
+Patch122: libvirt-conf-Move-type-rom-default-for-loader-to-drivers.patch
+Patch123: libvirt-tests-Rename-custom-JSON-firmware-descriptors.patch
+Patch124: libvirt-schema-Introduce-osnvram-define.patch
+Patch125: libvirt-conf-Parse-and-format-varstore-element.patch
+Patch126: libvirt-conf-Update-validation-to-consider-varstore-element.patch
+Patch127: libvirt-qemu_capabilities-Introduce-QEMU_CAPS_DEVICE_UEFI_VARS.patch
+Patch128: libvirt-qemu-Validate-presence-of-uefi-vars-device.patch
+Patch129: libvirt-tests-Add-firmware-manual-efi-varstore-q35.patch
+Patch130: libvirt-tests-Add-firmware-manual-efi-varstore-aarch64.patch
+Patch131: libvirt-tests-Add-firmware-auto-efi-varstore-q35.patch
+Patch132: libvirt-tests-Add-firmware-auto-efi-varstore-aarch64.patch
+Patch133: libvirt-tests-Add-firmware-auto-efi-enrolled-keys-aarch64.patch
+Patch134: libvirt-qemu_firmware-Parse-host-uefi-vars-firmware-feature.patch
+Patch135: libvirt-qemu_firmware-Split-sanity-check.patch
+Patch136: libvirt-qemu_firmware-Consider-host-uefi-vars-feature-in-sanity-check.patch
+Patch137: libvirt-qemu_firmware-Support-extended-syntax-for-ROM-firmware-descriptors.patch
+Patch138: libvirt-qemu_firmware-Report-NVRAM-template-path-for-ROMs.patch
+Patch139: libvirt-conf-Include-varstore-element-in-domcaps.patch
+Patch140: libvirt-qemu-Fill-in-varstore-element-in-domcaps.patch
+Patch141: libvirt-qemu_firmware-Use-of-NVRAM-implies-stateful-firmware.patch
+Patch142: libvirt-qemu_firmware-Allow-matching-stateful-ROMs.patch
+Patch143: libvirt-qemu_firmware-Fill-in-varstore-information.patch
+Patch144: libvirt-qemu-Introduce-varstoreDir.patch
+Patch145: libvirt-qemu_firmware-Generate-varstore-path-when-necessary.patch
+Patch146: libvirt-qemu-Introduce-qemuPrepareNVRAMFileCommon.patch
+Patch147: libvirt-qemu-Create-and-delete-varstore-file.patch
+Patch148: libvirt-security-Mark-ROMs-as-read-only-when-using-AppArmor.patch
+Patch149: libvirt-security-Handle-varstore-file.patch
+Patch150: libvirt-tests-Add-firmware-descriptors-for-uefi-vars-builds.patch
+Patch151: libvirt-qemu_command-Use-uefi-vars-device-where-appropriate.patch
+Patch152: libvirt-include-Mention-varstore-where-applicable.patch
+Patch153: libvirt-virsh-Update-for-varstore-handling.patch
+Patch154: libvirt-domain_conf-initialize-network-hostdev-private-data.patch
+Patch155: libvirt-qemu_hotplug-enter-monitor-in-order-to-rollback-passed-FD.patch
+Patch156: libvirt-test-Default-to-ROM-type-for-loader.patch
+Patch157: libvirt-qemu_hotplug-Fix-crash-when-attaching-network-inteface-with-hostdev-network.patch
+Patch158: libvirt-conf-Parse-hyperv-features-even-for-host-model.patch
+Patch159: libvirt-qemu-Wire-up-new-hyperv-host-model-mode-behavior.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -463,7 +569,7 @@ BuildRequires: numactl-devel
     %endif
 BuildRequires: libcap-ng-devel >= 0.5.0
     %if %{with_fuse}
-BuildRequires: fuse-devel >= 2.8.6
+BuildRequires: fuse3-devel
     %endif
     %if %{with_libssh2}
 BuildRequires: libssh2-devel >= 1.3.0
@@ -733,9 +839,6 @@ Requires: /usr/bin/qemu-img
 Obsoletes: libvirt-daemon-driver-storage-rbd < 5.2.0
     %endif
 Obsoletes: libvirt-daemon-driver-storage-sheepdog < 8.8.0
-    %if !%{with_storage_zfs}
-Obsoletes: libvirt-daemon-driver-storage-zfs < 11.4.0
-    %endif
 
 %description daemon-driver-storage-core
 The storage driver plugin for the libvirtd daemon, providing
@@ -836,9 +939,13 @@ volumes using the ceph protocol.
 Summary: Storage driver plugin for ZFS
 Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
 Requires: libvirt-libs = %{version}-%{release}
-# Support any conforming implementation of zfs
+# Starting with Fedora 43 the 'zfs-fuse' is no longer shipped but obtainable
+# externally. The package builds fine without these. Users will have to provide
+# their own implementation.
+        %if 0%{?fedora} && 0%{?fedora} < 43
 Requires: /sbin/zfs
 Requires: /sbin/zpool
+        %endif
 
 %description daemon-driver-storage-zfs
 The storage driver backend adding implementation of the storage APIs for
@@ -862,7 +969,10 @@ Requires: libvirt-daemon-driver-storage-gluster = %{version}-%{release}
     %if %{with_storage_rbd}
 Requires: libvirt-daemon-driver-storage-rbd = %{version}-%{release}
     %endif
-    %if %{with_storage_zfs}
+# Starting with Fedora 43 the 'zfs-fuse' is no longer shipped but obtainable
+# externally. We do not want to install this as part of 'daemon-driver-storage'
+# any more.
+    %if %{with_storage_zfs} && 0%{?fedora} && 0%{?fedora} < 43
 Requires: libvirt-daemon-driver-storage-zfs = %{version}-%{release}
     %endif
 
@@ -1391,12 +1501,6 @@ exit 1
     %define arg_remote_mode -Dremote_default_mode=legacy
 %endif
 
-%if %{with_userfaultfd_sysctl}
-    %define arg_userfaultfd_sysctl -Duserfaultfd_sysctl=enabled
-%else
-    %define arg_userfaultfd_sysctl -Duserfaultfd_sysctl=disabled
-%endif
-
 %define when  %(date +"%%F-%%T")
 %define where %(hostname)
 %define who   %{?packager}%{!?packager:Unknown}
@@ -1480,7 +1584,6 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/libvirt.spec)
            -Dqemu_datadir=%{qemu_datadir} \
            -Dtls_priority=%{tls_priority} \
            -Dsysctl_config=enabled \
-           %{?arg_userfaultfd_sysctl} \
            -Dssh_proxy=enabled \
            %{?enable_werror} \
            -Dexpensive_tests=enabled \
@@ -1568,7 +1671,6 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/libvirt.spec)
   -Dstorage_vstorage=disabled \
   -Dstorage_zfs=disabled \
   -Dsysctl_config=disabled \
-  -Duserfaultfd_sysctl=disabled \
   -Dssh_proxy=disabled \
   -Dtests=disabled \
   -Dudev=disabled \
@@ -2376,9 +2478,6 @@ exit 0
     %if %{with_qemu}
 %files daemon-driver-qemu
 %config(noreplace) %{_sysconfdir}/libvirt/virtqemud.conf
-        %if %{with_userfaultfd_sysctl}
-%config(noreplace) %{_prefix}/lib/sysctl.d/60-qemu-postcopy-migration.conf
-        %endif
 %{_datadir}/augeas/lenses/virtqemud.aug
 %{_datadir}/augeas/lenses/tests/test_virtqemud.aug
 %{_unitdir}/virtqemud.service
@@ -2404,6 +2503,7 @@ exit 0
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/ram/
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/save/
 %dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/snapshot/
+%dir %attr(0751, %{qemu_user}, %{qemu_group}) %{_localstatedir}/lib/libvirt/qemu/varstore/
 %dir %attr(0750, root, root) %{_localstatedir}/cache/libvirt/qemu/
 %{_datadir}/augeas/lenses/libvirtd_qemu.aug
 %{_datadir}/augeas/lenses/tests/test_libvirtd_qemu.aug
@@ -2530,6 +2630,9 @@ exit 0
 %{_unitdir}/virtchd.service
 %{_unitdir}/virtchd.socket
 %{_libdir}/libvirt/connection-driver/libvirt_driver_ch.so
+%config(noreplace) %{_sysconfdir}/libvirt/ch.conf
+%{_datadir}/augeas/lenses/libvirtd_ch.aug
+%{_datadir}/augeas/lenses/tests/test_libvirtd_ch.aug
     %endif
 
 %files client
@@ -2750,59 +2853,211 @@ exit 0
 %endif
 
 %changelog
-* Wed Feb 11 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.8.el10_1
-- qemu: Ignore cmp_legacy CPU flag (RHEL-148502)
+* Thu Mar 12 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.1.el10_2
+- conf: Parse hyperv features even for host-model (RHEL-153576)
+- qemu: Wire up new hyperv host-model mode behavior (RHEL-153576)
 
-* Wed Jan 28 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.7.el10_1
-- esx: Debug URL just before opening with curl (RHEL-142863)
-- esx: Abstract all URL-creation code into one function (RHEL-142863)
-- esx: Switch to creating URLs using virURIFormat (RHEL-142863)
+* Tue Mar 10 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12
+- test: Default to ROM type for loader (RHEL-82645)
+- qemu_hotplug: Fix crash when attaching network inteface with hostdev network (RHEL-151916)
 
-* Fri Jan 23 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.6.el10_1
-- esx: Allow connecting to IPv6 server (RHEL-142863)
+* Fri Mar  6 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-11
+- qemu_firmware: Drop support for kernel descriptors (RHEL-82645)
+- qemu_firmware: Drop 'nvram' local variable (RHEL-82645)
+- qemu_firmware: Move format=raw compat exception (RHEL-82645)
+- qemu_firmware: Move copying of nvram.format to loader.format (RHEL-82645)
+- tests: Add firmware-manual-efi-rw-nvram (RHEL-82645)
+- domain_validate: Reject NVRAM with read/write firmware (RHEL-82645)
+- tests: Add firmware-auto-bios-rw (RHEL-82645)
+- tests: Add firmware-manual-bios-rw (RHEL-82645)
+- domain_validate: Reject read/write ROMs (RHEL-82645)
+- tests: Add firmware-auto-efi-format-loader-qcow2-rom (RHEL-82645)
+- domain_validate: Reject ROMs with format other than raw (RHEL-82645)
+- qemu_firmware: Ignore stateless/combined when NVRAM is configured (RHEL-82645)
+- qemu_firmware: Drop fallback for absent nvramTemplateFormat (RHEL-82645)
+- schemas: Allow templateFormat without template path (RHEL-82645)
+- tests: Add firmware-manual-efi-nvram-template-nonstandard-format (RHEL-82645)
+- tests: Add firmware-manual-efi-nvram-template-nonstandard-legacy-paths (RHEL-82645)
+- tests: Add firmware-auto-efi-format-nvram-raw (RHEL-82645)
+- tests: Add firmware-auto-efi-format-nvram-raw-loader-path (RHEL-82645)
+- tests: Add firmware-auto-efi-format-nvram-raw-nvramtemplate-path (RHEL-82645)
+- tests: Add firmware-auto-efi-format-nvramtemplate-qcow2 (RHEL-82645)
+- tests: Add firmware-auto-efi-format-mismatch-nvramtemplate (RHEL-82645)
+- qemu_firmware: Introduce qemuFirmwareFillDomainCustom() (RHEL-82645)
+- qemu_firmware: Set templateFormat for custom paths (RHEL-82645)
+- qemu_firmware: Simplify handling of legacy paths (RHEL-82645)
+- qemu_firmware: Refactor setting NVRAM format (RHEL-82645)
+- qemu_firmware: Prefer template format to loader format (RHEL-82645)
+- qemu_firmware: Retain user-specified NVRAM format (RHEL-82645)
+- qemu_firmware: Take templateFormat into account when matching (RHEL-82645)
+- qemu_firmware: Take NVRAM format into account when matching (RHEL-82645)
+- qemu_firmware: Remove NVRAM to loader format copy hack (RHEL-82645)
+- tests: Add firmware-manual-efi-sev-snp (RHEL-82645)
+- tests: Add firmware-manual-efi-tdx (RHEL-82645)
+- qemu_firmware: ROM firmware is always in raw format (RHEL-82645)
+- qemu_firmware: Don't skip autoselection for ROM (RHEL-82645)
+- qemu_firmware: Allow matching both UEFI and BIOS for ROM loader (RHEL-82645)
+- schema: Add firmwareFeatures element for domaincaps (RHEL-82645)
+- conf: Add firmwareFeatures element for domaincaps (RHEL-82645)
+- qemu: Fill in firmwareFeature element for domaincaps (RHEL-82645)
+- docs: Document firmwareFeature element for domaincaps (RHEL-82645)
+- docs: Rename "BIOS bootloader" section to "guest firmware" (RHEL-82645)
+- docs: Improvement related to firmware selection (RHEL-82645)
+- qemu_firmware: Only set format for custom loader if path is present (RHEL-82645)
+- conf: Move type=rom default for loader to drivers (RHEL-82645)
+- tests: Rename custom JSON firmware descriptors (RHEL-82645)
+- schema: Introduce osnvram define (RHEL-82645)
+- conf: Parse and format varstore element (RHEL-82645)
+- conf: Update validation to consider varstore element (RHEL-82645)
+- qemu_capabilities: Introduce QEMU_CAPS_DEVICE_UEFI_VARS (RHEL-82645)
+- qemu: Validate presence of uefi-vars device (RHEL-82645)
+- tests: Add firmware-manual-efi-varstore-q35 (RHEL-82645)
+- tests: Add firmware-manual-efi-varstore-aarch64 (RHEL-82645)
+- tests: Add firmware-auto-efi-varstore-q35 (RHEL-82645)
+- tests: Add firmware-auto-efi-varstore-aarch64 (RHEL-82645)
+- tests: Add firmware-auto-efi-enrolled-keys-aarch64 (RHEL-82645)
+- qemu_firmware: Parse host-uefi-vars firmware feature (RHEL-82645)
+- qemu_firmware: Split sanity check (RHEL-82645)
+- qemu_firmware: Consider host-uefi-vars feature in sanity check (RHEL-82645)
+- qemu_firmware: Support extended syntax for ROM firmware descriptors (RHEL-82645)
+- qemu_firmware: Report NVRAM template path for ROMs (RHEL-82645)
+- conf: Include varstore element in domcaps (RHEL-82645)
+- qemu: Fill in varstore element in domcaps (RHEL-82645)
+- qemu_firmware: Use of NVRAM implies stateful firmware (RHEL-82645)
+- qemu_firmware: Allow matching stateful ROMs (RHEL-82645)
+- qemu_firmware: Fill in varstore information (RHEL-82645)
+- qemu: Introduce varstoreDir (RHEL-82645)
+- qemu_firmware: Generate varstore path when necessary (RHEL-82645)
+- qemu: Introduce qemuPrepareNVRAMFileCommon() (RHEL-82645)
+- qemu: Create and delete varstore file (RHEL-82645)
+- security: Mark ROMs as read only when using AppArmor (RHEL-82645)
+- security: Handle varstore file (RHEL-82645)
+- tests: Add firmware descriptors for uefi-vars builds (RHEL-82645)
+- qemu_command: Use uefi-vars device where appropriate (RHEL-82645)
+- include: Mention varstore where applicable (RHEL-82645)
+- virsh: Update for varstore handling (RHEL-82645)
+- domain_conf: initialize network hostdev private data (RHEL-151916)
+- qemu_hotplug: enter monitor in order to rollback passed FD (RHEL-151916)
 
-* Tue Jan 13 2026 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.5.el10_1
-- esx: Allow disk images in subdirectories (RHEL-140865)
-- esx_util: Introduce esxUtil_EscapeInventoryObject() (RHEL-140465)
-- esx: URI encode inventory objects twice (RHEL-140465)
+* Wed Feb 18 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-10
+- qemu: Introduce QEMU_CAPS_OBJECT_IOMMUFD (RHEL-150351)
+- qemu: Move IOMMUFD validation to qemu_validate (RHEL-150351)
+- util: Move openning IOMMU device to viriommufd (RHEL-150351)
+- qemu_process: Refactor qemuProcessOpenIommuFd (RHEL-150351)
+- util: Move openning VFIO device to virpci (RHEL-150351)
+- qemu_process: Refactor qemuProcessOpenVfioDeviceFd (RHEL-150351)
+- util: Use virPCIDevice as argument in virPCIDeviceGetVfioPath (RHEL-150351)
+- conf: Introduce virHostdevIsPCIDeviceWithIOMMUFD (RHEL-150351)
+- conf: Introduce virDomainDefHasPCIHostdevWithIOMMUFD (RHEL-150351)
+- qemu_domain: Add missing IOMMUFD cleanup (RHEL-150351)
+- qemu_process: Fix FD leak with multiple host devices using IOMMUFD (RHEL-150351)
+- qemu_process: Refactor qemuProcessOpenVfioFds (RHEL-150351)
+- qemuxmlconftest: Refactor host device preparation (RHEL-150351)
+- qemuxmlconftest: Rename and refactor testSetupHostdevPrivateData (RHEL-150351)
+- qemuxmlconftest: Set fake FD for IOMMUFD (RHEL-150351)
+- qemu: Convert IOMMUFD to qemuFDPassDirect (RHEL-150351)
+- qemu: Convert vfioDeviceFd to qemuFDPassDirect (RHEL-150351)
+- qemu_command: Don't use host property if IOMMUFD is used (RHEL-150351)
+- qemu: Save IOMMUFD state into status XML (RHEL-150351)
+- qemu_hotplug: Remove iommufd object if no longer needed (RHEL-150351)
+- qemu_command: Extract building IOMMUFD props to function (RHEL-150351)
+- qemu_hotplug: Add support to hotplug host device with IOMMUFD (RHEL-150351)
+- conf: Introduce iommufd enum for domaincaps (RHEL-148135)
+- qemu: Fill iommufd domain capability (RHEL-148135)
+- tests: properly mock VFIO and IOMMU checks (RHEL-148135)
+- iommufd: fix FD leak in case of error (RHEL-150351)
 
-* Thu Dec 18 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.4.el10_1
-- qemu: correctly detect working TDX support (RHEL-129673)
+* Tue Feb 17 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-9
+- qemu: capabilities: Probe properties of 'scsi-block' and 'scsi-generic' devices (RHEL-135115)
+- qemu: capabilities: Introduce QEMU_CAPS_DEVICE_SCSI_BLOCK_MIGRATE_PR (RHEL-135115)
+- RHEL-ONLY: backport test data for 'migrate-pr' capability of 'scsi-block' (RHEL-135115)
+- qemu: Implement support for persistent reservation migration control (RHEL-135115)
+- qemu: Extract disk setup done via QMP into a separate helper (RHEL-131335)
+- qemu: process: Rename 'qemuProcessSetupDiskThrottling' to 'qemuProcessSetupDisks' (RHEL-131335)
+- qemu: monitor: Extract block latency histogram stats into 'qemuBlockStats' (RHEL-131335)
+- Expose latency histograms via 'virConnectGetAllDomainStats' (RHEL-131335)
+- qemu: monitor: Add handlers for 'block-latency-histogram-set' (RHEL-131335)
+- docs: formatdomain: Fix indentation of docs for <disk><driver><statistics> element (RHEL-131335)
+- docs: formatdomain: Reword section about the '<statistics>' element under disk driver (RHEL-131335)
+- Introduce support for disk operation latency histogram collection (RHEL-131335)
+- qemu: Setup disk latency histograms on startup/hotplug/update (RHEL-131335)
 
-* Thu Dec 11 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.3.el10_1
-- qemu: tpm: Account for possible migration without actually sharing storage (RHEL-132920)
+* Wed Feb 11 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-8
+- src/esx/esx_vi.c: Debug path element comparisons (RHEL-145080)
+- qemu: Ignore cmp_legacy CPU flag (RHEL-148494)
 
-* Fri Nov 21 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.2.el10_1
-- cpu_conf: Make virCPUDefFilterFeatures return void (RHEL-126094)
-- qemu_domain: Simplify qemuDomainFixupCPUs (RHEL-126094)
-- qemu_domain: Fix qemuDomainFixupCPUs (RHEL-126094)
-- qemu_process: Always fix CPUs on reconnect (RHEL-126094)
-- qemu_monitor: Filter CPU features reported by QEMU (RHEL-126094)
-- qemu: Ignore "ht" CPU feature (RHEL-126094)
+* Tue Feb 10 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-7
+- src: Use device alias when ifname is unset in virDomainInterfaceAddresses() (RHEL-143933)
 
-* Wed Oct  8 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4.1.el10_1
-- tools: Secure guest check for Intel in virt-host-validate (RHEL-111863)
-- qemu: Check if INTEL Trust Domain Extention support is enabled (RHEL-111863)
-- qemucapabilitiesdata: Document '+inteltdx' variant (RHEL-111863)
-- qemucapabilitiestest: Add data for the qemu-10.1.0 dev cycle on x86_64 for the '+inteltdx' variant (RHEL-111863)
-- qemu: Add QEMU_CAPS_TDX_GUEST capability (RHEL-111863)
-- conf: Expose TDX feature in domain capabilities (RHEL-111863)
-- conf: Add tdx as launch security type (RHEL-111863)
-- conf: Validate TDX launchSecurity element mrConfigId/mrOwner/mrOwnerConfig (RHEL-111863)
-- qemu: Add command line and validation for TDX type (RHEL-111863)
-- conf: Expose TDX type in domain launch security capability (RHEL-111863)
-- qemu: Force special parameters enabled for TDX guest (RHEL-111863)
-- qemu: log the crash information for TDX (RHEL-111863)
-- qemu_firmware: Pick the right firmware for TDX guests (RHEL-111863)
-- conf: Add Intel TDX Quote Generation Service(QGS) support (RHEL-111863)
-- qemu: Add command line for TDX Quote Generation Service(QGS) (RHEL-111863)
-- qemu: Add FakeReboot support for TDX guest (RHEL-111863)
-- qemu: Support reboot command in guest (RHEL-111863)
-- qemu: Avoid duplicate FakeReboot for secure guest (RHEL-111863)
-- qemu: Send event VIR_DOMAIN_EVENT_[STOPPED|STARTED] during recreation (RHEL-111863)
-- qemu: Support domain reset command for TDX guest (RHEL-111863)
-- qemuxmlconftest: Add latest version of 'launch-security-tdx*' test data (RHEL-111863)
-- docs: domain: Add documentation for Intel TDX guest (RHEL-111863)
+* Fri Feb  6 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-6
+- qemu: Implement support for associating iommufd to hostdev (RHEL-126346, RHEL-74202)
+- qemu: Introduce privateData for hostdevs (RHEL-126346, RHEL-74202)
+- qemu: Support per-process memory accounting for iommufd (RHEL-126346, RHEL-74202)
+- qemu: open VFIO FDs from libvirt backend (RHEL-126346, RHEL-74202)
+- qemu: open iommufd FD from libvirt backend (RHEL-126346, RHEL-74202)
+- qemu: Update Cgroup, namespace, and seclabel for iommufd (RHEL-126346, RHEL-74202)
+- tests: qemuxmlconfdata: provide iommufd sample XML and CLI args (RHEL-126346, RHEL-74202)
+
+* Wed Feb  4 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-5
+- qemublocktest: Iterate all nodenames in 'testQemuDetectBitmaps' (RHEL-145769)
+- qemu: monitor: Detect list of bitmaps from 'qcow2' format specific data (RHEL-145769)
+- qemuMigrationDstPrepareAnyBlockDirtyBitmaps: Fix check for existing bitmaps (RHEL-145769)
+- qemu: migration: Always offer block dirty bitmaps during migration (RHEL-145769)
+- qemuMigrationDstPrepareAnyBlockDirtyBitmaps: Always consider offered bitmaps (RHEL-145769)
+
+* Thu Jan 29 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-4
+- qemuDomainSetThrottleGroup: Enforce non-zero 'groupname' string length (RHEL-141820)
+- qemuDomainSetBlockIoTuneField: Move setting of 'group_name' out of the loop (RHEL-141820)
+- qemuDomainSetThrottleGroup: Always honour thottle group name passed as argument (RHEL-141820)
+- qemuDomainSetThrottleGroup: Don't put group name into the 'tunable' event twice (RHEL-141820)
+- qemuSnapshotDiskHasBackingDisk: Avoid call of virStorageSourceIsSameLocation with NULL argument (RHEL-144089)
+- qemuSnapshotUpdateBackingStore: Remove stale comment (RHEL-144089)
+- qemuSnapshotDiskHasBackingDisk: Use proper 'max_depth' when calling 'virStorageSourceGetMetadata' (RHEL-144089)
+- virDomainSnapshotDefAssignExternalNames: Improve error message (RHEL-144089)
+- qemuSnapshotUpdateBackingStore: Retry as curent user if qemu-img fails (RHEL-144089)
+- esx: Debug URL just before opening with curl (RHEL-138300)
+- esx: Abstract all URL-creation code into one function (RHEL-138300)
+- esx: Switch to creating URLs using virURIFormat (RHEL-138300)
+- esx_util: Introduce esxUtil_EscapeInventoryObject() (RHEL-140196)
+- esx: URI encode inventory objects twice (RHEL-140196)
+
+* Fri Jan 23 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-3
+- util: json: Increase JSON nesting limit when parsing to 300 (RHEL-135181)
+- virjsontest: Add test for nesting depth (RHEL-135181)
+- qemuSecurityMoveImageMetadata: Move seclabels only to virStorageSource of same type (RHEL-114412)
+- esx: Allow connecting to IPv6 server (RHEL-138300)
+
+* Thu Dec 18 2025 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-2
+- tests: add test for a single per-device smmuv3 (RHEL-74200)
+- qemu: Use pci_bus to identify multi-smmuv3 model (RHEL-74200)
+- qemu: tpm: Account for possible migration without actually sharing storage (RHEL-132534)
+- tests: Test virFileIsSharedFSOverride (RHEL-102925)
+- util: Fix race condition in virFileIsSharedFSType (RHEL-102925)
+- util: Fix race condition in virFileIsSharedFSOverride (RHEL-102925)
+- util: Rework virFileIsSharedFSOverride using virFileCheckParents (RHEL-102925)
+
+* Mon Dec  1 2025 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-1
+- Rebased to libvirt-11.10.0 (RHEL-104238)
+- The rebase also fixes the following bugs:
+    RHEL-74200, RHEL-80679, RHEL-104216, RHEL-104427, RHEL-113843
+    RHEL-118671, RHEL-122751, RHEL-126854, RHEL-126945, RHEL-128105
+- spec: Fix RPM build when %{fedora} is undefined (RHEL-104238)
+
+* Mon Nov  3 2025 Jiri Denemark <jdenemar@redhat.com> - 11.9.0-1
+- Rebased to libvirt-11.9.0 (RHEL-104238)
+- The rebase also fixes the following bugs:
+    RHEL-87522, RHEL-95818, RHEL-122932
+
+* Wed Oct  1 2025 Jiri Denemark <jdenemar@redhat.com> - 11.8.0-1
+- Rebased to libvirt-11.8.0 (RHEL-104238)
+- The rebase also fixes the following bugs:
+    RHEL-7038, RHEL-50320, RHEL-62032, RHEL-79806, RHEL-113574
+    RHEL-116690
+
+* Tue Sep  2 2025 Jiri Denemark <jdenemar@redhat.com> - 11.7.0-1
+- Rebased to libvirt-11.7.0 (RHEL-104238)
+- The rebase also fixes the following bugs:
+    RHEL-72006, RHEL-110191
 
 * Tue Aug  5 2025 Jiri Denemark <jdenemar@redhat.com> - 11.5.0-4
 - qemu: fix order of VNC TLS config entries (RHEL-104382)
