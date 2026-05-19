@@ -1,5 +1,5 @@
-From 376748a85d2e31eaf55bc8a12e588b9a6c502bef Mon Sep 17 00:00:00 2001
-Message-ID: <376748a85d2e31eaf55bc8a12e588b9a6c502bef.1769181848.git.jdenemar@redhat.com>
+From e9a4c12db5da26084d8ec03b9249a53f980b3ad3 Mon Sep 17 00:00:00 2001
+Message-ID: <e9a4c12db5da26084d8ec03b9249a53f980b3ad3.1768317034.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Tue, 6 Jan 2026 12:03:56 +0100
 Subject: [PATCH] qemu_validate: Drop VIR_DOMAIN_HYPERV_SYNIC dependency on
@@ -25,14 +25,13 @@ Fixes: 1822d030c32d9857020ee8385b0a8808a29a472f
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 8e9a9f86b046c5bc917875f4b3854f13c4b33b55)
-Resolves: https://issues.redhat.com/browse/RHEL-140916
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/qemu/qemu_validate.c | 2 --
  1 file changed, 2 deletions(-)
 
 diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
-index ed769efc7c..692d0a9f96 100644
+index da08fd17cd..3e27c11da3 100644
 --- a/src/qemu/qemu_validate.c
 +++ b/src/qemu/qemu_validate.c
 @@ -112,8 +112,6 @@ qemuValidateDomainDefHypervFeatures(const virDomainDef *def)

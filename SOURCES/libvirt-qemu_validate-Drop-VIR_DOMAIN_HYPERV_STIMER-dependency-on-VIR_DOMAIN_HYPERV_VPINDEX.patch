@@ -1,5 +1,5 @@
-From 04b599eb6462ea9db48e18bb45f90e6eb6425850 Mon Sep 17 00:00:00 2001
-Message-ID: <04b599eb6462ea9db48e18bb45f90e6eb6425850.1769181848.git.jdenemar@redhat.com>
+From ba255cecade6c9f690997b53bfe517eef341695a Mon Sep 17 00:00:00 2001
+Message-ID: <ba255cecade6c9f690997b53bfe517eef341695a.1768317034.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Tue, 6 Jan 2026 14:37:23 +0100
 Subject: [PATCH] qemu_validate: Drop VIR_DOMAIN_HYPERV_STIMER dependency on
@@ -48,14 +48,13 @@ Fixes: da261327ea94300d1aa2d3b76ba9dcd4de6160f6
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
 (cherry picked from commit 6df374fefc94f5e729870dfe1ff65b62ee986fce)
-Resolves: https://issues.redhat.com/browse/RHEL-140916
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/qemu/qemu_validate.c | 1 -
  1 file changed, 1 deletion(-)
 
 diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
-index 692d0a9f96..cfe2b672ee 100644
+index 3e27c11da3..66c59c3696 100644
 --- a/src/qemu/qemu_validate.c
 +++ b/src/qemu/qemu_validate.c
 @@ -122,7 +122,6 @@ qemuValidateDomainDefHypervFeatures(const virDomainDef *def)
