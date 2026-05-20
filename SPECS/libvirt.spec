@@ -294,7 +294,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.10.0
-Release: 12%{?dist}%{?extra_release}
+Release: 12.1%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -379,6 +379,8 @@ Patch74: libvirt-iommufd-fix-FD-leak-in-case-of-error.patch
 Patch75: libvirt-domain_conf-initialize-network-hostdev-private-data.patch
 Patch76: libvirt-qemu_hotplug-enter-monitor-in-order-to-rollback-passed-FD.patch
 Patch77: libvirt-qemu_hotplug-Fix-crash-when-attaching-network-inteface-with-hostdev-network.patch
+Patch78: libvirt-conf-Parse-hyperv-features-even-for-host-model.patch
+Patch79: libvirt-qemu-Wire-up-new-hyperv-host-model-mode-behavior.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2770,6 +2772,10 @@ exit 0
 %endif
 
 %changelog
+* Thu Mar 12 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.1.el9_8
+- conf: Parse hyperv features even for host-model (RHEL-151684)
+- qemu: Wire up new hyperv host-model mode behavior (RHEL-151684)
+
 * Tue Mar 10 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12
 - qemu_hotplug: Fix crash when attaching network inteface with hostdev network (RHEL-151953)
 
