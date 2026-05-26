@@ -1,0 +1,98 @@
+From de60967b754a58d40e1e410cbf4c85e18f3411c2 Mon Sep 17 00:00:00 2001
+Message-ID: <de60967b754a58d40e1e410cbf4c85e18f3411c2.1774618368.git.jdenemar@redhat.com>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Wed, 18 Mar 2026 11:57:43 +0100
+Subject: [PATCH] hypervisor: Fix virHostdevNeedsVFIO detection
+
+Function virHostdevNeedsVFIO is used only in QEMU to figure out if the
+host device needs access to /dev/vfio/vfio, for PCI host devices that is
+true only if libvirt is not using IOMMUFD.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit ffa8020d3665f7ff27c6b82e88d3a93674155c8d)
+
+Resolves: https://redhat.atlassian.net/browse/RHEL-159175
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/conf/domain_conf.c      | 13 +++++++++++++
+ src/conf/domain_conf.h      |  3 +++
+ src/hypervisor/virhostdev.c |  9 ++++++++-
+ src/libvirt_private.syms    |  1 +
+ 4 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index cddb7181f9..12727c9eef 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -32878,6 +32878,19 @@ virHostdevIsPCIDeviceWithIOMMUFD(const virDomainHostdevDef *hostdev)
+ }
+ 
+ 
++/**
++ * virHostdevIsPCIDeviceWithIOMMUFD:
++ * @hostdev: host device to check
++ *
++ * Returns true if @hostdev is a PCI device with IOMMUFD disabled, false otherwise.
++ */
++bool
++virHostdevIsPCIDeviceWithoutIOMMUFD(const virDomainHostdevDef *hostdev)
++{
++    return virHostdevIsPCIDeviceImpl(hostdev, VIR_TRISTATE_BOOL_NO);
++}
++
++
+ static void
+ virDomainObjGetMessagesIOErrorsSrc(virStorageSource *src,
+                                    const char *diskdst,
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index ead3b07475..7f8c02a87b 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -4728,6 +4728,9 @@ virHostdevIsPCIDevice(const virDomainHostdevDef *hostdev)
+ bool
+ virHostdevIsPCIDeviceWithIOMMUFD(const virDomainHostdevDef *hostdev)
+     ATTRIBUTE_NONNULL(1);
++bool
++virHostdevIsPCIDeviceWithoutIOMMUFD(const virDomainHostdevDef *hostdev)
++    ATTRIBUTE_NONNULL(1);
+ 
+ void
+ virDomainObjGetMessagesIOErrorsChain(virStorageSource *src,
+diff --git a/src/hypervisor/virhostdev.c b/src/hypervisor/virhostdev.c
+index 7d7df4418d..43155ceb6c 100644
+--- a/src/hypervisor/virhostdev.c
++++ b/src/hypervisor/virhostdev.c
+@@ -2510,10 +2510,17 @@ virHostdevUpdateActiveNVMeDevices(virHostdevManager *hostdev_mgr,
+     goto cleanup;
+ }
+ 
++/**
++ * virHostdevNeedsVFIO:
++ * @hostdev: host device to check
++ *
++ * Returns true if using the @hostdev requires access to /dev/vfio/vfio,
++ * otherwise false.
++ */
+ bool
+ virHostdevNeedsVFIO(const virDomainHostdevDef *hostdev)
+ {
+-    return virHostdevIsPCIDevice(hostdev) ||
++    return virHostdevIsPCIDeviceWithoutIOMMUFD(hostdev) ||
+         virHostdevIsMdevDevice(hostdev);
+ }
+ 
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 9b46e1ea1a..f1fef9d415 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -816,6 +816,7 @@ virDomainQemuMonitorEventStateRegisterID;
+ virHostdevIsMdevDevice;
+ virHostdevIsPCIDevice;
+ virHostdevIsPCIDeviceWithIOMMUFD;
++virHostdevIsPCIDeviceWithoutIOMMUFD;
+ virHostdevIsSCSIDevice;
+ 
+ 
+-- 
+2.53.0

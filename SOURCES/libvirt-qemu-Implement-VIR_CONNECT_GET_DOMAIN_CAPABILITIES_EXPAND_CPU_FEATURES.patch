@@ -1,0 +1,47 @@
+From dd52dfae42e6180f4fb2804614dcd84bffb89c4e Mon Sep 17 00:00:00 2001
+Message-ID: <dd52dfae42e6180f4fb2804614dcd84bffb89c4e.1774618368.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 11 Mar 2026 12:12:40 +0100
+Subject: [PATCH] qemu: Implement
+ VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 3215fee34967c49f37a965154879fc5860293cac)
+
+https://issues.redhat.com/browse/RHEL-154553
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_driver.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index ad894c7584..92b94bb830 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -16736,7 +16736,8 @@ qemuConnectGetDomainCapabilities(virConnectPtr conn,
+     virDomainVirtType virttype;
+     g_autoptr(virDomainCaps) domCaps = NULL;
+ 
+-    virCheckFlags(VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES,
++    virCheckFlags(VIR_CONNECT_GET_DOMAIN_CAPABILITIES_DISABLE_DEPRECATED_FEATURES |
++                  VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES,
+                   NULL);
+ 
+     if (virConnectGetDomainCapabilitiesEnsureACL(conn) < 0)
+@@ -16762,6 +16763,12 @@ qemuConnectGetDomainCapabilities(virConnectPtr conn,
+                                                VIR_CPU_FEATURE_DISABLE);
+     }
+ 
++    if (flags & VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES) {
++        virCPUDef *cpu = domCaps->cpu.hostModel;
++        if (cpu && virCPUExpandFeatures(arch, cpu) < 0)
++            return NULL;
++    }
++
+     return virDomainCapsFormat(domCaps);
+ }
+ 
+-- 
+2.53.0

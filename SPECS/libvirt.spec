@@ -294,7 +294,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.10.0
-Release: 12.1%{?dist}%{?extra_release}
+Release: 12.3%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -461,6 +461,27 @@ Patch156: libvirt-test-Default-to-ROM-type-for-loader.patch
 Patch157: libvirt-qemu_hotplug-Fix-crash-when-attaching-network-inteface-with-hostdev-network.patch
 Patch158: libvirt-conf-Parse-hyperv-features-even-for-host-model.patch
 Patch159: libvirt-qemu-Wire-up-new-hyperv-host-model-mode-behavior.patch
+Patch160: libvirt-Introduce-EXPAND_CPU_FEATURES-flag-for-domain-capabilities.patch
+Patch161: libvirt-qemu-Implement-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES.patch
+Patch162: libvirt-virsh-Add-expand-cpu-features-option-for-domcapabilities.patch
+Patch163: libvirt-docs-Clarify-host-model-description-in-domain-capabilities.patch
+Patch164: libvirt-security_apparmor-Use-g_auto-in-AppArmorSetSecurityHostdevLabel.patch
+Patch165: libvirt-security-Cleanup-hostdev-label-error-logic.patch
+Patch166: libvirt-qemu-Fix-IOMMUFD-and-VFIO-security-labels.patch
+Patch167: libvirt-viriommufd-Set-IOMMU_OPTION_RLIMIT_MODE-only-when-running-privileged.patch
+Patch168: libvirt-conf-Move-and-rename-virStorageSourceFDTuple-object.patch
+Patch169: libvirt-conf-Refactor-virHostdevIsPCIDevice.patch
+Patch170: libvirt-hypervisor-Fix-virHostdevNeedsVFIO-detection.patch
+Patch171: libvirt-qemu-Expand-call-to-qemuDomainNeedsVFIO.patch
+Patch172: libvirt-qemu-Update-qemuDomainNeedsVFIO-to-ignore-PCI-hostdev-with-IOMMUFD.patch
+Patch173: libvirt-src-Use-virHostdevIsPCIDeviceWith-to-check-for-IOMMUFD.patch
+Patch174: libvirt-conf-Introduce-domain-iommufd-element.patch
+Patch175: libvirt-qemu-Implement-iommufd.patch
+Patch176: libvirt-conf-Add-iommufd-fdgroup-support.patch
+Patch177: libvirt-qemu-Implement-iommufd-fdgroup.patch
+Patch178: libvirt-tests-Add-iommufd-fdgroup-test.patch
+Patch179: libvirt-hypervisor-Call-virWaitForDevices-after-detaching-host-devices.patch
+Patch180: libvirt-esx-Track-VMs-by-instanceUuid-instead-of-UUID.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2853,6 +2874,31 @@ exit 0
 %endif
 
 %changelog
+* Tue May 19 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.3.el10_2
+- esx: Track VMs by instanceUuid instead of UUID (RHEL-177479)
+
+* Fri Mar 27 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.2.el10_2
+- Introduce EXPAND_CPU_FEATURES flag for domain capabilities (RHEL-154553)
+- qemu: Implement VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES (RHEL-154553)
+- virsh: Add --expand-cpu-features option for domcapabilities (RHEL-154553)
+- docs: Clarify host-model description in domain capabilities (RHEL-154553)
+- security_apparmor: Use g_auto* in AppArmorSetSecurityHostdevLabel (RHEL-159912)
+- security: Cleanup hostdev label error logic (RHEL-159912)
+- qemu: Fix IOMMUFD and VFIO security labels (RHEL-159912)
+- viriommufd: Set IOMMU_OPTION_RLIMIT_MODE only when running privileged (RHEL-159175)
+- conf: Move and rename virStorageSourceFDTuple object (RHEL-159175)
+- conf: Refactor virHostdevIsPCIDevice (RHEL-159175)
+- hypervisor: Fix virHostdevNeedsVFIO detection (RHEL-159175)
+- qemu: Expand call to qemuDomainNeedsVFIO (RHEL-159175)
+- qemu: Update qemuDomainNeedsVFIO to ignore PCI hostdev with IOMMUFD (RHEL-159175)
+- src: Use virHostdevIsPCIDeviceWith* to check for IOMMUFD (RHEL-159175)
+- conf: Introduce domain iommufd element (RHEL-159175)
+- qemu: Implement iommufd (RHEL-159175)
+- conf: Add iommufd fdgroup support (RHEL-159175)
+- qemu: Implement iommufd fdgroup (RHEL-159175)
+- tests: Add iommufd fdgroup test (RHEL-159175)
+- hypervisor: Call virWaitForDevices() after detaching host devices (RHEL-159175)
+
 * Thu Mar 12 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.1.el10_2
 - conf: Parse hyperv features even for host-model (RHEL-153576)
 - qemu: Wire up new hyperv host-model mode behavior (RHEL-153576)

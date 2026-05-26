@@ -1,0 +1,744 @@
+From 0e7f26e483e8ea25b6cb4c8d91a0e155c8576609 Mon Sep 17 00:00:00 2001
+Message-ID: <0e7f26e483e8ea25b6cb4c8d91a0e155c8576609.1779180941.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 12 May 2026 12:16:54 +0200
+Subject: [PATCH] esx: Track VMs by instanceUuid instead of UUID
+
+The difference is that the usual UUID is supposed to be unique per host
+and instanceUuid should be unique across the whole cluster.  One could
+think of them as HUID and CUID (as the first "U" does apparently mean
+something else in the Broadcom world).  That _would_ be fine for our
+scenario.  However, that piece of information turns out to be false as
+well and the UUID we were using (`config.uuid`, or in VMX the
+`uuid.bios`) can be the same in two machines on the same host.
+
+Fortunately the `FindByUuid()` function can also search for VMs based on
+their `instanceUuid`, dictated by the so far omitted third parameter.
+Unfortunately that parameter is not parsed (or at least properly) before
+vSphere API 4.0 (the documentation says 2.0, but we are not using that
+namespace and 4.0 is the lowest we can target), which we are not
+specifying in the server returns a 500 HTTP error if we use the
+`instanceUuid` parameter.
+
+So this patch adds the `SOAPAction: urn:vim25/4.0` header to the cURL
+requests which makes that `FindByUuid()` function work even with the
+`instanceUuid` set, but without any extra labor.
+
+After that this patch also changes all UUIDs to be parsed from the
+`config.instanceUuid` (or `vc.uuid` in the VMX, but there's a fallback
+to the old `uuid.bios`) and adjusts tests accordingly.
+
+To give users (and management applications) the possibility to revert
+back to the previous (legacy) behaviour a new URI query parameter is
+introduced, called `legacy_uuid` which, if set to `1`, still keeps the
+code working as it did before this patch.
+
+Last, but not least it changes the parameter to aforementioned function
+to be true (unless the legacy behaviour is requested, of course) and
+henceforth all searching ought to be done with the more unique ID.
+
+Resolves: https://redhat.atlassian.net/browse/RHEL-174300
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit ac2d865eda4eb2633f53c7222000e51d09c581e4)
+
+Resolves: https://redhat.atlassian.net/browse/RHEL-177479
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/drvesx.rst                            | 24 ++++++++++++
+ src/esx/esx_driver.c                       | 43 +++++++++++++++-------
+ src/esx/esx_util.c                         | 11 ++++++
+ src/esx/esx_util.h                         |  1 +
+ src/esx/esx_vi.c                           | 32 ++++++++++++++--
+ src/esx/esx_vi.h                           |  3 ++
+ src/vmx/vmx.c                              | 12 +++++-
+ tests/vmx2xmldata/case-insensitive-1.xml   |  1 +
+ tests/vmx2xmldata/case-insensitive-2.xml   |  1 +
+ tests/vmx2xmldata/esx-in-the-wild-1.xml    |  1 +
+ tests/vmx2xmldata/esx-in-the-wild-10.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-11.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-12.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-13.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-14.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-15.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-16.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-17.xml   |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-2.xml    |  1 +
+ tests/vmx2xmldata/esx-in-the-wild-3.xml    |  1 +
+ tests/vmx2xmldata/esx-in-the-wild-4.xml    |  1 +
+ tests/vmx2xmldata/esx-in-the-wild-5.xml    |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-6.xml    |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-7.xml    |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-8.xml    |  3 +-
+ tests/vmx2xmldata/esx-in-the-wild-9.xml    |  3 +-
+ tests/vmx2xmldata/fusion-in-the-wild-1.xml |  1 +
+ tests/vmx2xmldata/gsx-in-the-wild-1.xml    |  1 +
+ tests/vmx2xmldata/gsx-in-the-wild-2.xml    |  1 +
+ tests/vmx2xmldata/gsx-in-the-wild-3.xml    |  1 +
+ tests/vmx2xmldata/gsx-in-the-wild-4.xml    |  1 +
+ 31 files changed, 143 insertions(+), 33 deletions(-)
+
+diff --git a/docs/drvesx.rst b/docs/drvesx.rst
+index 84416562ba..dcf9e73678 100644
+--- a/docs/drvesx.rst
++++ b/docs/drvesx.rst
+@@ -156,6 +156,15 @@ The driver understands the extra parameters shown below.
+ |                 |                             | ``no_verify`` is set        |
+ |                 |                             | to ``1``.                   |
+ +-----------------+-----------------------------+-----------------------------+
++| ``legacy_uuid`` | ``0`` or ``1``              | If set to ``1``, the driver |
++|                 |                             | will track VMs based on     |
++|                 |                             | their "Host-unique" UUID.   |
++|                 |                             | If set to ``0`` it will use |
++|                 |                             | the "Cluster-unique" UUID   |
++|                 |                             | instead. The default value  |
++|                 |                             | is ``0``.                   |
++|                 |                             | :since:`Since 12.4.0`.      |
+++-----------------+-----------------------------+-----------------------------+
+ 
+ Authentication
+ ~~~~~~~~~~~~~~
+@@ -172,6 +181,21 @@ distinguish between requests for ESX server and vCenter.
+ unrestricted ``root`` account. Problems may occur if you use a restricted
+ account. Detailed testing with restricted accounts has not been done yet.
+ 
++UUID Stability
++~~~~~~~~~~~~~~
++
++:since:`Since 12.4.0` there is a change to which UUIDs a domain can be
++identified with.  Before this version there was a possible clash of UUIDs even
++on the same host, leading to unexpected issues.  In order to fix this libvirt
++started using a different UUID which might cause issues if any user has a domain
++UUID saved anywhere.  The older UUID is still available under ``<hwuuid>`` in
++the `General metadata <formatdomain.html#general-metadata>`__ section of the
++domain XML.
++
++In order to restore the previous behaviour parameter ``legacy_uuid=1`` (see
++`Extra parameters`_) can be appended to the URI, but only if needed as it may
++cause the aforementioned issues.
++
+ Certificates for HTTPS
+ ~~~~~~~~~~~~~~~~~~~~~~
+ 
+diff --git a/src/esx/esx_driver.c b/src/esx/esx_driver.c
+index 010c62b8e8..3ca171b09a 100644
+--- a/src/esx/esx_driver.c
++++ b/src/esx/esx_driver.c
+@@ -1418,8 +1418,9 @@ esxDomainLookupByID(virConnectPtr conn, int id)
+     if (esxVI_String_AppendValueListToList(&propertyNameList,
+                                            "configStatus\0"
+                                            "name\0"
+-                                           "runtime.powerState\0"
+-                                           "config.uuid\0") < 0 ||
++                                           "runtime.powerState\0") < 0 ||
++        esxVI_String_AppendValueToList(&propertyNameList,
++                                       priv->primary->uuid_key) < 0 ||
+         esxVI_LookupVirtualMachineList(priv->primary, propertyNameList,
+                                        &virtualMachineList) < 0) {
+         goto cleanup;
+@@ -1439,6 +1440,7 @@ esxDomainLookupByID(virConnectPtr conn, int id)
+             continue;
+ 
+         if (esxVI_GetVirtualMachineIdentity(virtualMachine,
++                                            priv->primary->uuid_key,
+                                             &id_candidate, &name_candidate,
+                                             uuid_candidate) < 0) {
+             goto cleanup;
+@@ -1486,7 +1488,7 @@ esxDomainLookupByUUID(virConnectPtr conn, const unsigned char *uuid)
+         esxVI_LookupVirtualMachineByUuid(priv->primary, uuid, propertyNameList,
+                                          &virtualMachine,
+                                          esxVI_Occurrence_RequiredItem) < 0 ||
+-        esxVI_GetVirtualMachineIdentity(virtualMachine, &id, &name, NULL) < 0 ||
++        esxVI_GetVirtualMachineIdentity(virtualMachine, NULL, &id, &name, NULL) < 0 ||
+         esxVI_GetVirtualMachinePowerState(virtualMachine, &powerState) < 0) {
+         goto cleanup;
+     }
+@@ -1521,15 +1523,17 @@ esxDomainLookupByName(virConnectPtr conn, const char *name)
+ 
+     if (esxVI_String_AppendValueListToList(&propertyNameList,
+                                            "configStatus\0"
+-                                           "runtime.powerState\0"
+-                                           "config.uuid\0") < 0 ||
++                                           "runtime.powerState\0") < 0 ||
++        esxVI_String_AppendValueToList(&propertyNameList,
++                                       priv->primary->uuid_key) < 0 ||
+         esxVI_LookupVirtualMachineByName(priv->primary, name, propertyNameList,
+                                          &virtualMachine,
+                                          esxVI_Occurrence_RequiredItem) < 0) {
+         goto cleanup;
+     }
+ 
+-    if (esxVI_GetVirtualMachineIdentity(virtualMachine, &id, NULL, uuid) < 0 ||
++    if (esxVI_GetVirtualMachineIdentity(virtualMachine, priv->primary->uuid_key,
++                                        &id, NULL, uuid) < 0 ||
+         esxVI_GetVirtualMachinePowerState(virtualMachine, &powerState) < 0) {
+         goto cleanup;
+     }
+@@ -2583,7 +2587,7 @@ esxDomainGetXMLDesc(virDomainPtr domain, unsigned int flags)
+                                          esxVI_Occurrence_RequiredItem) < 0 ||
+         esxVI_GetVirtualMachineMORef(virtualMachine, &moref) < 0 ||
+         esxVI_GetVirtualMachinePowerState(virtualMachine, &powerState) < 0 ||
+-        esxVI_GetVirtualMachineIdentity(virtualMachine, &id, NULL, NULL) < 0 ||
++        esxVI_GetVirtualMachineIdentity(virtualMachine, NULL, &id, NULL, NULL) < 0 ||
+         esxVI_GetStringValue(virtualMachine, "config.files.vmPathName",
+                              &vmPathName, esxVI_Occurrence_RequiredItem) < 0) {
+         goto cleanup;
+@@ -2630,6 +2634,9 @@ esxDomainGetXMLDesc(virDomainPtr domain, unsigned int flags)
+         if (powerState != esxVI_VirtualMachinePowerState_PoweredOff)
+             def->id = id;
+ 
++        if (priv->primary->legacy_uuid)
++            memcpy(def->uuid, def->hw_uuid, VIR_UUID_BUFLEN);
++
+         xml = virDomainDefFormat(def, priv->xmlopt,
+                                  virDomainDefFormatConvertXMLFlags(flags));
+     }
+@@ -2771,7 +2778,7 @@ esxConnectListDefinedDomains(virConnectPtr conn, char **const names, int maxname
+ 
+         names[count] = NULL;
+ 
+-        if (esxVI_GetVirtualMachineIdentity(virtualMachine, NULL, &names[count],
++        if (esxVI_GetVirtualMachineIdentity(virtualMachine, NULL, NULL, &names[count],
+                                             NULL) < 0) {
+             goto cleanup;
+         }
+@@ -2838,7 +2845,7 @@ esxDomainCreateWithFlags(virDomainPtr domain, unsigned int flags)
+           (priv->primary, domain->uuid, propertyNameList, &virtualMachine,
+            priv->parsedUri->autoAnswer) < 0 ||
+         esxVI_GetVirtualMachinePowerState(virtualMachine, &powerState) < 0 ||
+-        esxVI_GetVirtualMachineIdentity(virtualMachine, &id, NULL, NULL) < 0) {
++        esxVI_GetVirtualMachineIdentity(virtualMachine, NULL, &id, NULL, NULL) < 0) {
+         goto cleanup;
+     }
+ 
+@@ -4787,8 +4794,9 @@ esxConnectListAllDomains(virConnectPtr conn,
+         /* Request required data for esxVI_GetVirtualMachineIdentity */
+         if (esxVI_String_AppendValueListToList(&propertyNameList,
+                                                "configStatus\0"
+-                                               "name\0"
+-                                               "config.uuid\0") < 0) {
++                                               "name\0") < 0 ||
++            esxVI_String_AppendValueToList(&propertyNameList,
++                                           priv->primary->uuid_key) < 0) {
+             goto cleanup;
+         }
+     }
+@@ -4827,8 +4835,11 @@ esxConnectListAllDomains(virConnectPtr conn,
+         /* If the lookup of the required properties fails for some of the machines
+          * in the list it's preferrable to return the valid objects instead of
+          * failing outright */
+-        if ((needIdentity && esxVI_GetVirtualMachineIdentity(virtualMachine, &id, &name, uuid) < 0) ||
+-            (needPowerState && esxVI_GetVirtualMachinePowerState(virtualMachine, &powerState) < 0)) {
++        if ((needIdentity &&
++             esxVI_GetVirtualMachineIdentity(virtualMachine, priv->primary->uuid_key,
++                                             &id, &name, uuid) < 0) ||
++            (needPowerState &&
++             esxVI_GetVirtualMachinePowerState(virtualMachine, &powerState) < 0)) {
+ 
+             /* Raise error only if we didn't successfuly fill any domain */
+             if (count == 0 && !virtualMachine->_next)
+@@ -4960,9 +4971,13 @@ esxDomainHasManagedSaveImage(virDomainPtr domain, unsigned int flags)
+     esxPrivate *priv = domain->conn->privateData;
+     esxVI_ManagedObjectReference *managedObjectReference = NULL;
+     char uuid_string[VIR_UUID_STRING_BUFLEN] = "";
++    esxVI_Boolean instanceUuid = esxVI_Boolean_True;
+ 
+     virCheckFlags(0, -1);
+ 
++    if (priv->primary->legacy_uuid)
++        instanceUuid = esxVI_Boolean_Undefined;
++
+     if (esxVI_EnsureSession(priv->primary) < 0)
+         return -1;
+ 
+@@ -4970,7 +4985,7 @@ esxDomainHasManagedSaveImage(virDomainPtr domain, unsigned int flags)
+ 
+     if (esxVI_FindByUuid(priv->primary, priv->primary->datacenter->_reference,
+                          uuid_string, esxVI_Boolean_True,
+-                         esxVI_Boolean_Undefined,
++                         instanceUuid,
+                          &managedObjectReference) < 0) {
+         return -1;
+     }
+diff --git a/src/esx/esx_util.c b/src/esx/esx_util.c
+index 963bcd0a75..56a1932fdd 100644
+--- a/src/esx/esx_util.c
++++ b/src/esx/esx_util.c
+@@ -42,6 +42,7 @@ esxUtil_ParseUri(esxUtil_ParsedUri **parsedUri, virURI *uri)
+     size_t i;
+     int noVerify;
+     int autoAnswer;
++    int legacy_uuid;
+     char *tmp;
+ 
+     ESX_VI_CHECK_ARG_LIST(parsedUri);
+@@ -87,6 +88,16 @@ esxUtil_ParseUri(esxUtil_ParsedUri **parsedUri, virURI *uri)
+             }
+ 
+             (*parsedUri)->autoAnswer = autoAnswer != 0;
++        } else if (STRCASEEQ(queryParam->name, "legacy_uuid")) {
++            if (virStrToLong_i(queryParam->value, NULL, 10, &legacy_uuid) < 0 ||
++                (legacy_uuid != 0 && legacy_uuid != 1)) {
++                virReportError(VIR_ERR_INVALID_ARG,
++                               _("Query parameter 'legacy_uuid' has unexpected value '%1$s' (should be 0 or 1)"),
++                               queryParam->value);
++                goto cleanup;
++            }
++
++            (*parsedUri)->legacy_uuid = legacy_uuid != 0;
+         } else if (STRCASEEQ(queryParam->name, "proxy")) {
+             /* Expected format: [<type>://]<hostname>[:<port>] */
+             (*parsedUri)->proxy = true;
+diff --git a/src/esx/esx_util.h b/src/esx/esx_util.h
+index 29f01e0c15..545bf7f301 100644
+--- a/src/esx/esx_util.h
++++ b/src/esx/esx_util.h
+@@ -46,6 +46,7 @@ struct _esxUtil_ParsedUri {
+     int proxy_port;
+     char *path;
+     char *cacert;
++    bool legacy_uuid;
+ };
+ 
+ int esxUtil_ParseUri(esxUtil_ParsedUri **parsedUri, virURI *uri);
+diff --git a/src/esx/esx_vi.c b/src/esx/esx_vi.c
+index cfd783622d..79969e6314 100644
+--- a/src/esx/esx_vi.c
++++ b/src/esx/esx_vi.c
+@@ -300,6 +300,17 @@ esxVI_CURL_Connect(esxVI_CURL *curl, esxUtil_ParsedUri *parsedUri)
+     curl->headers = curl_slist_append(curl->headers,
+                                       "Content-Type: text/xml; charset=UTF-8");
+ 
++    /*
++     * Testing showed that the 4.0 version is most close to our current types in
++     * esx_vi_generator.input data.  We could update the version if new method
++     * parameters or object properties are needed.
++     *
++     * The other option is to drop the "/x.y" suffix completely once
++     * https://gitlab.com/libvirt/libvirt/-/work_items/878 is implemented since
++     * that will not limit the version at all.
++     */
++    curl->headers = curl_slist_append(curl->headers, "SOAPAction: urn:vim25/4.0");
++
+     /*
+      * Add an empty expect header to stop CURL from waiting for a response code
+      * 100 (Continue) from the server before continuing the POST operation.
+@@ -933,7 +944,8 @@ esxVI_Context_Connect(esxVI_Context *ctx, const char *url,
+     if (ctx->productLine == esxVI_ProductLine_VPX)
+         ctx->hasSessionIsActive = true;
+ 
+-
++    ctx->legacy_uuid = parsedUri->legacy_uuid;
++    ctx->uuid_key = ctx->legacy_uuid ? "config.uuid" : "config.instanceUuid";
+ 
+     if (esxVI_Login(ctx, username, escapedPassword, NULL, &ctx->session) < 0 ||
+         esxVI_BuildSelectSetCollection(ctx) < 0) {
+@@ -2386,6 +2398,7 @@ esxVI_LookupNumberOfDomainsByPowerState(esxVI_Context *ctx,
+ 
+ int
+ esxVI_GetVirtualMachineIdentity(esxVI_ObjectContent *virtualMachine,
++                                const char *uuid_key,
+                                 int *id, char **name, unsigned char *uuid)
+ {
+     const char *uuid_string = NULL;
+@@ -2443,6 +2456,12 @@ esxVI_GetVirtualMachineIdentity(esxVI_ObjectContent *virtualMachine,
+     }
+ 
+     if (uuid) {
++        if (!uuid_key) {
++            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                           _("Cannot get VM's UUID without supplying a VM UUID key"));
++            goto failure;
++        }
++
+         if (esxVI_GetManagedEntityStatus(virtualMachine, "configStatus",
+                                          &configStatus) < 0) {
+             goto failure;
+@@ -2452,7 +2471,8 @@ esxVI_GetVirtualMachineIdentity(esxVI_ObjectContent *virtualMachine,
+             for (dynamicProperty = virtualMachine->propSet;
+                  dynamicProperty;
+                  dynamicProperty = dynamicProperty->_next) {
+-                if (STREQ(dynamicProperty->name, "config.uuid")) {
++
++                if (STREQ(dynamicProperty->name, uuid_key)) {
+                     if (esxVI_AnyType_ExpectType(dynamicProperty->val,
+                                                  esxVI_Type_String) < 0) {
+                         goto failure;
+@@ -2677,13 +2697,17 @@ esxVI_LookupVirtualMachineByUuid(esxVI_Context *ctx, const unsigned char *uuid,
+     int result = -1;
+     esxVI_ManagedObjectReference *managedObjectReference = NULL;
+     char uuid_string[VIR_UUID_STRING_BUFLEN] = "";
++    esxVI_Boolean instanceUuid = esxVI_Boolean_True;
++
++    if (ctx->legacy_uuid)
++        instanceUuid = esxVI_Boolean_Undefined;
+ 
+     ESX_VI_CHECK_ARG_LIST(virtualMachine);
+ 
+     virUUIDFormat(uuid, uuid_string);
+ 
+     if (esxVI_FindByUuid(ctx, ctx->datacenter->_reference, uuid_string,
+-                         esxVI_Boolean_True, esxVI_Boolean_Undefined,
++                         esxVI_Boolean_True, instanceUuid,
+                          &managedObjectReference) < 0) {
+         return -1;
+     }
+@@ -2743,7 +2767,7 @@ esxVI_LookupVirtualMachineByName(esxVI_Context *ctx, const char *name,
+          candidate = candidate->_next) {
+         g_autofree char *name_candidate = NULL;
+ 
+-        if (esxVI_GetVirtualMachineIdentity(candidate, NULL, &name_candidate,
++        if (esxVI_GetVirtualMachineIdentity(candidate, NULL, NULL, &name_candidate,
+                                             NULL) < 0) {
+             goto cleanup;
+         }
+diff --git a/src/esx/esx_vi.h b/src/esx/esx_vi.h
+index b083ef2b0c..98f89278a6 100644
+--- a/src/esx/esx_vi.h
++++ b/src/esx/esx_vi.h
+@@ -199,6 +199,8 @@ struct _esxVI_Context {
+     esxVI_SelectionSpec *selectSet_datacenterToNetwork;
+     bool hasQueryVirtualDiskUuid;
+     bool hasSessionIsActive;
++    bool legacy_uuid;
++    const char *uuid_key;
+ };
+ 
+ int esxVI_Context_Alloc(esxVI_Context **ctx);
+@@ -351,6 +353,7 @@ int esxVI_LookupNumberOfDomainsByPowerState
+        bool inverse);
+ 
+ int esxVI_GetVirtualMachineIdentity(esxVI_ObjectContent *virtualMachine,
++                                    const char *uuid_key,
+                                     int *id, char **name, unsigned char *uuid);
+ 
+ int esxVI_GetNumberOfSnapshotTrees
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index 47eabe33c6..a32bed616f 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -1488,11 +1488,19 @@ virVMXParseConfig(virVMXContext *ctx,
+         def->scsiBusMaxUnit = SCSI_SUPER_WIDE_BUS_MAX_CONT_UNIT;
+     }
+ 
+-    /* vmx:uuid.bios -> def:uuid */
++    /* vmx:uuid.bios -> def:hwuuid */
+     /* FIXME: Need to handle 'uuid.action = "create"' */
+-    if (virVMXGetConfigUUID(conf, "uuid.bios", def->uuid, true) < 0)
++    if (virVMXGetConfigUUID(conf, "uuid.bios", def->hw_uuid, true) < 0)
+         goto cleanup;
+ 
++    /* vmx:vc.uuid -> def:uuid */
++    if (virVMXGetConfigUUID(conf, "vc.uuid", def->uuid, true) < 0)
++        goto cleanup;
++
++    /* Fallback to legacy behaviour if there is no vc.uuid */
++    if (!virUUIDIsValid(def->uuid))
++        memcpy(def->uuid, def->hw_uuid, VIR_UUID_BUFLEN);
++
+     /* vmx:displayName -> def:name */
+     if (virVMXGetConfigString(conf, "displayName", &def->name, true) < 0)
+         goto cleanup;
+diff --git a/tests/vmx2xmldata/case-insensitive-1.xml b/tests/vmx2xmldata/case-insensitive-1.xml
+index 7cb6413941..de1ee85614 100644
+--- a/tests/vmx2xmldata/case-insensitive-1.xml
++++ b/tests/vmx2xmldata/case-insensitive-1.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>FEDORA11</name>
+   <uuid>50115e16-9bdc-49d7-f171-53c4d7f91710</uuid>
++  <hwuuid>50115e16-9bdc-49d7-f171-53c4d7f91710</hwuuid>
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/case-insensitive-2.xml b/tests/vmx2xmldata/case-insensitive-2.xml
+index 188c3f3cd5..08224814c1 100644
+--- a/tests/vmx2xmldata/case-insensitive-2.xml
++++ b/tests/vmx2xmldata/case-insensitive-2.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>fedora11</name>
+   <uuid>50115e16-9bdc-49d7-f171-53c4d7f91710</uuid>
++  <hwuuid>50115e16-9bdc-49d7-f171-53c4d7f91710</hwuuid>
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-1.xml b/tests/vmx2xmldata/esx-in-the-wild-1.xml
+index c15275ccb9..0d10e2b954 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-1.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-1.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Fedora11</name>
+   <uuid>50115e16-9bdc-49d7-f171-53c4d7f91710</uuid>
++  <hwuuid>50115e16-9bdc-49d7-f171-53c4d7f91710</hwuuid>
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-10.xml b/tests/vmx2xmldata/esx-in-the-wild-10.xml
+index 78129682bd..f4657fb2a6 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-10.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-10.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>w2019biosvmware</name>
+-  <uuid>421a6177-5aa9-abb7-5924-fc376c18a1b4</uuid>
++  <uuid>501af9f2-6d29-1c76-19a9-b208ede5f374</uuid>
++  <hwuuid>421a6177-5aa9-abb7-5924-fc376c18a1b4</hwuuid>
+   <genid>13c67c91-9f47-526f-b0d6-e4dd2e4bb4f9</genid>
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-11.xml b/tests/vmx2xmldata/esx-in-the-wild-11.xml
+index 8807a057d7..ea4c0cc641 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-11.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-11.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>esx6.7-rhel7.7-x86_64</name>
+-  <uuid>422c0152-63ab-cd03-9650-4301ae77aefd</uuid>
++  <uuid>502ca229-12eb-24f6-0c37-c025ff5da005</uuid>
++  <hwuuid>422c0152-63ab-cd03-9650-4301ae77aefd</hwuuid>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-12.xml b/tests/vmx2xmldata/esx-in-the-wild-12.xml
+index c5aad90677..16d73fed8e 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-12.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-12.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Auto-esx8.0-rhell9.3-efi-with-empty-cdrom</name>
+-  <uuid>4220fca7-11dd-d67e-19cc-fcad0a37c342</uuid>
++  <uuid>5020ca5b-7ac1-5c44-cfa1-9e762e2f933b</uuid>
++  <hwuuid>4220fca7-11dd-d67e-19cc-fcad0a37c342</hwuuid>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-13.xml b/tests/vmx2xmldata/esx-in-the-wild-13.xml
+index e6ef947d50..a0438c6b04 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-13.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-13.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Test-Mig-VM-1 (01ce57d0-4e20-41a5-8b6c-bcbf49a032ec)</name>
+-  <uuid>421eb458-5448-fc12-2074-83d5e419e138</uuid>
++  <uuid>01ce57d0-4e20-41a5-8b6c-bcbf49a032ec</uuid>
++  <hwuuid>421eb458-5448-fc12-2074-83d5e419e138</hwuuid>
+   <description>name:Test-Mig-VM-1
+ userid:962314ba515c48388a0e95c0961709ff
+ username:admin
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-14.xml b/tests/vmx2xmldata/esx-in-the-wild-14.xml
+index dd5c2434ee..13c8d16cbf 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-14.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-14.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>wild14</name>
+-  <uuid>421b223a-f2c1-c7c9-a399-34d2d9fde26d</uuid>
++  <uuid>501b831e-75d8-15f8-36fa-b9e225f395aa</uuid>
++  <hwuuid>421b223a-f2c1-c7c9-a399-34d2d9fde26d</hwuuid>
+   <description>execution env sandbox automation platform</description>
+   <memory unit='KiB'>33554432</memory>
+   <currentMemory unit='KiB'>33554432</currentMemory>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-15.xml b/tests/vmx2xmldata/esx-in-the-wild-15.xml
+index 77b094e9d5..5f51c3699f 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-15.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-15.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>dokuwiki</name>
+-  <uuid>420338bd-1c9e-ad50-99a2-59e92ddda8b6</uuid>
++  <uuid>500341d5-fe23-ac46-8cb3-77a8e5a1143d</uuid>
++  <hwuuid>420338bd-1c9e-ad50-99a2-59e92ddda8b6</hwuuid>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+   <vcpu placement='static'>2</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-16.xml b/tests/vmx2xmldata/esx-in-the-wild-16.xml
+index 147bc0825a..2773ec743b 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-16.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-16.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Auto-esx8.0-rhel9.4-efi-nvme-disk</name>
+-  <uuid>4220df89-e3a8-8513-f611-ad252bfd7047</uuid>
++  <uuid>5020196e-c5c8-7310-fcdb-d2933d0c4b2f</uuid>
++  <hwuuid>4220df89-e3a8-8513-f611-ad252bfd7047</hwuuid>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-17.xml b/tests/vmx2xmldata/esx-in-the-wild-17.xml
+index ae66de7431..047885320a 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-17.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-17.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>esx8.0-win11-with-second-disk-in-subfolder</name>
+-  <uuid>42256ec1-e066-9364-3dd1-36a0b75263dd</uuid>
++  <uuid>50250f27-538b-5091-a43b-a50ce95f2382</uuid>
++  <hwuuid>42256ec1-e066-9364-3dd1-36a0b75263dd</hwuuid>
+   <genid>3191ed70-eb21-9c71-2478-373fb27fed9b</genid>
+   <memory unit='KiB'>4194304</memory>
+   <currentMemory unit='KiB'>4194304</currentMemory>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-2.xml b/tests/vmx2xmldata/esx-in-the-wild-2.xml
+index 59071b5d3a..5f4ae10131 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-2.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-2.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>virtDebian1</name>
+   <uuid>564dcd37-3685-8889-35ea-719fc93c983e</uuid>
++  <hwuuid>564dcd37-3685-8889-35ea-719fc93c983e</hwuuid>
+   <memory unit='KiB'>1024000</memory>
+   <currentMemory unit='KiB'>120832</currentMemory>
+   <vcpu placement='static' cpuset='0-2,5-7'>4</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-3.xml b/tests/vmx2xmldata/esx-in-the-wild-3.xml
+index cbe8eceb37..8de543c6ff 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-3.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-3.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>virtDebian2</name>
+   <uuid>564db768-f332-42ee-6201-06973cf5c30c</uuid>
++  <hwuuid>564db768-f332-42ee-6201-06973cf5c30c</hwuuid>
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static' cpuset='0,3-5'>2</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-4.xml b/tests/vmx2xmldata/esx-in-the-wild-4.xml
+index a8a2ac6f97..2a41949f1d 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-4.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-4.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>virtMonServ1</name>
+   <uuid>564d9bef-acd9-b4e0-c8f0-aea8b9103515</uuid>
++  <hwuuid>564d9bef-acd9-b4e0-c8f0-aea8b9103515</hwuuid>
+   <memory unit='KiB'>524288</memory>
+   <currentMemory unit='KiB'>524288</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-5.xml b/tests/vmx2xmldata/esx-in-the-wild-5.xml
+index 9eb975afe9..f8c5bb5664 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-5.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-5.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>vmtest.local</name>
+-  <uuid>423e94a9-a1c7-b31d-7161-76c7586c830e</uuid>
++  <uuid>503e06db-f8d5-458e-a2fb-f9820253a7be</uuid>
++  <hwuuid>423e94a9-a1c7-b31d-7161-76c7586c830e</hwuuid>
+   <description>Centos 5.5 64bit Server</description>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-6.xml b/tests/vmx2xmldata/esx-in-the-wild-6.xml
+index 51c74dd8a1..9abbc32023 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-6.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-6.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>el6-test</name>
+-  <uuid>564d15d4-d062-fe9a-80f5-eb8e1a2c3afc</uuid>
++  <uuid>5200b69b-8d88-7bdf-a14a-02705d653772</uuid>
++  <hwuuid>564d15d4-d062-fe9a-80f5-eb8e1a2c3afc</hwuuid>
+   <memory unit='KiB'>1048576</memory>
+   <currentMemory unit='KiB'>1048576</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-7.xml b/tests/vmx2xmldata/esx-in-the-wild-7.xml
+index c117bd62e5..c5858646ba 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-7.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-7.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>esx-rhel6-mini-with-scsi-device</name>
+-  <uuid>564d9176-621f-0239-f5ad-3a002371953b</uuid>
++  <uuid>52409533-33a2-56c5-36ce-80d605f8ecf4</uuid>
++  <hwuuid>564d9176-621f-0239-f5ad-3a002371953b</hwuuid>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-8.xml b/tests/vmx2xmldata/esx-in-the-wild-8.xml
+index 47d22ced2a..9842ed591f 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-8.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-8.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>RHEL7_10_NICs</name>
+-  <uuid>42359420-99dc-4261-5264-ba58ddae20e4</uuid>
++  <uuid>50351de6-7d56-29ab-9d72-c7f9ea3fcfd0</uuid>
++  <hwuuid>42359420-99dc-4261-5264-ba58ddae20e4</hwuuid>
+   <memory unit='KiB'>2097152</memory>
+   <currentMemory unit='KiB'>2097152</currentMemory>
+   <vcpu placement='static'>8</vcpu>
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-9.xml b/tests/vmx2xmldata/esx-in-the-wild-9.xml
+index ee6be2527f..f3ce068025 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-9.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-9.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>v2v-windows-kkulkarn</name>
+-  <uuid>42009372-17da-be73-779d-007ccf1bd228</uuid>
++  <uuid>5000d2b0-616e-6129-8c06-82b07440a871</uuid>
++  <hwuuid>42009372-17da-be73-779d-007ccf1bd228</hwuuid>
+   <description>MIQ GUID=b55c806d-99b9-4fa5-bbcc-a4de04f822e5</description>
+   <memory unit='KiB'>16777216</memory>
+   <currentMemory unit='KiB'>16777216</currentMemory>
+diff --git a/tests/vmx2xmldata/fusion-in-the-wild-1.xml b/tests/vmx2xmldata/fusion-in-the-wild-1.xml
+index a47fab5cd5..a39bcbb2cd 100644
+--- a/tests/vmx2xmldata/fusion-in-the-wild-1.xml
++++ b/tests/vmx2xmldata/fusion-in-the-wild-1.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>ATTM_VM</name>
+   <uuid>564d7088-01a1-9832-e72b-6790c73b64ea</uuid>
++  <hwuuid>564d7088-01a1-9832-e72b-6790c73b64ea</hwuuid>
+   <memory unit='KiB'>3657728</memory>
+   <currentMemory unit='KiB'>3657728</currentMemory>
+   <vcpu placement='static'>2</vcpu>
+diff --git a/tests/vmx2xmldata/gsx-in-the-wild-1.xml b/tests/vmx2xmldata/gsx-in-the-wild-1.xml
+index 62ec191c82..ab0368f3a7 100644
+--- a/tests/vmx2xmldata/gsx-in-the-wild-1.xml
++++ b/tests/vmx2xmldata/gsx-in-the-wild-1.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Server1</name>
+   <uuid>564d1223-f835-c4b1-bbf6-e32390d62bd3</uuid>
++  <hwuuid>564d1223-f835-c4b1-bbf6-e32390d62bd3</hwuuid>
+   <memory unit='KiB'>32768</memory>
+   <currentMemory unit='KiB'>32768</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/gsx-in-the-wild-2.xml b/tests/vmx2xmldata/gsx-in-the-wild-2.xml
+index 906e4657ca..a9499af0e0 100644
+--- a/tests/vmx2xmldata/gsx-in-the-wild-2.xml
++++ b/tests/vmx2xmldata/gsx-in-the-wild-2.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Server2</name>
+   <uuid>564d3301-267f-a0ef-8b7d-d45e98d6cba4</uuid>
++  <hwuuid>564d3301-267f-a0ef-8b7d-d45e98d6cba4</hwuuid>
+   <memory unit='KiB'>32768</memory>
+   <currentMemory unit='KiB'>32768</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/gsx-in-the-wild-3.xml b/tests/vmx2xmldata/gsx-in-the-wild-3.xml
+index 61812851e1..81b630c55a 100644
+--- a/tests/vmx2xmldata/gsx-in-the-wild-3.xml
++++ b/tests/vmx2xmldata/gsx-in-the-wild-3.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Router</name>
+   <uuid>564ddebe-e86f-d586-0854-a0879cc4be5a</uuid>
++  <hwuuid>564ddebe-e86f-d586-0854-a0879cc4be5a</hwuuid>
+   <memory unit='KiB'>32768</memory>
+   <currentMemory unit='KiB'>32768</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+diff --git a/tests/vmx2xmldata/gsx-in-the-wild-4.xml b/tests/vmx2xmldata/gsx-in-the-wild-4.xml
+index a65a7d137f..70a60da01a 100644
+--- a/tests/vmx2xmldata/gsx-in-the-wild-4.xml
++++ b/tests/vmx2xmldata/gsx-in-the-wild-4.xml
+@@ -1,6 +1,7 @@
+ <domain type='vmware'>
+   <name>Client</name>
+   <uuid>564dad58-0629-d3e6-ecfe-8ff839c5e35d</uuid>
++  <hwuuid>564dad58-0629-d3e6-ecfe-8ff839c5e35d</hwuuid>
+   <memory unit='KiB'>270336</memory>
+   <currentMemory unit='KiB'>270336</currentMemory>
+   <vcpu placement='static'>1</vcpu>
+-- 
+2.54.0
