@@ -294,7 +294,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.10.0
-Release: 12.1%{?dist}%{?extra_release}
+Release: 12.3%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -381,6 +381,42 @@ Patch76: libvirt-qemu_hotplug-enter-monitor-in-order-to-rollback-passed-FD.patch
 Patch77: libvirt-qemu_hotplug-Fix-crash-when-attaching-network-inteface-with-hostdev-network.patch
 Patch78: libvirt-conf-Parse-hyperv-features-even-for-host-model.patch
 Patch79: libvirt-qemu-Wire-up-new-hyperv-host-model-mode-behavior.patch
+Patch80: libvirt-Introduce-EXPAND_CPU_FEATURES-flag-for-domain-capabilities.patch
+Patch81: libvirt-qemu-Implement-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES.patch
+Patch82: libvirt-virsh-Add-expand-cpu-features-option-for-domcapabilities.patch
+Patch83: libvirt-docs-Clarify-host-model-description-in-domain-capabilities.patch
+Patch84: libvirt-security_apparmor-Use-g_auto-in-AppArmorSetSecurityHostdevLabel.patch
+Patch85: libvirt-security-Cleanup-hostdev-label-error-logic.patch
+Patch86: libvirt-qemu-Fix-IOMMUFD-and-VFIO-security-labels.patch
+Patch87: libvirt-viriommufd-Set-IOMMU_OPTION_RLIMIT_MODE-only-when-running-privileged.patch
+Patch88: libvirt-conf-Move-and-rename-virStorageSourceFDTuple-object.patch
+Patch89: libvirt-conf-Refactor-virHostdevIsPCIDevice.patch
+Patch90: libvirt-hypervisor-Fix-virHostdevNeedsVFIO-detection.patch
+Patch91: libvirt-qemu-Expand-call-to-qemuDomainNeedsVFIO.patch
+Patch92: libvirt-qemu-Update-qemuDomainNeedsVFIO-to-ignore-PCI-hostdev-with-IOMMUFD.patch
+Patch93: libvirt-src-Use-virHostdevIsPCIDeviceWith-to-check-for-IOMMUFD.patch
+Patch94: libvirt-conf-Introduce-domain-iommufd-element.patch
+Patch95: libvirt-qemu-Implement-iommufd.patch
+Patch96: libvirt-conf-Add-iommufd-fdgroup-support.patch
+Patch97: libvirt-qemu-Implement-iommufd-fdgroup.patch
+Patch98: libvirt-tests-Add-iommufd-fdgroup-test.patch
+Patch99: libvirt-hypervisor-Call-virWaitForDevices-after-detaching-host-devices.patch
+Patch100: libvirt-cpu_conf-Introduce-virCPUDefSortFeatures.patch
+Patch101: libvirt-qemu_capabilities-Split-virQEMUCapsFillDomainCPUCaps.patch
+Patch102: libvirt-qemu-Move-domain-caps-flags-handling-to-virQEMUCapsFillDomainCPUHostModel.patch
+Patch103: libvirt-qemu_capabilities-Always-sort-features-in-host-model-CPU.patch
+Patch104: libvirt-qemu_capabilities-Use-g_autoptr-in-virQEMUCapsInitHostCPUModel.patch
+Patch105: libvirt-qemu_capabilities-Split-conditions-in-virQEMUCapsInitHostCPUModel.patch
+Patch106: libvirt-qemu_capabilities-Cache-expanded-CPU.patch
+Patch107: libvirt-domaincapstest-Test-EXPAND_CPU_FEATURES-flag.patch
+Patch108: libvirt-util-Publish-and-mock-virHostCPUGetMSRFromKVM.patch
+Patch109: libvirt-cpu_x86-Introduce-virCPUx86DataAddMSR.patch
+Patch110: libvirt-cpu-Introduce-virCPUUpdateFeatures.patch
+Patch111: libvirt-Fix-documentation-of-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES.patch
+Patch112: libvirt-Introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_SUPPORTED_CPU_FEATURES-flag.patch
+Patch113: libvirt-virsh-Add-supported-cpu-features-option-for-domcapabilities.patch
+Patch114: libvirt-domaincapstest-Test-SUPPORTED_CPU_FEATURES-flag.patch
+Patch115: libvirt-qemu_capabilities-Fix-domain-capabilities-on-AMD-CPUs.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2772,6 +2808,47 @@ exit 0
 %endif
 
 %changelog
+* Thu Jun  4 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.3.el9_8
+- cpu_conf: Introduce virCPUDefSortFeatures (RHEL-178822)
+- qemu_capabilities: Split virQEMUCapsFillDomainCPUCaps (RHEL-178822)
+- qemu: Move domain caps flags handling to virQEMUCapsFillDomainCPUHostModel (RHEL-178822)
+- qemu_capabilities: Always sort features in host-model CPU (RHEL-178822)
+- qemu_capabilities: Use g_autoptr in virQEMUCapsInitHostCPUModel (RHEL-178822)
+- qemu_capabilities: Split conditions in virQEMUCapsInitHostCPUModel (RHEL-178822)
+- qemu_capabilities: Cache expanded CPU (RHEL-178822)
+- domaincapstest: Test EXPAND_CPU_FEATURES flag (RHEL-178822)
+- util: Publish and mock virHostCPUGetMSRFromKVM (RHEL-178822)
+- cpu_x86: Introduce virCPUx86DataAddMSR (RHEL-178822)
+- cpu: Introduce virCPUUpdateFeatures (RHEL-178822)
+- Fix documentation of VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES (RHEL-178822)
+- Introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_SUPPORTED_CPU_FEATURES flag (RHEL-178822)
+- virsh: Add --supported-cpu-features option for domcapabilities (RHEL-178822)
+- domaincapstest: Test SUPPORTED_CPU_FEATURES flag (RHEL-178822)
+- qemu_capabilities: Fix domain capabilities on AMD CPUs (RHEL-178822)
+- distro: Replace old gating with tmt
+
+* Fri Mar 27 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.2.el9_8
+- Introduce EXPAND_CPU_FEATURES flag for domain capabilities (RHEL-154552)
+- qemu: Implement VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES (RHEL-154552)
+- virsh: Add --expand-cpu-features option for domcapabilities (RHEL-154552)
+- docs: Clarify host-model description in domain capabilities (RHEL-154552)
+- security_apparmor: Use g_auto* in AppArmorSetSecurityHostdevLabel (RHEL-159913)
+- security: Cleanup hostdev label error logic (RHEL-159913)
+- qemu: Fix IOMMUFD and VFIO security labels (RHEL-159913)
+- viriommufd: Set IOMMU_OPTION_RLIMIT_MODE only when running privileged (RHEL-159174)
+- conf: Move and rename virStorageSourceFDTuple object (RHEL-159174)
+- conf: Refactor virHostdevIsPCIDevice (RHEL-159174)
+- hypervisor: Fix virHostdevNeedsVFIO detection (RHEL-159174)
+- qemu: Expand call to qemuDomainNeedsVFIO (RHEL-159174)
+- qemu: Update qemuDomainNeedsVFIO to ignore PCI hostdev with IOMMUFD (RHEL-159174)
+- src: Use virHostdevIsPCIDeviceWith* to check for IOMMUFD (RHEL-159174)
+- conf: Introduce domain iommufd element (RHEL-159174)
+- qemu: Implement iommufd (RHEL-159174)
+- conf: Add iommufd fdgroup support (RHEL-159174)
+- qemu: Implement iommufd fdgroup (RHEL-159174)
+- tests: Add iommufd fdgroup test (RHEL-159174)
+- hypervisor: Call virWaitForDevices() after detaching host devices (RHEL-159174)
+
 * Thu Mar 12 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.1.el9_8
 - conf: Parse hyperv features even for host-model (RHEL-151684)
 - qemu: Wire up new hyperv host-model mode behavior (RHEL-151684)
