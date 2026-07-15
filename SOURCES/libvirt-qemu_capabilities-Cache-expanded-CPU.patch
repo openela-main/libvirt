@@ -1,0 +1,158 @@
+From 8a26c80e428460fbdf8090f3b6d99406d96ee1c0 Mon Sep 17 00:00:00 2001
+Message-ID: <8a26c80e428460fbdf8090f3b6d99406d96ee1c0.1781277506.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 21 May 2026 17:55:28 +0200
+Subject: [PATCH] qemu_capabilities: Cache expanded CPU
+
+When probing host model CPU we already expand it to get a list of all
+CPU features. Let's store the expanded CPU definition in virQEMUCaps and
+copy it to domain capabilities when requested by the
+VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES flag instead of
+expanding the CPU over and over on each request.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 312000a739aebaa9de655bb1f6a539326ea8783d)
+
+https://redhat.atlassian.net/browse/RHEL-180449
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 39 ++++++++++++++++++++++++++----------
+ src/qemu/qemu_capabilities.h |  3 +++
+ 2 files changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 3cbc08a16c..702b301cc8 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -789,6 +789,9 @@ struct _virQEMUCapsHostCPUData {
+     unsigned int physAddrSize;
+     /* Host CPU definition reported in domain capabilities. */
+     virCPUDef *reported;
++    /* Expanded host CPU definition with features that are implicitly enabled
++     * by the selected CPU model. */
++    virCPUDef *expanded;
+     /* Migratable host CPU definition used for updating guest CPU. */
+     virCPUDef *migratable;
+     /* CPU definition with features detected by libvirt using virCPUGetHost
+@@ -1965,6 +1968,9 @@ virQEMUCapsHostCPUDataCopy(virQEMUCapsHostCPUData *dst,
+     if (src->reported)
+         dst->reported = virCPUDefCopy(src->reported);
+ 
++    if (src->expanded)
++        dst->expanded = virCPUDefCopy(src->expanded);
++
+     if (src->migratable)
+         dst->migratable = virCPUDefCopy(src->migratable);
+ 
+@@ -1978,6 +1984,7 @@ virQEMUCapsHostCPUDataClear(virQEMUCapsHostCPUData *cpuData)
+ {
+     qemuMonitorCPUModelInfoFree(cpuData->info);
+     virCPUDefFree(cpuData->reported);
++    virCPUDefFree(cpuData->expanded);
+     virCPUDefFree(cpuData->migratable);
+     virCPUDefFree(cpuData->full);
+ 
+@@ -2304,6 +2311,9 @@ virQEMUCapsGetHostModel(virQEMUCaps *qemuCaps,
+         /* 'full' is non-NULL only if we have data from both QEMU and
+          * virCPUGetHost */
+         return cpuData->full ? cpuData->full : cpuData->reported;
++
++    case VIR_QEMU_CAPS_HOST_CPU_EXPANDED:
++        return cpuData->expanded;
+     }
+ 
+     return NULL;
+@@ -2315,6 +2325,7 @@ virQEMUCapsSetHostModel(virQEMUCaps *qemuCaps,
+                         virDomainVirtType type,
+                         unsigned int physAddrSize,
+                         virCPUDef *reported,
++                        virCPUDef *expanded,
+                         virCPUDef *migratable,
+                         virCPUDef *full)
+ {
+@@ -2323,6 +2334,7 @@ virQEMUCapsSetHostModel(virQEMUCaps *qemuCaps,
+     cpuData = &virQEMUCapsGetAccel(qemuCaps, type)->hostCPU;
+     cpuData->physAddrSize = physAddrSize;
+     cpuData->reported = reported;
++    cpuData->expanded = expanded;
+     cpuData->migratable = migratable;
+     cpuData->full = full;
+ }
+@@ -4126,16 +4138,18 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+ 
+         virCPUDefCopyModelFilter(cpu, hostCPU, true, virQEMUCapsCPUFilterFeatures,
+                                  &qemuCaps->arch);
+-    } else if (virQEMUCapsTypeIsAccelerated(type) &&
+-               virCPUGetHostIsSupported(qemuCaps->arch)) {
++    }
++
++    cpuExpanded = virCPUDefCopy(cpu);
++    if (virCPUExpandFeatures(qemuCaps->arch, cpuExpanded) < 0)
++        goto error;
++
++    if (rc == 0 &&
++        virQEMUCapsTypeIsAccelerated(type) &&
++        virCPUGetHostIsSupported(qemuCaps->arch)) {
+         if (!(fullCPU = virQEMUCapsProbeHostCPU(qemuCaps->arch, NULL)))
+             goto error;
+ 
+-        cpuExpanded = virCPUDefCopy(cpu);
+-
+-        if (virCPUExpandFeatures(qemuCaps->arch, cpuExpanded) < 0)
+-            goto error;
+-
+         for (i = 0; i < cpuExpanded->nfeatures; i++) {
+             if (cpuExpanded->features[i].policy == VIR_CPU_FEATURE_REQUIRE)
+                 virCPUDefUpdateFeature(fullCPU, cpuExpanded->features[i].name,
+@@ -4174,6 +4188,7 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+ 
+     virQEMUCapsSetHostModel(qemuCaps, type, physAddrSize,
+                             g_steal_pointer(&cpu),
++                            g_steal_pointer(&cpuExpanded),
+                             g_steal_pointer(&migCPU),
+                             g_steal_pointer(&fullCPU));
+ 
+@@ -6630,9 +6645,14 @@ virQEMUCapsFillDomainCPUHostModel(virQEMUCaps *qemuCaps,
+                                   virDomainCaps *domCaps,
+                                   unsigned int flags)
+ {
+-    virQEMUCapsHostCPUType cpuType = VIR_QEMU_CAPS_HOST_CPU_REPORTED;
++    virQEMUCapsHostCPUType cpuType;
+     virCPUDef *cpu;
+ 
++    if (flags & VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES)
++        cpuType = VIR_QEMU_CAPS_HOST_CPU_EXPANDED;
++    else
++        cpuType = VIR_QEMU_CAPS_HOST_CPU_REPORTED;
++
+     cpu = virCPUDefCopy(virQEMUCapsGetHostModel(qemuCaps, domCaps->virttype,
+                                                 cpuType));
+ 
+@@ -6643,9 +6663,6 @@ virQEMUCapsFillDomainCPUHostModel(virQEMUCaps *qemuCaps,
+                                                cpu, VIR_CPU_FEATURE_DISABLE);
+     }
+ 
+-    if (flags & VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES)
+-        virCPUExpandFeatures(domCaps->arch, cpu);
+-
+     virCPUDefSortFeatures(cpu);
+     domCaps->cpu.hostModel = cpu;
+ }
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index d5a8027523..b518ffb595 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -789,6 +789,9 @@ typedef enum {
+      * combined with features reported by QEMU. This is used for backward
+      * compatible comparison between a guest CPU and a host CPU. */
+     VIR_QEMU_CAPS_HOST_CPU_FULL,
++    /* Expanded host CPU definition with features that are implicitly enabled
++     * by the selected CPU model. */
++    VIR_QEMU_CAPS_HOST_CPU_EXPANDED,
+ } virQEMUCapsHostCPUType;
+ 
+ virCPUDef *virQEMUCapsGetHostModel(virQEMUCaps *qemuCaps,
+-- 
+2.54.0

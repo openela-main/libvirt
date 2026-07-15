@@ -294,7 +294,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.10.0
-Release: 12.3%{?dist}%{?extra_release}
+Release: 12.4%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -482,6 +482,22 @@ Patch177: libvirt-qemu-Implement-iommufd-fdgroup.patch
 Patch178: libvirt-tests-Add-iommufd-fdgroup-test.patch
 Patch179: libvirt-hypervisor-Call-virWaitForDevices-after-detaching-host-devices.patch
 Patch180: libvirt-esx-Track-VMs-by-instanceUuid-instead-of-UUID.patch
+Patch181: libvirt-cpu_conf-Introduce-virCPUDefSortFeatures.patch
+Patch182: libvirt-qemu_capabilities-Split-virQEMUCapsFillDomainCPUCaps.patch
+Patch183: libvirt-qemu-Move-domain-caps-flags-handling-to-virQEMUCapsFillDomainCPUHostModel.patch
+Patch184: libvirt-qemu_capabilities-Always-sort-features-in-host-model-CPU.patch
+Patch185: libvirt-qemu_capabilities-Use-g_autoptr-in-virQEMUCapsInitHostCPUModel.patch
+Patch186: libvirt-qemu_capabilities-Split-conditions-in-virQEMUCapsInitHostCPUModel.patch
+Patch187: libvirt-qemu_capabilities-Cache-expanded-CPU.patch
+Patch188: libvirt-domaincapstest-Test-EXPAND_CPU_FEATURES-flag.patch
+Patch189: libvirt-util-Publish-and-mock-virHostCPUGetMSRFromKVM.patch
+Patch190: libvirt-cpu_x86-Introduce-virCPUx86DataAddMSR.patch
+Patch191: libvirt-cpu-Introduce-virCPUUpdateFeatures.patch
+Patch192: libvirt-Fix-documentation-of-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES.patch
+Patch193: libvirt-Introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_SUPPORTED_CPU_FEATURES-flag.patch
+Patch194: libvirt-virsh-Add-supported-cpu-features-option-for-domcapabilities.patch
+Patch195: libvirt-domaincapstest-Test-SUPPORTED_CPU_FEATURES-flag.patch
+Patch196: libvirt-qemu_capabilities-Fix-domain-capabilities-on-AMD-CPUs.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2874,6 +2890,25 @@ exit 0
 %endif
 
 %changelog
+* Fri Jun 12 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.4.el10_2
+- cpu_conf: Introduce virCPUDefSortFeatures (RHEL-180449)
+- qemu_capabilities: Split virQEMUCapsFillDomainCPUCaps (RHEL-180449)
+- qemu: Move domain caps flags handling to virQEMUCapsFillDomainCPUHostModel (RHEL-180449)
+- qemu_capabilities: Always sort features in host-model CPU (RHEL-180449)
+- qemu_capabilities: Use g_autoptr in virQEMUCapsInitHostCPUModel (RHEL-180449)
+- qemu_capabilities: Split conditions in virQEMUCapsInitHostCPUModel (RHEL-180449)
+- qemu_capabilities: Cache expanded CPU (RHEL-180449)
+- domaincapstest: Test EXPAND_CPU_FEATURES flag (RHEL-180449)
+- util: Publish and mock virHostCPUGetMSRFromKVM (RHEL-180449)
+- cpu_x86: Introduce virCPUx86DataAddMSR (RHEL-180449)
+- cpu: Introduce virCPUUpdateFeatures (RHEL-180449)
+- Fix documentation of VIR_CONNECT_GET_DOMAIN_CAPABILITIES_EXPAND_CPU_FEATURES (RHEL-180449)
+- Introduce VIR_CONNECT_GET_DOMAIN_CAPABILITIES_SUPPORTED_CPU_FEATURES flag (RHEL-180449)
+- virsh: Add --supported-cpu-features option for domcapabilities (RHEL-180449)
+- domaincapstest: Test SUPPORTED_CPU_FEATURES flag (RHEL-180449)
+- qemu_capabilities: Fix domain capabilities on AMD CPUs (RHEL-180449)
+- distro: Replace old gating with tmt
+
 * Tue May 19 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.3.el10_2
 - esx: Track VMs by instanceUuid instead of UUID (RHEL-177479)
 

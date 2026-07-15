@@ -1,0 +1,71 @@
+From 6f964d2c9d06ec0a4a38b3b4be12e5d62742d97b Mon Sep 17 00:00:00 2001
+Message-ID: <6f964d2c9d06ec0a4a38b3b4be12e5d62742d97b.1781277506.git.jdenemar@redhat.com>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 21 May 2026 17:30:21 +0200
+Subject: [PATCH] qemu_capabilities: Split conditions in
+ virQEMUCapsInitHostCPUModel
+
+Having 'else' after goto is useless.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 8b4f56447f32171671e18b82fbdfd478f2ec4293)
+
+https://redhat.atlassian.net/browse/RHEL-180449
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index c07a41e250..3cbc08a16c 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -4105,9 +4105,17 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+     if (!(cpu = virQEMUCapsNewHostCPUModel()))
+         goto error;
+ 
+-    if ((rc = virQEMUCapsInitCPUModel(qemuCaps, type, cpu, false)) < 0) {
++    if ((rc = virQEMUCapsInitCPUModel(qemuCaps, type, cpu, false)) < 0)
+         goto error;
+-    } else if (rc == 1) {
++
++    if (rc == 2) {
++        VIR_DEBUG("QEMU does not provide CPU model for arch=%s virttype=%s",
++                  virArchToString(qemuCaps->arch),
++                  virDomainVirtTypeToString(type));
++        goto error;
++    }
++
++    if (rc == 1) {
+         g_autoptr(virDomainCapsCPUModels) cpuModels = NULL;
+ 
+         VIR_DEBUG("No host CPU model info from QEMU; probing host CPU directly");
+@@ -4118,11 +4126,6 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+ 
+         virCPUDefCopyModelFilter(cpu, hostCPU, true, virQEMUCapsCPUFilterFeatures,
+                                  &qemuCaps->arch);
+-    } else if (rc == 2) {
+-        VIR_DEBUG("QEMU does not provide CPU model for arch=%s virttype=%s",
+-                  virArchToString(qemuCaps->arch),
+-                  virDomainVirtTypeToString(type));
+-        goto error;
+     } else if (virQEMUCapsTypeIsAccelerated(type) &&
+                virCPUGetHostIsSupported(qemuCaps->arch)) {
+         if (!(fullCPU = virQEMUCapsProbeHostCPU(qemuCaps->arch, NULL)))
+@@ -4143,9 +4146,10 @@ virQEMUCapsInitHostCPUModel(virQEMUCaps *qemuCaps,
+     if (!(migCPU = virQEMUCapsNewHostCPUModel()))
+         goto error;
+ 
+-    if ((rc = virQEMUCapsInitCPUModel(qemuCaps, type, migCPU, true)) < 0) {
++    if ((rc = virQEMUCapsInitCPUModel(qemuCaps, type, migCPU, true)) < 0)
+         goto error;
+-    } else if (rc == 1) {
++
++    if (rc == 1) {
+         VIR_DEBUG("CPU migratability not provided by QEMU");
+ 
+         virCPUDefFree(migCPU);
+-- 
+2.54.0
