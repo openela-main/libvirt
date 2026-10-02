@@ -294,7 +294,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 11.10.0
-Release: 12.3%{?dist}%{?extra_release}
+Release: 12.7%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -417,6 +417,48 @@ Patch112: libvirt-Introduce-VIR_CONNECT_GET_DOMAIN_CAPABILITIES_SUPPORTED_CPU_FE
 Patch113: libvirt-virsh-Add-supported-cpu-features-option-for-domcapabilities.patch
 Patch114: libvirt-domaincapstest-Test-SUPPORTED_CPU_FEATURES-flag.patch
 Patch115: libvirt-qemu_capabilities-Fix-domain-capabilities-on-AMD-CPUs.patch
+Patch116: libvirt-qemu-capabilities-Apply-capability_filters-configration-option-on-all-capabilities.patch
+Patch117: libvirt-qemu-capabilities-Export-virQEMUCapsNewCopy-outside-of-qemu_capspriv.patch
+Patch118: libvirt-qemu-Allow-reuse-of-qemuProcessStartUpdateCustomCaps.patch
+Patch119: libvirt-qemu-validate-Validate-VM-config-with-qemuCaps-influenced-by-qemu-capabilities.patch
+Patch120: libvirt-qemu-postparse-Process-VM-config-with-qemuCaps-influenced-by-qemu-capabilities.patch
+Patch121: libvirt-virQEMUCapsCacheLookupDefault-Fix-error-message-when-no-emulators-are-installed.patch
+Patch122: libvirt-qemuxmlconfdata-un-symlink-video-virtio-vga-gpu-gl-output.patch
+Patch123: libvirt-qemuxmlconftest-Add-video-virtio-vga-invocation-with-QEMU_CAPS_DEVICE_VIRTIO_VGA-disabled.patch
+Patch124: libvirt-qemuxmlconftest-Add-test-cases-for-configs-asking-for-virtio-gpu-gl-or-virtio-vga-gl-without-the-capability.patch
+Patch125: libvirt-qemuxmlconftest-Add-invocation-of-video-virtio-vga-gpu-gl-with-missing-caps-and-VIR_DOMAIN_DEF_PARSE_ABI_UPDATE.patch
+Patch126: libvirt-qemustatusxml2xml-Add-test-case-capturing-virtio-video-device.patch
+Patch127: libvirt-virDomainVideoDefFormat-Use-virXMLFormatElement-instead-of-custom-formatter.patch
+Patch128: libvirt-conf-Add-fields-for-recording-actually-selected-virtio-video-device.patch
+Patch129: libvirt-qemuxmlconftest-Add-test-case-for-specifying-virtio-gpu-where-virtio-vga-would-be-picked.patch
+Patch130: libvirt-qemuDeviceVideoGetModel-Directly-return-picked-model.patch
+Patch131: libvirt-qemu-postparse-Fill-in-selected-virtio-video-frondend-device-in-the-XML.patch
+Patch132: libvirt-qemuValidateDomainDeviceDefVideo-Fix-checks-of-virtio-video-devices.patch
+Patch133: libvirt-qemuDeviceVideoGetModel-Remove-logic-for-selecting-virtio-devices.patch
+Patch134: libvirt-qemuDeviceVideoGetModel-Simplify-by-relying-on-checks-from-qemuValidateDomainDeviceDefVideo.patch
+Patch135: libvirt-qemu-Remove-qemuDomainSupportsVideoVga.patch
+Patch136: libvirt-qemu-Ensure-proper-shutdown-ordering-of-virtlockd-virtlogd-daemons.patch
+Patch137: libvirt-util-virFileChownFiles-do-not-follow-symlinks.patch
+Patch138: libvirt-qemu-Fix-proper-ordering-of-virtlockd-shutdown.patch
+Patch139: libvirt-Add-guest-device-info-to-virDomainGetGuestInfo.patch
+Patch140: libvirt-qemu_agent-Introduce-guest-get-devices.patch
+Patch141: libvirt-qemuagenttest-Introduce-GetGuestDeviceInfo-test-case.patch
+Patch142: libvirt-qemu-Implement-device-info-for-virDomainGetGuestInfo-API.patch
+Patch143: libvirt-virsh-Add-support-for-VIR_DOMAIN_GUEST_INFO_DEVICES.patch
+Patch144: libvirt-remote-Fix-integer-overflow-in-RPC-handler-for-virNodeGetFreePages-CVE-2026-18917.patch
+Patch145: libvirt-qemu-Always-assume-support-for-QEMU_CAPS_SET_ACTION.patch
+Patch146: libvirt-qemu-Remove-unused-qemuProcessRebootAllowed.patch
+Patch147: libvirt-qemu-monitor-Remove-support-for-watchdog-set-action.patch
+Patch148: libvirt-qemu-Remove-allowReboot-field.patch
+Patch149: libvirt-qemu-capabilities-Retire-QEMU_CAPS_SET_ACTION.patch
+Patch150: libvirt-qemuProcessSetupLifecycleActions-Prepare-to-handle-other-actions.patch
+Patch151: libvirt-qemuDomainModifyLifecycleActionLive-Prepare-to-handle-other-actions.patch
+Patch152: libvirt-processGuestPanicEvent-Don-t-pass-panic-action-via-parameter.patch
+Patch153: libvirt-conf-Use-proper-enum-types-for-onReboot-onPoweroff-onCrash-and-onLockFailure.patch
+Patch154: libvirt-qemuMonitorGuestPanicEventInfoFormatMsg-Directly-return-message.patch
+Patch155: libvirt-qemuProcessGuestPanicEventInfo-Fold-into-only-caller.patch
+Patch156: libvirt-qemu-processGuestPanicEvent-Split-individual-steps-under-separate-conditions.patch
+Patch157: libvirt-Add-support-for-keeping-VM-running-when-panic-notifier-is-used.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2808,6 +2850,57 @@ exit 0
 %endif
 
 %changelog
+* Mon Aug 31 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.7.el9_8
+- remote: Fix integer overflow in RPC handler for virNodeGetFreePages (CVE-2026-18917) (RHEL-245282, CVE-2026-18917)
+- qemu: Always assume support for 'QEMU_CAPS_SET_ACTION' (RHEL-242549)
+- qemu: Remove unused 'qemuProcessRebootAllowed' (RHEL-242549)
+- qemu: monitor: Remove support for 'watchdog-set-action' (RHEL-242549)
+- qemu: Remove 'allowReboot' field (RHEL-242549)
+- qemu: capabilities: Retire QEMU_CAPS_SET_ACTION (RHEL-242549)
+- qemuProcessSetupLifecycleActions: Prepare to handle other actions (RHEL-242549)
+- qemuDomainModifyLifecycleActionLive: Prepare to handle other actions (RHEL-242549)
+- processGuestPanicEvent: Don't pass panic action via parameter (RHEL-242549)
+- conf: Use proper enum types for 'onReboot', 'onPoweroff', 'onCrash', and 'onLockFailure' (RHEL-242549)
+- qemuMonitorGuestPanicEventInfoFormatMsg: Directly return message (RHEL-242549)
+- qemuProcessGuestPanicEventInfo: Fold into only caller (RHEL-242549)
+- qemu: processGuestPanicEvent: Split individual steps under separate conditions (RHEL-242549)
+- Add support for keeping VM running when panic notifier is used (RHEL-242549)
+
+* Wed Aug 19 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.6.el9_8
+- qemu: Fix proper ordering of 'virtlockd' shutdown (RHEL-224986)
+- Add guest device info to virDomainGetGuestInfo (RHEL-243306)
+- qemu_agent: Introduce guest-get-devices (RHEL-243306)
+- qemuagenttest: Introduce GetGuestDeviceInfo test case (RHEL-243306)
+- qemu: Implement device info for virDomainGetGuestInfo() API (RHEL-243306)
+- virsh: Add support for VIR_DOMAIN_GUEST_INFO_DEVICES (RHEL-243306)
+
+* Fri Aug 14 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.5.el9_8
+- qemu: Ensure proper shutdown ordering of virtlockd/virtlogd daemons (RHEL-224986)
+- util: virFileChownFiles: do not follow symlinks (CVE-2026-63622)
+
+* Fri Jul 17 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.4.el9_8
+- distro: Update URL in plans.fmf
+- qemu: capabilities: Apply 'capability_filters' configration option on all capabilities (RHEL-186018)
+- qemu: capabilities: Export 'virQEMUCapsNewCopy' outside of 'qemu_capspriv' (RHEL-186018)
+- qemu: Allow reuse of 'qemuProcessStartUpdateCustomCaps' (RHEL-186018)
+- qemu: validate: Validate VM config with qemuCaps influenced by <qemu:capabilities> (RHEL-186018)
+- qemu: postparse: Process VM config with qemuCaps influenced by <qemu:capabilities> (RHEL-186018)
+- virQEMUCapsCacheLookupDefault: Fix error message when no emulators are installed (RHEL-186018)
+- qemuxmlconfdata: un-symlink 'video-virtio-vga-gpu-gl' output (RHEL-186018)
+- qemuxmlconftest: Add 'video-virtio-vga' invocation with QEMU_CAPS_DEVICE_VIRTIO_VGA disabled (RHEL-186018)
+- qemuxmlconftest: Add test cases for configs asking for 'virtio-gpu-gl' or 'virtio-vga-gl' without the capability (RHEL-186018)
+- qemuxmlconftest: Add invocation of 'video-virtio-vga-gpu-gl' with missing caps and VIR_DOMAIN_DEF_PARSE_ABI_UPDATE (RHEL-186018)
+- qemustatusxml2xml: Add test case capturing virtio video device (RHEL-186018)
+- virDomainVideoDefFormat: Use 'virXMLFormatElement' instead of custom formatter (RHEL-186018)
+- conf: Add fields for recording actually-selected virtio video device (RHEL-186018)
+- qemuxmlconftest: Add test case for specifying 'virtio-gpu' where 'virtio-vga' would be picked (RHEL-186018)
+- qemuDeviceVideoGetModel: Directly return picked model (RHEL-186018)
+- qemu: postparse: Fill in selected virtio video frondend device in the XML (RHEL-186018)
+- qemuValidateDomainDeviceDefVideo: Fix checks of virtio video devices (RHEL-186018)
+- qemuDeviceVideoGetModel: Remove logic for selecting 'virtio' devices (RHEL-186018)
+- qemuDeviceVideoGetModel: Simplify by relying on checks from 'qemuValidateDomainDeviceDefVideo' (RHEL-186018)
+- qemu: Remove 'qemuDomainSupportsVideoVga' (RHEL-186018)
+
 * Thu Jun  4 2026 Jiri Denemark <jdenemar@redhat.com> - 11.10.0-12.3.el9_8
 - cpu_conf: Introduce virCPUDefSortFeatures (RHEL-178822)
 - qemu_capabilities: Split virQEMUCapsFillDomainCPUCaps (RHEL-178822)
