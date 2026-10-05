@@ -1,0 +1,76 @@
+From bed38390db3a9d4eeb42b8e7c24ec1d20f04b42c Mon Sep 17 00:00:00 2001
+Message-ID: <bed38390db3a9d4eeb42b8e7c24ec1d20f04b42c.1782912056.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Mon, 20 Apr 2026 21:45:59 +0200
+Subject: [PATCH] vmx: Generate correct disk target device ID for superwide
+ SCSI
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Commit 32f7db0989e4 added support for superwide SCSI, but did not change
+the disk ID calculation which resulted in a possible duplicate.  Change
+it to calculate based on the (already decided) maximum of SCSI units per
+bus and add a (well, modify existing) test case.
+
+Fixes: 32f7db0989e4
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit e2c7549d52e4520156d33320c02e6f4d4f0c1afe)
+
+https://redhat.atlassian.net/browse/RHEL-191267
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/vmx/vmx.c                            | 2 +-
+ tests/vmx2xmldata/esx-in-the-wild-11.vmx | 6 ++++++
+ tests/vmx2xmldata/esx-in-the-wild-11.xml | 6 ++++++
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index a32bed616f..69a2d4ade7 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -2250,7 +2250,7 @@ virVMXGenerateDiskTarget(virDomainDiskDef *def,
+             return -1;
+         }
+ 
+-        idx = controllerOrBus * 15 + (unit < 7 ? unit : unit - 1);
++        idx = controllerOrBus * (vmdef->scsiBusMaxUnit - 1) + (unit < 7 ? unit : unit - 1);
+         prefix = "sd";
+         break;
+ 
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-11.vmx b/tests/vmx2xmldata/esx-in-the-wild-11.vmx
+index ae1d146f9a..e6b547d8ac 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-11.vmx
++++ b/tests/vmx2xmldata/esx-in-the-wild-11.vmx
+@@ -89,3 +89,9 @@ sched.scsi0:16.shares = "normal"
+ sched.scsi0:16.throughputCap = "off"
+ scsi0:16.present = "TRUE"
+ scsi0:16.redo = ""
++scsi1.virtualDev = "pvscsi"
++scsi1.present = "TRUE"
++scsi1:0.deviceType = "scsi-hardDisk"
++scsi1:0.fileName = "esx6.7-rhel7.7-x86_64_4.vmdk"
++sched.scsi1:0.shares = "normal"
++scsi1:0.present = "TRUE"
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-11.xml b/tests/vmx2xmldata/esx-in-the-wild-11.xml
+index ea4c0cc641..2d15b5ec62 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-11.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-11.xml
+@@ -26,7 +26,13 @@
+       <target dev='sdp' bus='scsi'/>
+       <address type='drive' controller='0' bus='0' target='0' unit='16'/>
+     </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/esx6.7-rhel7.7-x86_64_4.vmdk'/>
++      <target dev='sdbl' bus='scsi'/>
++      <address type='drive' controller='1' bus='0' target='0' unit='0'/>
++    </disk>
+     <controller type='scsi' index='0' model='vmpvscsi'/>
++    <controller type='scsi' index='1' model='vmpvscsi'/>
+     <interface type='bridge'>
+       <mac address='00:50:56:ac:3e:a1' type='generated'/>
+       <source bridge='VM Network'/>
+-- 
+2.54.0

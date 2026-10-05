@@ -1,0 +1,820 @@
+From 186ca1ae49a42ba4aba53d35b67198645b00ace1 Mon Sep 17 00:00:00 2001
+Message-ID: <186ca1ae49a42ba4aba53d35b67198645b00ace1.1782912056.git.jdenemar@redhat.com>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 16 Jun 2026 14:29:21 +0200
+Subject: [PATCH] vmx: Fix a case with 64 disks on one SCSI controller
+
+The constants for maximum units on a bus are slightly tricky because for
+the narrow bus it does not need to account for the extra unit used by
+the controller, but the wide and super-wide ones need to.
+
+With this patch a VMX with 64 disks on a pvscsi controller can be
+properly parsed.
+
+To properly handle the maximum numbers one of the conditions also needs
+to be changed to not allow for units 16 and 65.  This does not change
+various conditionals in XML parsing and VMX formatting as they need a
+significant rewrite.  And since that is already working only with the
+wide scsi controller (and not the super-wide one) we leave that refactor
+for another day as it was done previously.
+
+Tests show this is now possible and they fail before this change.
+
+Resolves: https://redhat.atlassian.net/browse/RHEL-181350
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit c48cceee575d34c798a463430e7be19df0fe89f3)
+
+https://redhat.atlassian.net/browse/RHEL-191267
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/conf/domain_conf.h                        |  16 +-
+ src/vmx/vmx.c                                 |   2 +-
+ tests/vmx2xmldata/esx-in-the-wild-11.xml      |   2 +-
+ tests/vmx2xmldata/scsi-driver-max.vmx         |  50 +++
+ tests/vmx2xmldata/scsi-driver-max.xml         |  95 +++++
+ .../vmx2xmldata/scsi-driver-superwide-max.vmx | 197 ++++++++++
+ .../vmx2xmldata/scsi-driver-superwide-max.xml | 340 ++++++++++++++++++
+ tests/vmx2xmltest.c                           |   2 +
+ 8 files changed, 701 insertions(+), 3 deletions(-)
+ create mode 100644 tests/vmx2xmldata/scsi-driver-max.vmx
+ create mode 100644 tests/vmx2xmldata/scsi-driver-max.xml
+ create mode 100644 tests/vmx2xmldata/scsi-driver-superwide-max.vmx
+ create mode 100644 tests/vmx2xmldata/scsi-driver-superwide-max.xml
+
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index ba22fc347d..75e590f994 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -3159,8 +3159,22 @@ struct _virDomainHypervFeatures {
+     char *vendor_id;
+ };
+ 
+-#define SCSI_SUPER_WIDE_BUS_MAX_CONT_UNIT 64
++/*
++ * Beware, these numbers mean slightly different things.  Because the unit
++ * number 7 is reserved for the controller, any higher limits must account for
++ * that fact.  I.e. a super-wide bus can have at max 64 disks, but accounting
++ * for the controller occupying one of the units the number needs to be 65.
++ *
++ * The maximums are taken from the following page:
++ * https://configmax.broadcom.com/guest?vmwareproduct=vSphere
++ */
++#define SCSI_SUPER_WIDE_BUS_MAX_CONT_UNIT 65
+ #define SCSI_WIDE_BUS_MAX_CONT_UNIT 16
++
++/*
++ * Since 7 unit numbers [0..7) do not interfere with the controller occupying
++ * unit number 7 it reflects the correct number of disks (targets).
++ */
+ #define SCSI_NARROW_BUS_MAX_CONT_UNIT 7
+ 
+ 
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index 69a2d4ade7..e45ff435b3 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -2243,7 +2243,7 @@ virVMXGenerateDiskTarget(virDomainDiskDef *def,
+             return -1;
+         }
+ 
+-        if (unit < 0 || unit > vmdef->scsiBusMaxUnit || unit == 7) {
++        if (unit < 0 || unit >= vmdef->scsiBusMaxUnit || unit == 7) {
+             virReportError(VIR_ERR_INTERNAL_ERROR,
+                            _("SCSI unit index %1$d out of [0..6,8..%2$u] range"),
+                            unit, vmdef->scsiBusMaxUnit);
+diff --git a/tests/vmx2xmldata/esx-in-the-wild-11.xml b/tests/vmx2xmldata/esx-in-the-wild-11.xml
+index 2d15b5ec62..c1dab69d31 100644
+--- a/tests/vmx2xmldata/esx-in-the-wild-11.xml
++++ b/tests/vmx2xmldata/esx-in-the-wild-11.xml
+@@ -28,7 +28,7 @@
+     </disk>
+     <disk type='file' device='disk'>
+       <source file='[datastore] directory/esx6.7-rhel7.7-x86_64_4.vmdk'/>
+-      <target dev='sdbl' bus='scsi'/>
++      <target dev='sdbm' bus='scsi'/>
+       <address type='drive' controller='1' bus='0' target='0' unit='0'/>
+     </disk>
+     <controller type='scsi' index='0' model='vmpvscsi'/>
+diff --git a/tests/vmx2xmldata/scsi-driver-max.vmx b/tests/vmx2xmldata/scsi-driver-max.vmx
+new file mode 100644
+index 0000000000..eba4cefafc
+--- /dev/null
++++ b/tests/vmx2xmldata/scsi-driver-max.vmx
+@@ -0,0 +1,50 @@
++config.version = "8"
++virtualHW.version = "12"
++scsi0.present = "true"
++scsi0.virtualDev = "pvscsi"
++scsi0:0.present = "true"
++scsi0:0.deviceType = "scsi-hardDisk"
++scsi0:0.fileName = "harddisk0.vmdk"
++scsi0:1.present = "true"
++scsi0:1.deviceType = "scsi-hardDisk"
++scsi0:1.fileName = "harddisk1.vmdk"
++scsi0:2.present = "true"
++scsi0:2.deviceType = "scsi-hardDisk"
++scsi0:2.fileName = "harddisk2.vmdk"
++scsi0:3.present = "true"
++scsi0:3.deviceType = "scsi-hardDisk"
++scsi0:3.fileName = "harddisk3.vmdk"
++scsi0:4.present = "true"
++scsi0:4.deviceType = "scsi-hardDisk"
++scsi0:4.fileName = "harddisk4.vmdk"
++scsi0:5.present = "true"
++scsi0:5.deviceType = "scsi-hardDisk"
++scsi0:5.fileName = "harddisk5.vmdk"
++scsi0:6.present = "true"
++scsi0:6.deviceType = "scsi-hardDisk"
++scsi0:6.fileName = "harddisk6.vmdk"
++scsi0:8.present = "true"
++scsi0:8.deviceType = "scsi-hardDisk"
++scsi0:8.fileName = "harddisk8.vmdk"
++scsi0:9.present = "true"
++scsi0:9.deviceType = "scsi-hardDisk"
++scsi0:9.fileName = "harddisk9.vmdk"
++scsi0:10.present = "true"
++scsi0:10.deviceType = "scsi-hardDisk"
++scsi0:10.fileName = "harddisk10.vmdk"
++scsi0:11.present = "true"
++scsi0:11.deviceType = "scsi-hardDisk"
++scsi0:11.fileName = "harddisk11.vmdk"
++scsi0:12.present = "true"
++scsi0:12.deviceType = "scsi-hardDisk"
++scsi0:12.fileName = "harddisk12.vmdk"
++scsi0:13.present = "true"
++scsi0:13.deviceType = "scsi-hardDisk"
++scsi0:13.fileName = "harddisk13.vmdk"
++scsi0:14.present = "true"
++scsi0:14.deviceType = "scsi-hardDisk"
++scsi0:14.fileName = "harddisk14.vmdk"
++scsi0:15.present = "true"
++scsi0:15.deviceType = "scsi-hardDisk"
++scsi0:15.fileName = "harddisk15.vmdk"
++displayName = "test"
+diff --git a/tests/vmx2xmldata/scsi-driver-max.xml b/tests/vmx2xmldata/scsi-driver-max.xml
+new file mode 100644
+index 0000000000..fa6c13396e
+--- /dev/null
++++ b/tests/vmx2xmldata/scsi-driver-max.xml
+@@ -0,0 +1,95 @@
++<domain type='vmware'>
++  <name>test</name>
++  <uuid>00000000-0000-0000-0000-000000000000</uuid>
++  <memory unit='KiB'>32768</memory>
++  <currentMemory unit='KiB'>32768</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686'>hvm</type>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk0.vmdk'/>
++      <target dev='sda' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk1.vmdk'/>
++      <target dev='sdb' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='1'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk2.vmdk'/>
++      <target dev='sdc' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='2'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk3.vmdk'/>
++      <target dev='sdd' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='3'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk4.vmdk'/>
++      <target dev='sde' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='4'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk5.vmdk'/>
++      <target dev='sdf' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='5'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk6.vmdk'/>
++      <target dev='sdg' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='6'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk8.vmdk'/>
++      <target dev='sdh' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='8'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk9.vmdk'/>
++      <target dev='sdi' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='9'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk10.vmdk'/>
++      <target dev='sdj' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='10'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk11.vmdk'/>
++      <target dev='sdk' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='11'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk12.vmdk'/>
++      <target dev='sdl' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='12'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk13.vmdk'/>
++      <target dev='sdm' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='13'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk14.vmdk'/>
++      <target dev='sdn' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='14'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk15.vmdk'/>
++      <target dev='sdo' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='15'/>
++    </disk>
++    <controller type='scsi' index='0' model='vmpvscsi'/>
++    <video>
++      <model type='vmvga' vram='4096' primary='yes'/>
++    </video>
++  </devices>
++</domain>
+diff --git a/tests/vmx2xmldata/scsi-driver-superwide-max.vmx b/tests/vmx2xmldata/scsi-driver-superwide-max.vmx
+new file mode 100644
+index 0000000000..38df812be9
+--- /dev/null
++++ b/tests/vmx2xmldata/scsi-driver-superwide-max.vmx
+@@ -0,0 +1,197 @@
++config.version = "8"
++virtualHW.version = "13"
++scsi0.present = "true"
++scsi0.virtualDev = "pvscsi"
++scsi0:0.present = "true"
++scsi0:0.deviceType = "scsi-hardDisk"
++scsi0:0.fileName = "harddisk0.vmdk"
++scsi0:1.present = "true"
++scsi0:1.deviceType = "scsi-hardDisk"
++scsi0:1.fileName = "harddisk1.vmdk"
++scsi0:2.present = "true"
++scsi0:2.deviceType = "scsi-hardDisk"
++scsi0:2.fileName = "harddisk2.vmdk"
++scsi0:3.present = "true"
++scsi0:3.deviceType = "scsi-hardDisk"
++scsi0:3.fileName = "harddisk3.vmdk"
++scsi0:4.present = "true"
++scsi0:4.deviceType = "scsi-hardDisk"
++scsi0:4.fileName = "harddisk4.vmdk"
++scsi0:5.present = "true"
++scsi0:5.deviceType = "scsi-hardDisk"
++scsi0:5.fileName = "harddisk5.vmdk"
++scsi0:6.present = "true"
++scsi0:6.deviceType = "scsi-hardDisk"
++scsi0:6.fileName = "harddisk6.vmdk"
++scsi0:8.present = "true"
++scsi0:8.deviceType = "scsi-hardDisk"
++scsi0:8.fileName = "harddisk8.vmdk"
++scsi0:9.present = "true"
++scsi0:9.deviceType = "scsi-hardDisk"
++scsi0:9.fileName = "harddisk9.vmdk"
++scsi0:10.present = "true"
++scsi0:10.deviceType = "scsi-hardDisk"
++scsi0:10.fileName = "harddisk10.vmdk"
++scsi0:11.present = "true"
++scsi0:11.deviceType = "scsi-hardDisk"
++scsi0:11.fileName = "harddisk11.vmdk"
++scsi0:12.present = "true"
++scsi0:12.deviceType = "scsi-hardDisk"
++scsi0:12.fileName = "harddisk12.vmdk"
++scsi0:13.present = "true"
++scsi0:13.deviceType = "scsi-hardDisk"
++scsi0:13.fileName = "harddisk13.vmdk"
++scsi0:14.present = "true"
++scsi0:14.deviceType = "scsi-hardDisk"
++scsi0:14.fileName = "harddisk14.vmdk"
++scsi0:15.present = "true"
++scsi0:15.deviceType = "scsi-hardDisk"
++scsi0:15.fileName = "harddisk15.vmdk"
++scsi0:16.present = "true"
++scsi0:16.deviceType = "scsi-hardDisk"
++scsi0:16.fileName = "harddisk16.vmdk"
++scsi0:17.present = "true"
++scsi0:17.deviceType = "scsi-hardDisk"
++scsi0:17.fileName = "harddisk17.vmdk"
++scsi0:18.present = "true"
++scsi0:18.deviceType = "scsi-hardDisk"
++scsi0:18.fileName = "harddisk18.vmdk"
++scsi0:19.present = "true"
++scsi0:19.deviceType = "scsi-hardDisk"
++scsi0:19.fileName = "harddisk19.vmdk"
++scsi0:20.present = "true"
++scsi0:20.deviceType = "scsi-hardDisk"
++scsi0:20.fileName = "harddisk20.vmdk"
++scsi0:21.present = "true"
++scsi0:21.deviceType = "scsi-hardDisk"
++scsi0:21.fileName = "harddisk21.vmdk"
++scsi0:22.present = "true"
++scsi0:22.deviceType = "scsi-hardDisk"
++scsi0:22.fileName = "harddisk22.vmdk"
++scsi0:23.present = "true"
++scsi0:23.deviceType = "scsi-hardDisk"
++scsi0:23.fileName = "harddisk23.vmdk"
++scsi0:24.present = "true"
++scsi0:24.deviceType = "scsi-hardDisk"
++scsi0:24.fileName = "harddisk24.vmdk"
++scsi0:25.present = "true"
++scsi0:25.deviceType = "scsi-hardDisk"
++scsi0:25.fileName = "harddisk25.vmdk"
++scsi0:26.present = "true"
++scsi0:26.deviceType = "scsi-hardDisk"
++scsi0:26.fileName = "harddisk26.vmdk"
++scsi0:27.present = "true"
++scsi0:27.deviceType = "scsi-hardDisk"
++scsi0:27.fileName = "harddisk27.vmdk"
++scsi0:28.present = "true"
++scsi0:28.deviceType = "scsi-hardDisk"
++scsi0:28.fileName = "harddisk28.vmdk"
++scsi0:29.present = "true"
++scsi0:29.deviceType = "scsi-hardDisk"
++scsi0:29.fileName = "harddisk29.vmdk"
++scsi0:30.present = "true"
++scsi0:30.deviceType = "scsi-hardDisk"
++scsi0:30.fileName = "harddisk30.vmdk"
++scsi0:31.present = "true"
++scsi0:31.deviceType = "scsi-hardDisk"
++scsi0:31.fileName = "harddisk31.vmdk"
++scsi0:32.present = "true"
++scsi0:32.deviceType = "scsi-hardDisk"
++scsi0:32.fileName = "harddisk32.vmdk"
++scsi0:33.present = "true"
++scsi0:33.deviceType = "scsi-hardDisk"
++scsi0:33.fileName = "harddisk33.vmdk"
++scsi0:34.present = "true"
++scsi0:34.deviceType = "scsi-hardDisk"
++scsi0:34.fileName = "harddisk34.vmdk"
++scsi0:35.present = "true"
++scsi0:35.deviceType = "scsi-hardDisk"
++scsi0:35.fileName = "harddisk35.vmdk"
++scsi0:36.present = "true"
++scsi0:36.deviceType = "scsi-hardDisk"
++scsi0:36.fileName = "harddisk36.vmdk"
++scsi0:37.present = "true"
++scsi0:37.deviceType = "scsi-hardDisk"
++scsi0:37.fileName = "harddisk37.vmdk"
++scsi0:38.present = "true"
++scsi0:38.deviceType = "scsi-hardDisk"
++scsi0:38.fileName = "harddisk38.vmdk"
++scsi0:39.present = "true"
++scsi0:39.deviceType = "scsi-hardDisk"
++scsi0:39.fileName = "harddisk39.vmdk"
++scsi0:40.present = "true"
++scsi0:40.deviceType = "scsi-hardDisk"
++scsi0:40.fileName = "harddisk40.vmdk"
++scsi0:41.present = "true"
++scsi0:41.deviceType = "scsi-hardDisk"
++scsi0:41.fileName = "harddisk41.vmdk"
++scsi0:42.present = "true"
++scsi0:42.deviceType = "scsi-hardDisk"
++scsi0:42.fileName = "harddisk42.vmdk"
++scsi0:43.present = "true"
++scsi0:43.deviceType = "scsi-hardDisk"
++scsi0:43.fileName = "harddisk43.vmdk"
++scsi0:44.present = "true"
++scsi0:44.deviceType = "scsi-hardDisk"
++scsi0:44.fileName = "harddisk44.vmdk"
++scsi0:45.present = "true"
++scsi0:45.deviceType = "scsi-hardDisk"
++scsi0:45.fileName = "harddisk45.vmdk"
++scsi0:46.present = "true"
++scsi0:46.deviceType = "scsi-hardDisk"
++scsi0:46.fileName = "harddisk46.vmdk"
++scsi0:47.present = "true"
++scsi0:47.deviceType = "scsi-hardDisk"
++scsi0:47.fileName = "harddisk47.vmdk"
++scsi0:48.present = "true"
++scsi0:48.deviceType = "scsi-hardDisk"
++scsi0:48.fileName = "harddisk48.vmdk"
++scsi0:49.present = "true"
++scsi0:49.deviceType = "scsi-hardDisk"
++scsi0:49.fileName = "harddisk49.vmdk"
++scsi0:50.present = "true"
++scsi0:50.deviceType = "scsi-hardDisk"
++scsi0:50.fileName = "harddisk50.vmdk"
++scsi0:51.present = "true"
++scsi0:51.deviceType = "scsi-hardDisk"
++scsi0:51.fileName = "harddisk51.vmdk"
++scsi0:52.present = "true"
++scsi0:52.deviceType = "scsi-hardDisk"
++scsi0:52.fileName = "harddisk52.vmdk"
++scsi0:53.present = "true"
++scsi0:53.deviceType = "scsi-hardDisk"
++scsi0:53.fileName = "harddisk53.vmdk"
++scsi0:54.present = "true"
++scsi0:54.deviceType = "scsi-hardDisk"
++scsi0:54.fileName = "harddisk54.vmdk"
++scsi0:55.present = "true"
++scsi0:55.deviceType = "scsi-hardDisk"
++scsi0:55.fileName = "harddisk55.vmdk"
++scsi0:56.present = "true"
++scsi0:56.deviceType = "scsi-hardDisk"
++scsi0:56.fileName = "harddisk56.vmdk"
++scsi0:57.present = "true"
++scsi0:57.deviceType = "scsi-hardDisk"
++scsi0:57.fileName = "harddisk57.vmdk"
++scsi0:58.present = "true"
++scsi0:58.deviceType = "scsi-hardDisk"
++scsi0:58.fileName = "harddisk58.vmdk"
++scsi0:59.present = "true"
++scsi0:59.deviceType = "scsi-hardDisk"
++scsi0:59.fileName = "harddisk59.vmdk"
++scsi0:60.present = "true"
++scsi0:60.deviceType = "scsi-hardDisk"
++scsi0:60.fileName = "harddisk60.vmdk"
++scsi0:61.present = "true"
++scsi0:61.deviceType = "scsi-hardDisk"
++scsi0:61.fileName = "harddisk61.vmdk"
++scsi0:62.present = "true"
++scsi0:62.deviceType = "scsi-hardDisk"
++scsi0:62.fileName = "harddisk62.vmdk"
++scsi0:63.present = "true"
++scsi0:63.deviceType = "scsi-hardDisk"
++scsi0:63.fileName = "harddisk63.vmdk"
++scsi0:64.present = "true"
++scsi0:64.deviceType = "scsi-hardDisk"
++scsi0:64.fileName = "harddisk63.vmdk"
++displayName = "test"
+diff --git a/tests/vmx2xmldata/scsi-driver-superwide-max.xml b/tests/vmx2xmldata/scsi-driver-superwide-max.xml
+new file mode 100644
+index 0000000000..2e4bc0b2ef
+--- /dev/null
++++ b/tests/vmx2xmldata/scsi-driver-superwide-max.xml
+@@ -0,0 +1,340 @@
++<domain type='vmware'>
++  <name>test</name>
++  <uuid>00000000-0000-0000-0000-000000000000</uuid>
++  <memory unit='KiB'>32768</memory>
++  <currentMemory unit='KiB'>32768</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686'>hvm</type>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk0.vmdk'/>
++      <target dev='sda' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk1.vmdk'/>
++      <target dev='sdb' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='1'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk2.vmdk'/>
++      <target dev='sdc' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='2'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk3.vmdk'/>
++      <target dev='sdd' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='3'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk4.vmdk'/>
++      <target dev='sde' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='4'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk5.vmdk'/>
++      <target dev='sdf' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='5'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk6.vmdk'/>
++      <target dev='sdg' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='6'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk8.vmdk'/>
++      <target dev='sdh' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='8'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk9.vmdk'/>
++      <target dev='sdi' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='9'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk10.vmdk'/>
++      <target dev='sdj' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='10'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk11.vmdk'/>
++      <target dev='sdk' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='11'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk12.vmdk'/>
++      <target dev='sdl' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='12'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk13.vmdk'/>
++      <target dev='sdm' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='13'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk14.vmdk'/>
++      <target dev='sdn' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='14'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk15.vmdk'/>
++      <target dev='sdo' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='15'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk16.vmdk'/>
++      <target dev='sdp' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='16'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk17.vmdk'/>
++      <target dev='sdq' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='17'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk18.vmdk'/>
++      <target dev='sdr' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='18'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk19.vmdk'/>
++      <target dev='sds' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='19'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk20.vmdk'/>
++      <target dev='sdt' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='20'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk21.vmdk'/>
++      <target dev='sdu' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='21'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk22.vmdk'/>
++      <target dev='sdv' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='22'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk23.vmdk'/>
++      <target dev='sdw' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='23'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk24.vmdk'/>
++      <target dev='sdx' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='24'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk25.vmdk'/>
++      <target dev='sdy' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='25'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk26.vmdk'/>
++      <target dev='sdz' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='26'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk27.vmdk'/>
++      <target dev='sdaa' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='27'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk28.vmdk'/>
++      <target dev='sdab' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='28'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk29.vmdk'/>
++      <target dev='sdac' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='29'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk30.vmdk'/>
++      <target dev='sdad' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='30'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk31.vmdk'/>
++      <target dev='sdae' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='31'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk32.vmdk'/>
++      <target dev='sdaf' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='32'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk33.vmdk'/>
++      <target dev='sdag' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='33'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk34.vmdk'/>
++      <target dev='sdah' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='34'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk35.vmdk'/>
++      <target dev='sdai' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='35'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk36.vmdk'/>
++      <target dev='sdaj' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='36'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk37.vmdk'/>
++      <target dev='sdak' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='37'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk38.vmdk'/>
++      <target dev='sdal' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='38'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk39.vmdk'/>
++      <target dev='sdam' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='39'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk40.vmdk'/>
++      <target dev='sdan' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='40'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk41.vmdk'/>
++      <target dev='sdao' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='41'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk42.vmdk'/>
++      <target dev='sdap' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='42'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk43.vmdk'/>
++      <target dev='sdaq' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='43'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk44.vmdk'/>
++      <target dev='sdar' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='44'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk45.vmdk'/>
++      <target dev='sdas' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='45'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk46.vmdk'/>
++      <target dev='sdat' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='46'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk47.vmdk'/>
++      <target dev='sdau' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='47'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk48.vmdk'/>
++      <target dev='sdav' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='48'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk49.vmdk'/>
++      <target dev='sdaw' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='49'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk50.vmdk'/>
++      <target dev='sdax' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='50'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk51.vmdk'/>
++      <target dev='sday' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='51'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk52.vmdk'/>
++      <target dev='sdaz' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='52'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk53.vmdk'/>
++      <target dev='sdba' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='53'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk54.vmdk'/>
++      <target dev='sdbb' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='54'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk55.vmdk'/>
++      <target dev='sdbc' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='55'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk56.vmdk'/>
++      <target dev='sdbd' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='56'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk57.vmdk'/>
++      <target dev='sdbe' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='57'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk58.vmdk'/>
++      <target dev='sdbf' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='58'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk59.vmdk'/>
++      <target dev='sdbg' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='59'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk60.vmdk'/>
++      <target dev='sdbh' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='60'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk61.vmdk'/>
++      <target dev='sdbi' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='61'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk62.vmdk'/>
++      <target dev='sdbj' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='62'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk63.vmdk'/>
++      <target dev='sdbk' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='63'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <source file='[datastore] directory/harddisk63.vmdk'/>
++      <target dev='sdbl' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='64'/>
++    </disk>
++    <controller type='scsi' index='0' model='vmpvscsi'/>
++    <video>
++      <model type='vmvga' vram='4096' primary='yes'/>
++    </video>
++  </devices>
++</domain>
+diff --git a/tests/vmx2xmltest.c b/tests/vmx2xmltest.c
+index fcca765bed..ff48d2e0b0 100644
+--- a/tests/vmx2xmltest.c
++++ b/tests/vmx2xmltest.c
+@@ -151,6 +151,8 @@ mymain(void)
+     DO_TEST("graphics-vnc");
+ 
+     DO_TEST("scsi-driver");
++    DO_TEST("scsi-driver-max");
++    DO_TEST("scsi-driver-superwide-max");
+     DO_TEST("scsi-writethrough");
+ 
+     DO_TEST("harddisk-scsi-file");
+-- 
+2.54.0
