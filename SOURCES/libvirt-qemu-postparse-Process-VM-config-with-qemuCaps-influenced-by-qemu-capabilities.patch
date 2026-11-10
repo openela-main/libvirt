@@ -1,5 +1,5 @@
-From 21e831f7afc86b98d3c7e2a9ec3cfa218b11a8ab Mon Sep 17 00:00:00 2001
-Message-ID: <21e831f7afc86b98d3c7e2a9ec3cfa218b11a8ab.1784297616.git.jdenemar@redhat.com>
+From f77f7a3d566b6fd6bbc5d4b3d78fc290a2f84e54 Mon Sep 17 00:00:00 2001
+Message-ID: <f77f7a3d566b6fd6bbc5d4b3d78fc290a2f84e54.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Thu, 11 Jun 2026 12:56:17 +0200
 Subject: [PATCH] qemu: postparse: Process VM config with qemuCaps influenced
@@ -18,7 +18,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_postparse.c | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)

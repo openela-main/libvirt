@@ -1,5 +1,5 @@
-From 140c5cd1ba02a64068b5835e2508304eb43c231f Mon Sep 17 00:00:00 2001
-Message-ID: <140c5cd1ba02a64068b5835e2508304eb43c231f.1784297616.git.jdenemar@redhat.com>
+From 1e63c510b4f687c3b52bf9b606a54793155aea21 Mon Sep 17 00:00:00 2001
+Message-ID: <1e63c510b4f687c3b52bf9b606a54793155aea21.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 26 May 2026 11:39:28 +0200
 Subject: [PATCH] virQEMUCapsCacheLookupDefault: Fix error message when no
@@ -24,7 +24,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_capabilities.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

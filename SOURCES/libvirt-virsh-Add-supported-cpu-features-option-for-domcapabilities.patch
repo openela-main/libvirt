@@ -1,5 +1,5 @@
-From 1254e583b2ec761bd761bed0faee298c0626f2fe Mon Sep 17 00:00:00 2001
-Message-ID: <1254e583b2ec761bd761bed0faee298c0626f2fe.1780570729.git.jdenemar@redhat.com>
+From ec36f1c9c281c98378dd937ba60aeee60e95daaf Mon Sep 17 00:00:00 2001
+Message-ID: <ec36f1c9c281c98378dd937ba60aeee60e95daaf.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Fri, 29 May 2026 12:52:59 +0200
 Subject: [PATCH] virsh: Add --supported-cpu-features option for
@@ -12,7 +12,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 26ffa1d4f0b74c7cda5a6906510cf2d6362b5b8b)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

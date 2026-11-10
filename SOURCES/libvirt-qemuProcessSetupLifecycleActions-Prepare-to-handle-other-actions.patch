@@ -1,5 +1,5 @@
-From fe5c95f35029c5e094910033b321af4809f0c651 Mon Sep 17 00:00:00 2001
-Message-ID: <fe5c95f35029c5e094910033b321af4809f0c651.1788184871.git.jdenemar@redhat.com>
+From 35539a28975b44f5321d204dc20e28c25fc6abae Mon Sep 17 00:00:00 2001
+Message-ID: <35539a28975b44f5321d204dc20e28c25fc6abae.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:48:51 +0200
 Subject: [PATCH] qemuProcessSetupLifecycleActions: Prepare to handle other
@@ -15,7 +15,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 30a548c894dc2f5787d7004d68b266caa404f6af)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_process.c | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)

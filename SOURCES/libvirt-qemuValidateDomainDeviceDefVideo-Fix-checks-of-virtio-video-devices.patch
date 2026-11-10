@@ -1,5 +1,5 @@
-From b98b8a636716718fc74bd7c73f6ba8f3a157d586 Mon Sep 17 00:00:00 2001
-Message-ID: <b98b8a636716718fc74bd7c73f6ba8f3a157d586.1784297616.git.jdenemar@redhat.com>
+From d02940fb7bdfbabfc8f34349ff01b64960965d66 Mon Sep 17 00:00:00 2001
+Message-ID: <d02940fb7bdfbabfc8f34349ff01b64960965d66.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 10 Jun 2026 14:45:24 +0200
 Subject: [PATCH] qemuValidateDomainDeviceDefVideo: Fix checks of virtio video
@@ -31,7 +31,7 @@ https://redhat.atlassian.net/browse/RHEL-186019
 	tests/qemuxmlconfdata/video-virtio-vga-gpu-gl.x86_64-latest.QEMU_CAPS_VIRTIO_GPU_GL_PCI-disabled-ABI_UPDATE.args
 	Context; conflict with previous conflict resolution
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_validate.c                      | 88 +++++++++++++------
  ...VIRTIO_GPU_GL_PCI-disabled-ABI_UPDATE.args | 35 --------

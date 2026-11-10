@@ -1,5 +1,5 @@
-From 8f297196821fdd03a24f782805007e55ca497169 Mon Sep 17 00:00:00 2001
-Message-ID: <8f297196821fdd03a24f782805007e55ca497169.1788184871.git.jdenemar@redhat.com>
+From b2fd697438db60889f462a4ed11f08438380b1a6 Mon Sep 17 00:00:00 2001
+Message-ID: <b2fd697438db60889f462a4ed11f08438380b1a6.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:31:39 +0200
 Subject: [PATCH] qemu: monitor: Remove support for 'watchdog-set-action'
@@ -13,7 +13,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 8365c6679fa65b66b85da2773547515a40ae1a8f)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_monitor.c      | 12 ------------
  src/qemu/qemu_monitor.h      |  4 ----

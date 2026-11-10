@@ -1,5 +1,5 @@
-From bbf08d140f4eb3eb1726214f7104b73d9f660b0a Mon Sep 17 00:00:00 2001
-Message-ID: <bbf08d140f4eb3eb1726214f7104b73d9f660b0a.1788184871.git.jdenemar@redhat.com>
+From fc375cfe35c829e6acbae56e9ad3d47726a78d23 Mon Sep 17 00:00:00 2001
+Message-ID: <fc375cfe35c829e6acbae56e9ad3d47726a78d23.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 21 Jul 2026 14:54:50 +0200
 Subject: [PATCH] qemuMonitorGuestPanicEventInfoFormatMsg: Directly return
@@ -14,7 +14,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 3f41645e3d8bf7b589de58d2d5052123a4d6fe9c)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_monitor.c | 40 +++++++++++++++++-----------------------
  1 file changed, 17 insertions(+), 23 deletions(-)

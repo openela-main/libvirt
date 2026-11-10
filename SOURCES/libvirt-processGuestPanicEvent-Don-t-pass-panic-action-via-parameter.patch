@@ -1,5 +1,5 @@
-From e35258d7f50457ab95224b12d566e5ea25743fad Mon Sep 17 00:00:00 2001
-Message-ID: <e35258d7f50457ab95224b12d566e5ea25743fad.1788184871.git.jdenemar@redhat.com>
+From 5a76fe7b353b85b60ac913860a508989757def1f Mon Sep 17 00:00:00 2001
+Message-ID: <5a76fe7b353b85b60ac913860a508989757def1f.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:58:55 +0200
 Subject: [PATCH] processGuestPanicEvent: Don't pass panic action via parameter
@@ -14,14 +14,14 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 0f18f6813cbd53cab8ccdb00fab098b66b90c0fb)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_driver.c  | 6 ++----
  src/qemu/qemu_process.c | 3 +--
  2 files changed, 3 insertions(+), 6 deletions(-)
 
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 965a3ca373..10e31ae87b 100644
+index 410cfad066..cae7072831 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -3519,7 +3519,6 @@ qemuProcessGuestPanicEventInfo(virQEMUDriver *driver,

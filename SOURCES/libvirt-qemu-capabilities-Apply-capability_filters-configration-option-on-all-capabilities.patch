@@ -1,5 +1,5 @@
-From d824600cc3c9428cb552efaeaeb481bd5459fdd3 Mon Sep 17 00:00:00 2001
-Message-ID: <d824600cc3c9428cb552efaeaeb481bd5459fdd3.1784297616.git.jdenemar@redhat.com>
+From 2564c0a45ab725c84deb64abc4fb57ad263fad15 Mon Sep 17 00:00:00 2001
+Message-ID: <2564c0a45ab725c84deb64abc4fb57ad263fad15.1784297531.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Thu, 11 Jun 2026 11:33:36 +0200
 Subject: [PATCH] qemu: capabilities: Apply 'capability_filters' configration
@@ -22,7 +22,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_capabilities.c | 21 ++++++++++++++++++---
  src/qemu/qemu_capabilities.h |  3 ++-

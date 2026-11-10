@@ -1,5 +1,5 @@
-From 2b04bf8fa447543f4d8b7ade6280b292d22ece93 Mon Sep 17 00:00:00 2001
-Message-ID: <2b04bf8fa447543f4d8b7ade6280b292d22ece93.1784297616.git.jdenemar@redhat.com>
+From a3f72e88927f270bc17a7cb47f7abec988b208c9 Mon Sep 17 00:00:00 2001
+Message-ID: <a3f72e88927f270bc17a7cb47f7abec988b208c9.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 8 Jun 2026 15:11:45 +0200
 Subject: [PATCH] qemuDeviceVideoGetModel: Directly return picked model
@@ -17,7 +17,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_command.c | 156 +++++++++++++++++++---------------------
  1 file changed, 75 insertions(+), 81 deletions(-)

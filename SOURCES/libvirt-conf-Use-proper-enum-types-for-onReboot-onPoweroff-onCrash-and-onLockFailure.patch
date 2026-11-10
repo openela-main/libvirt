@@ -1,5 +1,5 @@
-From 18996312fdff1146132db027528185ee9490ef85 Mon Sep 17 00:00:00 2001
-Message-ID: <18996312fdff1146132db027528185ee9490ef85.1788184871.git.jdenemar@redhat.com>
+From 1dac70d29c2782687113be80990c29389cfda28e Mon Sep 17 00:00:00 2001
+Message-ID: <1dac70d29c2782687113be80990c29389cfda28e.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 21 Jul 2026 10:21:50 +0200
 Subject: [PATCH] conf: Use proper enum types for 'onReboot', 'onPoweroff',
@@ -14,7 +14,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 997b9816dcaef7ed0d7fdbfe4f1b2354b1b82c58)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/conf/domain_conf.c | 10 ++++++----
  src/conf/domain_conf.h |  9 ++++-----
@@ -23,7 +23,7 @@ https://redhat.atlassian.net/browse/RHEL-242549
  4 files changed, 19 insertions(+), 12 deletions(-)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index 732c205f93..db7cde2b83 100644
+index 47200d27c5..7097ff7065 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
 @@ -14078,21 +14078,23 @@ static int
@@ -121,7 +121,7 @@ index f19e4f6abb..fcb0339b35 100644
      return 0;
  }
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 10e31ae87b..29c44b07fd 100644
+index cae7072831..ddd6e8f7ac 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -3584,6 +3584,8 @@ processGuestPanicEvent(virQEMUDriver *driver,

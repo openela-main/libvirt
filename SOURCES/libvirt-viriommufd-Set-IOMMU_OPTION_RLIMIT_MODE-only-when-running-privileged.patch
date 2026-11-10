@@ -1,5 +1,5 @@
-From 4e107674314182095f3ba1416d6b77c79ad55598 Mon Sep 17 00:00:00 2001
-Message-ID: <4e107674314182095f3ba1416d6b77c79ad55598.1774618258.git.jdenemar@redhat.com>
+From 32ff11b8bbc74b61f5ff531f9fb5c83f1a4da343 Mon Sep 17 00:00:00 2001
+Message-ID: <32ff11b8bbc74b61f5ff531f9fb5c83f1a4da343.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Fri, 13 Mar 2026 10:50:36 +0100
 Subject: [PATCH] viriommufd: Set IOMMU_OPTION_RLIMIT_MODE only when running
@@ -12,7 +12,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit 293bb59e75f4b4c975bbeccb1bb8b39b6f439a35)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/qemu/qemu_process.c | 2 +-
@@ -76,4 +76,4 @@ index 223f44eb5c..7bad5c7472 100644
  
  bool virIOMMUFDSupported(void);
 -- 
-2.53.0
+2.54.0

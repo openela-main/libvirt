@@ -1,5 +1,5 @@
-From bf4c0ef1264122fb4cd881d7b67162325d4b2189 Mon Sep 17 00:00:00 2001
-Message-ID: <bf4c0ef1264122fb4cd881d7b67162325d4b2189.1784297616.git.jdenemar@redhat.com>
+From ef0dfcf0dea53cc1d8aabc08942a7091c9dbf30c Mon Sep 17 00:00:00 2001
+Message-ID: <ef0dfcf0dea53cc1d8aabc08942a7091c9dbf30c.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 8 Jun 2026 16:55:05 +0200
 Subject: [PATCH] conf: Add fields for recording actually-selected virtio video
@@ -31,7 +31,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  docs/formatdomain.rst             |  8 +++++++
  src/conf/domain_conf.c            | 35 +++++++++++++++++++++++++++++++
@@ -60,7 +60,7 @@ index 225152e0f2..8e7577f3b7 100644
     Configure if video acceleration should be enabled.
  
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index d1cb85e1ab..732c205f93 100644
+index dc19e258dd..47200d27c5 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
 @@ -909,6 +909,17 @@ VIR_ENUM_IMPL(virDomainVideoVGAConf,

@@ -1,5 +1,5 @@
-From a1fa422ef5ffd8e3ebb83f25fd501933f02503c9 Mon Sep 17 00:00:00 2001
-Message-ID: <a1fa422ef5ffd8e3ebb83f25fd501933f02503c9.1774618258.git.jdenemar@redhat.com>
+From 2f8eef47f391248abf5253c6836520100d5d49c1 Mon Sep 17 00:00:00 2001
+Message-ID: <2f8eef47f391248abf5253c6836520100d5d49c1.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Wed, 18 Mar 2026 11:57:43 +0100
 Subject: [PATCH] hypervisor: Fix virHostdevNeedsVFIO detection
@@ -12,7 +12,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit ffa8020d3665f7ff27c6b82e88d3a93674155c8d)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/conf/domain_conf.c      | 13 +++++++++++++
@@ -22,10 +22,10 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
  4 files changed, 25 insertions(+), 1 deletion(-)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index b66095ec4a..40bbd3e435 100644
+index 59df028192..99d2a0aa53 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
-@@ -32829,6 +32829,19 @@ virHostdevIsPCIDeviceWithIOMMUFD(const virDomainHostdevDef *hostdev)
+@@ -32835,6 +32835,19 @@ virHostdevIsPCIDeviceWithIOMMUFD(const virDomainHostdevDef *hostdev)
  }
  
  
@@ -95,4 +95,4 @@ index 386e757d81..ea1e2d8586 100644
  
  
 -- 
-2.53.0
+2.54.0

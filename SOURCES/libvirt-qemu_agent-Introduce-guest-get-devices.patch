@@ -1,5 +1,5 @@
-From b508d5e0fbbb6b52633ceeb27c176c740e37681a Mon Sep 17 00:00:00 2001
-Message-ID: <b508d5e0fbbb6b52633ceeb27c176c740e37681a.1787145055.git.jdenemar@redhat.com>
+From 2eed5180fb11ed18a6cb35e77b7904e5af2eaacd Mon Sep 17 00:00:00 2001
+Message-ID: <2eed5180fb11ed18a6cb35e77b7904e5af2eaacd.1787144643.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Tue, 11 Aug 2026 17:08:05 +0200
 Subject: [PATCH] qemu_agent: Introduce guest-get-devices
@@ -31,7 +31,7 @@ src/qemu/qemu_agent.h: All three conflicts are due to v12.4.0-rc1~76
                        not being backported (it moved parts of the
                        agent code under src/hypervisor for wider use).
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-243306
+Resolves: https://redhat.atlassian.net/browse/RHEL-243300
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/qemu/qemu_agent.c | 119 ++++++++++++++++++++++++++++++++++++++++++

@@ -1,5 +1,5 @@
-From dd6b50b30abac3fb233fb6d91ba06ed61ab05cd7 Mon Sep 17 00:00:00 2001
-Message-ID: <dd6b50b30abac3fb233fb6d91ba06ed61ab05cd7.1780570729.git.jdenemar@redhat.com>
+From 9ec1c8fc52cd3150712f5ada134e070fbdabb7bb Mon Sep 17 00:00:00 2001
+Message-ID: <9ec1c8fc52cd3150712f5ada134e070fbdabb7bb.1780571166.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Thu, 21 May 2026 12:36:48 +0200
 Subject: [PATCH] qemu: Move domain caps flags handling to
@@ -12,7 +12,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit b4d3572198848e6a2886352e1a48b46afa37bec1)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

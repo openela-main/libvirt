@@ -1,5 +1,5 @@
-From 35f43bdfefa2a3c2825c119aaed2c62fa18de5d4 Mon Sep 17 00:00:00 2001
-Message-ID: <35f43bdfefa2a3c2825c119aaed2c62fa18de5d4.1787145055.git.jdenemar@redhat.com>
+From da0e42a5461bc4457f2c05eb4aeb1b40143e4288 Mon Sep 17 00:00:00 2001
+Message-ID: <da0e42a5461bc4457f2c05eb4aeb1b40143e4288.1787144643.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Wed, 12 Aug 2026 15:11:20 +0200
 Subject: [PATCH] virsh: Add support for VIR_DOMAIN_GUEST_INFO_DEVICES
@@ -11,7 +11,7 @@ introduction of VIR_DOMAIN_GUEST_INFO_DEVICES type.
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit a634a99a07cf510658939164b6982297789025b8)
-Resolves: https://redhat.atlassian.net/browse/RHEL-243306
+Resolves: https://redhat.atlassian.net/browse/RHEL-243300
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  docs/manpages/virsh.rst | 17 +++++++++++++----
@@ -61,10 +61,10 @@ index 2936df6a73..d8c6c716df 100644
  guestvcpus
  ----------
 diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
-index 6e18d195e6..3c2af2a2c6 100644
+index 536c0350c7..7b3e476beb 100644
 --- a/tools/virsh-domain.c
 +++ b/tools/virsh-domain.c
-@@ -13582,6 +13582,10 @@ static const vshCmdOptDef opts_guestinfo[] = {
+@@ -13583,6 +13583,10 @@ static const vshCmdOptDef opts_guestinfo[] = {
       .type = VSH_OT_BOOL,
       .help = N_("report load averages information"),
      },
@@ -75,7 +75,7 @@ index 6e18d195e6..3c2af2a2c6 100644
      {.name = NULL}
  };
  
-@@ -13611,6 +13615,8 @@ cmdGuestInfo(vshControl *ctl, const vshCmd *cmd)
+@@ -13612,6 +13616,8 @@ cmdGuestInfo(vshControl *ctl, const vshCmd *cmd)
          types |= VIR_DOMAIN_GUEST_INFO_INTERFACES;
      if (vshCommandOptBool(cmd, "load"))
          types |= VIR_DOMAIN_GUEST_INFO_LOAD;

@@ -1,5 +1,5 @@
-From 64bd2c9fa1d5a806fe6c4e3a3d09d1ec25b8400f Mon Sep 17 00:00:00 2001
-Message-ID: <64bd2c9fa1d5a806fe6c4e3a3d09d1ec25b8400f.1780570729.git.jdenemar@redhat.com>
+From d34cc77ac31f6df5195dad6b53d5aed00bda7dd7 Mon Sep 17 00:00:00 2001
+Message-ID: <d34cc77ac31f6df5195dad6b53d5aed00bda7dd7.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Mon, 25 May 2026 13:17:47 +0200
 Subject: [PATCH] cpu_x86: Introduce virCPUx86DataAddMSR
@@ -11,7 +11,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit a8952076d8e5062a2fac08e11597ad47871c2236)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

@@ -1,5 +1,5 @@
-From 608e9f510c5830f0ee35a954dd43304ad1c84a35 Mon Sep 17 00:00:00 2001
-Message-ID: <608e9f510c5830f0ee35a954dd43304ad1c84a35.1774618258.git.jdenemar@redhat.com>
+From 39dd90e66f661ce816592c1ee7cfd5bba54ea6f5 Mon Sep 17 00:00:00 2001
+Message-ID: <39dd90e66f661ce816592c1ee7cfd5bba54ea6f5.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Fri, 27 Feb 2026 17:55:34 +0100
 Subject: [PATCH] qemu: Fix IOMMUFD and VFIO security labels
@@ -18,7 +18,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 03f2672ab4eff8ee01410c9acba6288bfb4fa231)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159913
+Resolves: https://redhat.atlassian.net/browse/RHEL-159902
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/qemu/qemu_hotplug.c          |  2 +-
@@ -242,4 +242,4 @@ index 96ca59a7a4..0fa50630f7 100644
          } else {
              if (virPCIDeviceFileIterate(pci, virSecuritySELinuxRestorePCILabel, mgr) < 0)
 -- 
-2.53.0
+2.54.0

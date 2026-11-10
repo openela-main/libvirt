@@ -1,5 +1,5 @@
-From 53c99f6448eefba08e0eaea7883ae7299825516d Mon Sep 17 00:00:00 2001
-Message-ID: <53c99f6448eefba08e0eaea7883ae7299825516d.1780570729.git.jdenemar@redhat.com>
+From 1b72f3955f62a442b8482eed46e6456ba2e1c14b Mon Sep 17 00:00:00 2001
+Message-ID: <1b72f3955f62a442b8482eed46e6456ba2e1c14b.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Thu, 21 May 2026 17:30:21 +0200
 Subject: [PATCH] qemu_capabilities: Split conditions in
@@ -11,7 +11,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 8b4f56447f32171671e18b82fbdfd478f2ec4293)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

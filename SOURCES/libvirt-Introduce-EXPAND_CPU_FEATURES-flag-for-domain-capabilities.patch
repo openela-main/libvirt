@@ -1,5 +1,5 @@
-From c3c409c2923e7332e40b347189baa9edd0444dea Mon Sep 17 00:00:00 2001
-Message-ID: <c3c409c2923e7332e40b347189baa9edd0444dea.1774618258.git.jdenemar@redhat.com>
+From 9644e7aceda1ca2b88d9eb699a274c5b4eafbda1 Mon Sep 17 00:00:00 2001
+Message-ID: <9644e7aceda1ca2b88d9eb699a274c5b4eafbda1.1780571166.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Wed, 11 Mar 2026 11:31:06 +0100
 Subject: [PATCH] Introduce EXPAND_CPU_FEATURES flag for domain capabilities
@@ -13,7 +13,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 8aa13d1b16b08feea37ecacc85540671e7995bb8)
 
-https://issues.redhat.com/browse/RHEL-154552
+https://issues.redhat.com/browse/RHEL-153653
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---
@@ -51,4 +51,4 @@ index c7451fee05..034f126dd5 100644
   * defining the capabilities.
   *
 -- 
-2.53.0
+2.54.0

@@ -1,5 +1,5 @@
-From 5d16ebfb64779df64e3ccb87bed83efee22ef770 Mon Sep 17 00:00:00 2001
-Message-ID: <5d16ebfb64779df64e3ccb87bed83efee22ef770.1780570729.git.jdenemar@redhat.com>
+From f4588f45d48037050c88624e37f7b13e15138b0e Mon Sep 17 00:00:00 2001
+Message-ID: <f4588f45d48037050c88624e37f7b13e15138b0e.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Fri, 29 May 2026 12:52:39 +0200
 Subject: [PATCH] Introduce
@@ -14,7 +14,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit e1efd79e837456d209115c536fc7e5f14abcbc63)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

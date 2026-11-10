@@ -1,5 +1,5 @@
-From fe8ad200478da969db53d61b80dd06cd35f0f78d Mon Sep 17 00:00:00 2001
-Message-ID: <fe8ad200478da969db53d61b80dd06cd35f0f78d.1784297616.git.jdenemar@redhat.com>
+From 4c33439fbcd0eb9ea09ab9a8a6aa5b8780ac9175 Mon Sep 17 00:00:00 2001
+Message-ID: <4c33439fbcd0eb9ea09ab9a8a6aa5b8780ac9175.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 10 Jun 2026 12:38:00 +0200
 Subject: [PATCH] qemuDeviceVideoGetModel: Simplify by relying on checks from
@@ -17,7 +17,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_command.c | 94 ++++++++++++++++++-----------------------
  1 file changed, 40 insertions(+), 54 deletions(-)

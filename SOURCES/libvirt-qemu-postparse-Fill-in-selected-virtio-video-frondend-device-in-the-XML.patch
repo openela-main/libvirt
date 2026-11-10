@@ -1,5 +1,5 @@
-From 083f5f13c8f4e87d803871aed366f7c14f95bfd9 Mon Sep 17 00:00:00 2001
-Message-ID: <083f5f13c8f4e87d803871aed366f7c14f95bfd9.1784297616.git.jdenemar@redhat.com>
+From 53bcd009b21687baecb0568bc4b4768b03c3ad89 Mon Sep 17 00:00:00 2001
+Message-ID: <53bcd009b21687baecb0568bc4b4768b03c3ad89.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 8 Jun 2026 16:54:50 +0200
 Subject: [PATCH] qemu: postparse: Fill in selected virtio video frondend
@@ -64,7 +64,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_postparse.c                     | 97 ++++++++++++++++++-
  .../virtio-vga-upgrade-missing-out.xml        |  2 +-
@@ -239,10 +239,10 @@ index cd88cd1806..0d803a8abb 100644
  
      case VIR_DOMAIN_DEVICE_PANIC:
 diff --git a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml
-index 4560cff378..9569dca3d0 100644
+index e7b3dd17ed..a58c4cc75f 100644
 --- a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml
 +++ b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml
-@@ -421,7 +421,7 @@
+@@ -423,7 +423,7 @@
        </graphics>
        <audio id='1' type='none'/>
        <video>
@@ -252,10 +252,10 @@ index 4560cff378..9569dca3d0 100644
          <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
        </video>
 diff --git a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml
-index a1c16f1e85..9c786bfa22 100644
+index 948d4c8135..db6099a2bb 100644
 --- a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml
 +++ b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml
-@@ -423,7 +423,7 @@
+@@ -425,7 +425,7 @@
        </graphics>
        <audio id='1' type='none'/>
        <video>

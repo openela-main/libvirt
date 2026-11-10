@@ -1,5 +1,5 @@
-From 8842d61fe99dc1f674043a4a2e6c809ab85adc93 Mon Sep 17 00:00:00 2001
-Message-ID: <8842d61fe99dc1f674043a4a2e6c809ab85adc93.1780570729.git.jdenemar@redhat.com>
+From ce373eb396f931d5ebdd03105a3f1950eb842cfd Mon Sep 17 00:00:00 2001
+Message-ID: <ce373eb396f931d5ebdd03105a3f1950eb842cfd.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Mon, 25 May 2026 14:31:07 +0200
 Subject: [PATCH] qemu_capabilities: Fix domain capabilities on AMD CPUs
@@ -28,7 +28,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 54ff2058d6f7bb2547afebbd9c65c7b4b501e372)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Conflicts:
 	tests/domaincapsdata/qemu_11.0.0-q35.x86_64+sgx-supported.xml

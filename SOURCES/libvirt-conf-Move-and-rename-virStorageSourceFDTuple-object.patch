@@ -1,5 +1,5 @@
-From 950b70b3b04715d4c810709300609a2868cb6af0 Mon Sep 17 00:00:00 2001
-Message-ID: <950b70b3b04715d4c810709300609a2868cb6af0.1774618258.git.jdenemar@redhat.com>
+From 15b1edcb2dca52b4d2276359c1eeaa97d66ac400 Mon Sep 17 00:00:00 2001
+Message-ID: <15b1edcb2dca52b4d2276359c1eeaa97d66ac400.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Fri, 13 Mar 2026 16:59:01 +0100
 Subject: [PATCH] conf: Move and rename virStorageSourceFDTuple object
@@ -11,7 +11,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit f89e3dbce809f64246a8fe5ef0d05a63a28a05c0)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/conf/meson.build           |  1 +
@@ -327,4 +327,4 @@ index 78ec521266..fc51e0e3df 100644
              VIR_AUTOCLOSE fakefd = open("/dev/zero", O_RDWR);
              bool writable = va_arg(argptr, int);
 -- 
-2.53.0
+2.54.0

@@ -1,5 +1,5 @@
-From ab958c81c8f359ac4535bf386ef8ecbc7bf70788 Mon Sep 17 00:00:00 2001
-Message-ID: <ab958c81c8f359ac4535bf386ef8ecbc7bf70788.1784297616.git.jdenemar@redhat.com>
+From 3480a65aecf0c5e4f1988a02b007c2d86fc1409c Mon Sep 17 00:00:00 2001
+Message-ID: <3480a65aecf0c5e4f1988a02b007c2d86fc1409c.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 10 Jun 2026 16:31:44 +0200
 Subject: [PATCH] qemuxmlconftest: Add invocation of 'video-virtio-vga-gpu-gl'
@@ -24,7 +24,7 @@ https://redhat.atlassian.net/browse/RHEL-186019
  - tests/qemuxmlconfdata/video-virtio-vga-gpu-gl.x86_64-latest.QEMU_CAPS_VIRTIO_VGA_GL-disabled-ABI_UPDATE.args
    Context; patch tweaking monitor FD passing in tests not backported
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  ...VIRTIO_GPU_GL_PCI-disabled-ABI_UPDATE.args | 35 ++++++++++++++
  ..._VIRTIO_GPU_GL_PCI-disabled-ABI_UPDATE.xml | 46 +++++++++++++++++++

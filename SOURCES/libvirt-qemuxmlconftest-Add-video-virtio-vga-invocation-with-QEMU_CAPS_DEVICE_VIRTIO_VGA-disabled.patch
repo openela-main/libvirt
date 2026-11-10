@@ -1,5 +1,5 @@
-From 1fda78a381fb77eec178918054fb255356149ab5 Mon Sep 17 00:00:00 2001
-Message-ID: <1fda78a381fb77eec178918054fb255356149ab5.1784297616.git.jdenemar@redhat.com>
+From d92b3e70c6ae7277aafaf75e31a0b92278480143 Mon Sep 17 00:00:00 2001
+Message-ID: <d92b3e70c6ae7277aafaf75e31a0b92278480143.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 26 May 2026 14:14:31 +0200
 Subject: [PATCH] qemuxmlconftest: Add 'video-virtio-vga' invocation with
@@ -27,7 +27,7 @@ https://redhat.atlassian.net/browse/RHEL-186019
  - tests/qemuxmlconfdata/video-virtio-vga.x86_64-latest.QEMU_CAPS_DEVICE_VIRTIO_VGA-disabled.args
     Context; patch tweaking monitor FD passing in tests not backported
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  ....QEMU_CAPS_DEVICE_VIRTIO_VGA-disabled.args | 37 ++++++++++++++++
  ...t.QEMU_CAPS_DEVICE_VIRTIO_VGA-disabled.xml | 44 +++++++++++++++++++

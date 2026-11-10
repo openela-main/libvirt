@@ -1,5 +1,5 @@
-From 3e466624e20275fd12b43b9b0f6901a63fcd6a50 Mon Sep 17 00:00:00 2001
-Message-ID: <3e466624e20275fd12b43b9b0f6901a63fcd6a50.1774618258.git.jdenemar@redhat.com>
+From b338719eb9908c7dfd493d5ab4a1b0bcc2258d9b Mon Sep 17 00:00:00 2001
+Message-ID: <b338719eb9908c7dfd493d5ab4a1b0bcc2258d9b.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Thu, 26 Mar 2026 14:32:36 +0100
 Subject: [PATCH] hypervisor: Call virWaitForDevices() after detaching host
@@ -21,7 +21,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit b96ea4db3aabac4790d6e1d53e2f309f5e73efae)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/hypervisor/virhostdev.c | 3 +++
@@ -42,4 +42,4 @@ index 43155ceb6c..981ca4cd20 100644
       * been marked as inactive */
  
 -- 
-2.53.0
+2.54.0

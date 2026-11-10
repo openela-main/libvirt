@@ -1,5 +1,5 @@
-From 80f75d4a98076c6407d5ed5e04ae65a0f3281f2e Mon Sep 17 00:00:00 2001
-Message-ID: <80f75d4a98076c6407d5ed5e04ae65a0f3281f2e.1786713361.git.jdenemar@redhat.com>
+From 36c833cacb0d001ab43ba9662fe432922491c3b5 Mon Sep 17 00:00:00 2001
+Message-ID: <36c833cacb0d001ab43ba9662fe432922491c3b5.1782911963.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 15 Jun 2026 13:01:01 +0200
 Subject: [PATCH] qemu: Ensure proper shutdown ordering of virtlockd/virtlogd
@@ -79,7 +79,7 @@ are not started unless first invoked).
 Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit aa1bf13b9caa4ef893cd4fdbaa111d5da73aa120)
-https://redhat.atlassian.net/browse/RHEL-224986
+https://redhat.atlassian.net/browse/RHEL-180876
 ---
  src/qemu/virtqemud.service.extra.in | 4 ++++
  src/remote/libvirtd.service.in      | 4 ++++
@@ -116,4 +116,4 @@ index b0a062e885..f26494d646 100644
  After=network.target
  After=dbus.service
 -- 
-2.55.0
+2.54.0

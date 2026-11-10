@@ -1,5 +1,5 @@
-From 9e95f2bcc0d893b4baa716529777534038d274a6 Mon Sep 17 00:00:00 2001
-Message-ID: <9e95f2bcc0d893b4baa716529777534038d274a6.1774618258.git.jdenemar@redhat.com>
+From ab58ab56b88b4a5fc4a2d5dc85b249220951ce36 Mon Sep 17 00:00:00 2001
+Message-ID: <ab58ab56b88b4a5fc4a2d5dc85b249220951ce36.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Mon, 2 Mar 2026 12:46:00 +0100
 Subject: [PATCH] security: Cleanup hostdev label error logic
@@ -14,7 +14,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit b7483e6558acbb0d80e2ff2c3648ca63cb7f41f9)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159913
+Resolves: https://redhat.atlassian.net/browse/RHEL-159902
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/security/security_apparmor.c |  56 +++++++++--------
@@ -608,4 +608,4 @@ index 4a5f61d16b..96ca59a7a4 100644
  
  
 -- 
-2.53.0
+2.54.0

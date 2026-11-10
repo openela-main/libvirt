@@ -1,5 +1,5 @@
-From f36d72b0632766d669529ed194fba32120e352a6 Mon Sep 17 00:00:00 2001
-Message-ID: <f36d72b0632766d669529ed194fba32120e352a6.1788184871.git.jdenemar@redhat.com>
+From 64e5603f8ea139cd8b7c61b643a0a02bba5885c3 Mon Sep 17 00:00:00 2001
+Message-ID: <64e5603f8ea139cd8b7c61b643a0a02bba5885c3.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 22 Jul 2026 17:13:15 +0200
 Subject: [PATCH] Add support for keeping VM running when panic notifier is
@@ -20,7 +20,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit cdea89dd87a10cd94deb3b067bae483d98c558ed)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  docs/formatdomain.rst                         |  3 ++
  include/libvirt/libvirt-domain.h              |  1 +
@@ -51,7 +51,7 @@ index 8e7577f3b7..b48254f35b 100644
  :since:`Since 3.9.0`, the lifecycle events can be configured via the
  `virDomainSetLifecycleAction <html/libvirt-libvirt-domain.html#virDomainSetLifecycleAction>`__
 diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
-index 371f440022..b1c4b10f97 100644
+index 4d7c0099ef..f469ed428d 100644
 --- a/include/libvirt/libvirt-domain.h
 +++ b/include/libvirt/libvirt-domain.h
 @@ -7955,6 +7955,7 @@ typedef enum {
@@ -63,7 +63,7 @@ index 371f440022..b1c4b10f97 100644
  # ifdef VIR_ENUM_SENTINELS
      VIR_DOMAIN_LIFECYCLE_ACTION_LAST /* (Since: 3.9.0) */
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index db7cde2b83..5e6c95c037 100644
+index 7097ff7065..048aaa10a6 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
 @@ -302,6 +302,7 @@ VIR_ENUM_IMPL(virDomainLifecycleAction,
@@ -143,7 +143,7 @@ index 9842d6fece..f8b50e2751 100644
              goto endjob;
          }
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 620a3368dc..30f70d2dc2 100644
+index 7e5c374e4c..adc7054f5e 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -3548,6 +3548,11 @@ processGuestPanicEvent(virQEMUDriver *driver,
@@ -289,7 +289,7 @@ index 45e9a37794..ffceac549c 100644
      DO_TEST_CAPS_ARCH_LATEST("s390-async-teardown", "s390x");
      DO_TEST_CAPS_ARCH_LATEST("s390-async-teardown-no-attrib", "s390x");
 diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
-index 3c2af2a2c6..7b3e476beb 100644
+index 6e18d195e6..536c0350c7 100644
 --- a/tools/virsh-domain.c
 +++ b/tools/virsh-domain.c
 @@ -6124,7 +6124,8 @@ VIR_ENUM_IMPL(virshDomainLifecycleAction,

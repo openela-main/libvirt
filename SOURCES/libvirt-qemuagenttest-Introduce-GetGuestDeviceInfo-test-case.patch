@@ -1,5 +1,5 @@
-From 23d30b07ef8089743265d152ad20486c8de96fa6 Mon Sep 17 00:00:00 2001
-Message-ID: <23d30b07ef8089743265d152ad20486c8de96fa6.1787145055.git.jdenemar@redhat.com>
+From bab073ee5a84722b4f49b5f66d5a5bef0eee4858 Mon Sep 17 00:00:00 2001
+Message-ID: <bab073ee5a84722b4f49b5f66d5a5bef0eee4858.1787144643.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Wed, 12 Aug 2026 14:08:37 +0200
 Subject: [PATCH] qemuagenttest: Introduce GetGuestDeviceInfo test case
@@ -13,7 +13,7 @@ missing).
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit c56a2479ab59167af6cc9094981ef6e1c0a83a01)
-Resolves: https://redhat.atlassian.net/browse/RHEL-243306
+Resolves: https://redhat.atlassian.net/browse/RHEL-243300
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  tests/qemuagenttest.c | 123 ++++++++++++++++++++++++++++++++++++++++++

@@ -1,5 +1,5 @@
-From df9f75fed867bc9512ed80ad4dd3b0c3f74bbe3a Mon Sep 17 00:00:00 2001
-Message-ID: <df9f75fed867bc9512ed80ad4dd3b0c3f74bbe3a.1784297616.git.jdenemar@redhat.com>
+From b59a04973707e5499a56729ecf1887d4a048031f Mon Sep 17 00:00:00 2001
+Message-ID: <b59a04973707e5499a56729ecf1887d4a048031f.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 9 Jun 2026 22:02:21 +0200
 Subject: [PATCH] qemuDeviceVideoGetModel: Remove logic for selecting 'virtio'
@@ -21,7 +21,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_command.c                       | 75 +++++++------------
  ...io-vga-device-downgrade.x86_64-latest.args |  2 +-

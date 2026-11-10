@@ -1,5 +1,5 @@
-From 9517648ba5483d1eb032ed7a386829bac6e1561f Mon Sep 17 00:00:00 2001
-Message-ID: <9517648ba5483d1eb032ed7a386829bac6e1561f.1788184871.git.jdenemar@redhat.com>
+From a0565bb198bfe6aaf7e91186cfc188e18fcf34d7 Mon Sep 17 00:00:00 2001
+Message-ID: <a0565bb198bfe6aaf7e91186cfc188e18fcf34d7.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:43:26 +0200
 Subject: [PATCH] qemu: capabilities: Retire QEMU_CAPS_SET_ACTION
@@ -32,7 +32,7 @@ Reviewed-by: Ján Tomko <jtomko@redhat.com>
     These capability files weren't yet deleted upstream, so this patch
     removes the flag from there as a downstream fix.
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_capabilities.c                               | 3 +--
  src/qemu/qemu_capabilities.h                               | 2 +-

@@ -1,5 +1,5 @@
-From a544ee05aaf7f6df3f97ff3ee5e30306e00ebe71 Mon Sep 17 00:00:00 2001
-Message-ID: <a544ee05aaf7f6df3f97ff3ee5e30306e00ebe71.1784297616.git.jdenemar@redhat.com>
+From cedf4dbcdd3a0c64d4e74a98dd8caacaefced9b6 Mon Sep 17 00:00:00 2001
+Message-ID: <cedf4dbcdd3a0c64d4e74a98dd8caacaefced9b6.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 10 Jun 2026 12:26:50 +0200
 Subject: [PATCH] qemuxmlconftest: Add test case for specifying 'virtio-gpu'
@@ -18,7 +18,7 @@ https://redhat.atlassian.net/browse/RHEL-186019
     - tests/qemuxmlconfdata/video-virtio-vga-device-downgrade.x86_64-latest.args
        Context; patch tweaking monitor FD passing in tests not backported
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  ...io-vga-device-downgrade.x86_64-latest.args | 37 ++++++++++++++++
  ...tio-vga-device-downgrade.x86_64-latest.xml | 44 +++++++++++++++++++

@@ -1,5 +1,5 @@
-From 3bf19a8b1a705aee2db026b29e8a9fe2ed8f0c5d Mon Sep 17 00:00:00 2001
-Message-ID: <3bf19a8b1a705aee2db026b29e8a9fe2ed8f0c5d.1784297616.git.jdenemar@redhat.com>
+From 26a62b18ad904305964a92173aea7c98fd35abf7 Mon Sep 17 00:00:00 2001
+Message-ID: <26a62b18ad904305964a92173aea7c98fd35abf7.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 8 Jun 2026 11:00:31 +0200
 Subject: [PATCH] virDomainVideoDefFormat: Use 'virXMLFormatElement' instead of
@@ -11,13 +11,13 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/conf/domain_conf.c | 79 ++++++++++++++++++++----------------------
  1 file changed, 37 insertions(+), 42 deletions(-)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index cb64be4a86..d1cb85e1ab 100644
+index cec0f88f0f..dc19e258dd 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
 @@ -27034,6 +27034,9 @@ static void

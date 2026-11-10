@@ -1,5 +1,5 @@
-From fbaa8d8a0ec8d1f00f62b7acc54456acd224f4be Mon Sep 17 00:00:00 2001
-Message-ID: <fbaa8d8a0ec8d1f00f62b7acc54456acd224f4be.1784297616.git.jdenemar@redhat.com>
+From 2b3ed2f5fbb0255561db89a841eb2673af0095a5 Mon Sep 17 00:00:00 2001
+Message-ID: <2b3ed2f5fbb0255561db89a841eb2673af0095a5.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Thu, 11 Jun 2026 12:52:16 +0200
 Subject: [PATCH] qemu: validate: Validate VM config with qemuCaps influenced
@@ -17,7 +17,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_validate.c | 22 ++++++++++++++--------
  1 file changed, 14 insertions(+), 8 deletions(-)

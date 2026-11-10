@@ -1,5 +1,5 @@
-From 006054df40760d399aa236f0e6237ce3cc47324b Mon Sep 17 00:00:00 2001
-Message-ID: <006054df40760d399aa236f0e6237ce3cc47324b.1784297616.git.jdenemar@redhat.com>
+From f27113ac4b180f85d92ba96c6e2b0065983945da Mon Sep 17 00:00:00 2001
+Message-ID: <f27113ac4b180f85d92ba96c6e2b0065983945da.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 9 Jun 2026 14:33:04 +0200
 Subject: [PATCH] qemuxmlconftest: Add test cases for configs asking for
@@ -32,7 +32,7 @@ https://redhat.atlassian.net/browse/RHEL-186019
    - tests/qemuxmlconfdata/video-virtio-vga-gpu-gl.x86_64-latest.QEMU_CAPS_VIRTIO_GPU_GL_PCI-disabled.args
       Context; patch tweaking monitor FD passing in tests not backported
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  ....QEMU_CAPS_VIRTIO_GPU_GL_PCI-disabled.args | 35 ++++++++++++++
  ...t.QEMU_CAPS_VIRTIO_GPU_GL_PCI-disabled.xml | 46 +++++++++++++++++++

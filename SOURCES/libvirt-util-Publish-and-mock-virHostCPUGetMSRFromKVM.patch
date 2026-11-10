@@ -1,5 +1,5 @@
-From 1ed6ff182c4dd0b4db783a7890cccfb1af7ccdaa Mon Sep 17 00:00:00 2001
-Message-ID: <1ed6ff182c4dd0b4db783a7890cccfb1af7ccdaa.1780570729.git.jdenemar@redhat.com>
+From d1421d7387a3a747d3476471d7c94b294cfb2748 Mon Sep 17 00:00:00 2001
+Message-ID: <d1421d7387a3a747d3476471d7c94b294cfb2748.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Mon, 25 May 2026 12:27:41 +0200
 Subject: [PATCH] util: Publish and mock virHostCPUGetMSRFromKVM
@@ -10,7 +10,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 3184289356bd97daa75f77bec189e5ce152ba5e6)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

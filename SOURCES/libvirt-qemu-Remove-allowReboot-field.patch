@@ -1,5 +1,5 @@
-From c1d6028198f2ce7c676a8bc132b8564cf1c853d1 Mon Sep 17 00:00:00 2001
-Message-ID: <c1d6028198f2ce7c676a8bc132b8564cf1c853d1.1788184871.git.jdenemar@redhat.com>
+From 93162be780e0992d11a7cb46d42a71c23a5398bc Mon Sep 17 00:00:00 2001
+Message-ID: <93162be780e0992d11a7cb46d42a71c23a5398bc.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:35:07 +0200
 Subject: [PATCH] qemu: Remove 'allowReboot' field
@@ -14,7 +14,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 94bd5174d20fafafc2fa67fae101b78b46ec6196)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_domain.c                        | 33 -------------------
  src/qemu/qemu_domain.h                        | 17 ----------

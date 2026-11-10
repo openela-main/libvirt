@@ -1,5 +1,5 @@
-From a8b08fd44a66ab7f60088feb7024329c90288ae7 Mon Sep 17 00:00:00 2001
-Message-ID: <a8b08fd44a66ab7f60088feb7024329c90288ae7.1780570729.git.jdenemar@redhat.com>
+From 353e7eb26cb922bd342c050273afbcc4ed4dd20e Mon Sep 17 00:00:00 2001
+Message-ID: <353e7eb26cb922bd342c050273afbcc4ed4dd20e.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Mon, 25 May 2026 14:22:58 +0200
 Subject: [PATCH] cpu: Introduce virCPUUpdateFeatures
@@ -11,7 +11,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 6be1be4938338477bff14ff24c7ed2a05bc1dadc)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

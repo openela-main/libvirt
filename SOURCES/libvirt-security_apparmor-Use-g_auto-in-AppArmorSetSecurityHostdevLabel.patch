@@ -1,5 +1,5 @@
-From 7caad415f90fdd43f975903cb708110a4596f4f6 Mon Sep 17 00:00:00 2001
-Message-ID: <7caad415f90fdd43f975903cb708110a4596f4f6.1774618258.git.jdenemar@redhat.com>
+From b2037dd33febe910a6dad3521549b747322d37cb Mon Sep 17 00:00:00 2001
+Message-ID: <b2037dd33febe910a6dad3521549b747322d37cb.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Mon, 2 Mar 2026 12:47:43 +0100
 Subject: [PATCH] security_apparmor: Use g_auto* in
@@ -12,7 +12,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 75f698c77f0705ae9793331eadb08fbbf89572f6)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159913
+Resolves: https://redhat.atlassian.net/browse/RHEL-159902
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/security/security_apparmor.c | 20 ++++++--------------
@@ -115,4 +115,4 @@ index 6c5da2a650..74c5b10063 100644
  }
  
 -- 
-2.53.0
+2.54.0

@@ -1,5 +1,5 @@
-From 02b898d41099587d92e3211f8599742ad54172ac Mon Sep 17 00:00:00 2001
-Message-ID: <02b898d41099587d92e3211f8599742ad54172ac.1774618258.git.jdenemar@redhat.com>
+From c0d508913546c66014f4cad54779ff4ad1549d7a Mon Sep 17 00:00:00 2001
+Message-ID: <c0d508913546c66014f4cad54779ff4ad1549d7a.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Mon, 16 Mar 2026 15:30:18 +0100
 Subject: [PATCH] tests: Add iommufd fdgroup test
@@ -12,7 +12,7 @@ Conflicts:
     - tests/qemuxmlconftest.c
         missing upstream commit 6d6da1cbac4f0194ca257c8ff8f5038a96791a62
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/qemu/qemu_process.c                       | 14 +++--
@@ -263,4 +263,4 @@ index aa877bf16a..29b7e1883c 100644
      DO_TEST_CAPS_ARCH_LATEST("iommufd-virt-pci-bus-single", "aarch64");
  
 -- 
-2.53.0
+2.54.0

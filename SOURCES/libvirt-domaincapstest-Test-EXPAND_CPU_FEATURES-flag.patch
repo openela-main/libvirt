@@ -1,5 +1,5 @@
-From 78adf62643401bd53a14329da2e49d04524e4667 Mon Sep 17 00:00:00 2001
-Message-ID: <78adf62643401bd53a14329da2e49d04524e4667.1780570729.git.jdenemar@redhat.com>
+From 70f708877205ddb781080ea7035677c4e199b75c Mon Sep 17 00:00:00 2001
+Message-ID: <70f708877205ddb781080ea7035677c4e199b75c.1780571167.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Thu, 28 May 2026 14:49:17 +0200
 Subject: [PATCH] domaincapstest: Test EXPAND_CPU_FEATURES flag
@@ -8,7 +8,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit ed3ae648a9c974274cd5e960d0bdbefbe6730d9f)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Conflicts:
 	tests/domaincapsdata/*

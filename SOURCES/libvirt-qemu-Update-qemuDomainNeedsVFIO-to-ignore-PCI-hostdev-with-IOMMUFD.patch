@@ -1,5 +1,5 @@
-From 57e60917f516af4b46746e98492bfc64ee9847c9 Mon Sep 17 00:00:00 2001
-Message-ID: <57e60917f516af4b46746e98492bfc64ee9847c9.1774618258.git.jdenemar@redhat.com>
+From 84c12b67bed448ae5129e3b7c18b52fa397cf217 Mon Sep 17 00:00:00 2001
+Message-ID: <84c12b67bed448ae5129e3b7c18b52fa397cf217.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Wed, 18 Mar 2026 13:10:37 +0100
 Subject: [PATCH] qemu: Update qemuDomainNeedsVFIO to ignore PCI hostdev with
@@ -20,7 +20,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit d1fb5cf127d7681fa6c27e5b163ef410132aea49)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/conf/domain_conf.c   | 14 ++++++++++++++
@@ -30,10 +30,10 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
  4 files changed, 26 insertions(+), 1 deletion(-)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index 40bbd3e435..7ee17af093 100644
+index 99d2a0aa53..576a1bd79b 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
-@@ -32514,6 +32514,20 @@ virDomainDefHasPCIHostdevWithIOMMUFD(const virDomainDef *def)
+@@ -32520,6 +32520,20 @@ virDomainDefHasPCIHostdevWithIOMMUFD(const virDomainDef *def)
  }
  
  
@@ -104,4 +104,4 @@ index 57f18a02b6..a61939aa15 100644
          virDomainDefHasNVMeDisk(def);
  }
 -- 
-2.53.0
+2.54.0

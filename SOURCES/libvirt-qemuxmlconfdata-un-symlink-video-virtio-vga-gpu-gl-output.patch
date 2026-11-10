@@ -1,5 +1,5 @@
-From 904d385d598122a403dadf1b16c6ea6d4b031068 Mon Sep 17 00:00:00 2001
-Message-ID: <904d385d598122a403dadf1b16c6ea6d4b031068.1784297616.git.jdenemar@redhat.com>
+From c33268a59a91cb38dd22e94bd3a735fc7d3859d9 Mon Sep 17 00:00:00 2001
+Message-ID: <c33268a59a91cb38dd22e94bd3a735fc7d3859d9.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 10 Jun 2026 16:57:06 +0200
 Subject: [PATCH] qemuxmlconfdata: un-symlink 'video-virtio-vga-gpu-gl' output
@@ -14,7 +14,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  .../video-virtio-vga-gpu-gl.x86_64-latest.xml | 47 ++++++++++++++++++-
  1 file changed, 46 insertions(+), 1 deletion(-)

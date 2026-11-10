@@ -1,5 +1,5 @@
-From c3ed42b69703c81a7ed33a1afe75ec735cfb3118 Mon Sep 17 00:00:00 2001
-Message-ID: <c3ed42b69703c81a7ed33a1afe75ec735cfb3118.1774618258.git.jdenemar@redhat.com>
+From 99ca73f9c43c7a266cf65f0012a5350197d0f229 Mon Sep 17 00:00:00 2001
+Message-ID: <99ca73f9c43c7a266cf65f0012a5350197d0f229.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Fri, 13 Mar 2026 15:28:17 +0100
 Subject: [PATCH] conf: Add iommufd fdgroup support
@@ -15,7 +15,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 58875a6df679c5272f61028d33bf1380c51b0d5b)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  docs/formatdomain.rst                  |  8 +++++++-
@@ -53,7 +53,7 @@ index 86b3bad903..225152e0f2 100644
  ---------------------
  
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index 04965baf07..cb64be4a86 100644
+index 1e91561fea..cec0f88f0f 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
 @@ -4192,6 +4192,8 @@ void virDomainDefFree(virDomainDef *def)
@@ -157,4 +157,4 @@ index 63ea839383..10d59ca548 100644
      <type arch='i686' machine='pc'>hvm</type>
      <boot dev='hd'/>
 -- 
-2.53.0
+2.54.0

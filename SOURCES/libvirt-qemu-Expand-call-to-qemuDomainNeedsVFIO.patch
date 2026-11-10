@@ -1,5 +1,5 @@
-From df4ed4aa9e917d386b5991151fc938b5b76099b1 Mon Sep 17 00:00:00 2001
-Message-ID: <df4ed4aa9e917d386b5991151fc938b5b76099b1.1774618258.git.jdenemar@redhat.com>
+From 5512f4ffa8f4ea8a4afd354e4592b69dc5c39c61 Mon Sep 17 00:00:00 2001
+Message-ID: <5512f4ffa8f4ea8a4afd354e4592b69dc5c39c61.1780571166.git.jdenemar@redhat.com>
 From: Pavel Hrdina <phrdina@redhat.com>
 Date: Wed, 18 Mar 2026 12:52:05 +0100
 Subject: [PATCH] qemu: Expand call to qemuDomainNeedsVFIO
@@ -20,7 +20,7 @@ Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit c89b2bf1a80e3261bd18cdb352be1ffce9f4639e)
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-159174
+Resolves: https://redhat.atlassian.net/browse/RHEL-156803
 Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
 ---
  src/qemu/qemu_domain.c | 10 ++++++++--
@@ -48,4 +48,4 @@ index 5c9f4831fd..57f18a02b6 100644
           *
           * passthroughLimit := max( 2 GiB * #PHBs,                       (c)
 -- 
-2.53.0
+2.54.0

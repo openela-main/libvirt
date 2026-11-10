@@ -1,5 +1,5 @@
-From c690f03cb3f57a2a2fb1d586df5ae232b9910998 Mon Sep 17 00:00:00 2001
-Message-ID: <c690f03cb3f57a2a2fb1d586df5ae232b9910998.1780570729.git.jdenemar@redhat.com>
+From 6a2bd2d2e74d8c07266558c62d3fb724e677e256 Mon Sep 17 00:00:00 2001
+Message-ID: <6a2bd2d2e74d8c07266558c62d3fb724e677e256.1780571166.git.jdenemar@redhat.com>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Fri, 29 May 2026 13:00:10 +0200
 Subject: [PATCH] cpu_conf: Introduce virCPUDefSortFeatures
@@ -11,7 +11,7 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 0900cc4f2dca2c17e8854330d45dffa4cc7952c4)
 
-https://redhat.atlassian.net/browse/RHEL-178822
+https://redhat.atlassian.net/browse/RHEL-177364
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---

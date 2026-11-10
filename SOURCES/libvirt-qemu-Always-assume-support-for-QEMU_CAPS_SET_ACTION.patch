@@ -1,5 +1,5 @@
-From 0c206ad1adc1dfae0cff8b5606f1ce692af6672c Mon Sep 17 00:00:00 2001
-Message-ID: <0c206ad1adc1dfae0cff8b5606f1ce692af6672c.1788184871.git.jdenemar@redhat.com>
+From 000b2e9a69d6b361eb6b435cdfafdf8267c1f925 Mon Sep 17 00:00:00 2001
+Message-ID: <000b2e9a69d6b361eb6b435cdfafdf8267c1f925.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:27:20 +0200
 Subject: [PATCH] qemu: Always assume support for 'QEMU_CAPS_SET_ACTION'
@@ -17,7 +17,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 771f17c9072c6aacc7bc10e01afc14421512c913)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_command.c  | 13 +++----------
  src/qemu/qemu_driver.c   | 16 ----------------
@@ -51,7 +51,7 @@ index 963dc2afa3..6bec3ad316 100644
      /* Use old syntax of -no-acpi only if qemu didn't report that it supports the
       * new syntax */
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 0635668582..e0c9fdad63 100644
+index 3c7de45301..e24ac26f59 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
 @@ -19248,9 +19248,6 @@ qemuDomainModifyLifecycleActionLive(virDomainObj *vm,

@@ -1,5 +1,5 @@
-From 8eebd1fda46257a8a407fdca6fe8b090c890df09 Mon Sep 17 00:00:00 2001
-Message-ID: <8eebd1fda46257a8a407fdca6fe8b090c890df09.1788184871.git.jdenemar@redhat.com>
+From efab037086cf55a718cde67573037f28dcadedf2 Mon Sep 17 00:00:00 2001
+Message-ID: <efab037086cf55a718cde67573037f28dcadedf2.1787144643.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:29:50 +0200
 Subject: [PATCH] qemu: Remove unused 'qemuProcessRebootAllowed'
@@ -11,7 +11,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 8effae01b918f91933a6bd3b5721cb243c50248a)
 
-https://redhat.atlassian.net/browse/RHEL-242549
+https://redhat.atlassian.net/browse/RHEL-242546
 ---
  src/qemu/qemu_process.c | 18 ------------------
  src/qemu/qemu_process.h |  2 --

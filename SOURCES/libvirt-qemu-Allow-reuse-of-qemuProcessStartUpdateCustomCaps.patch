@@ -1,5 +1,5 @@
-From d4c804d14b26d8b8400d95c7594c1dc8e13f61ef Mon Sep 17 00:00:00 2001
-Message-ID: <d4c804d14b26d8b8400d95c7594c1dc8e13f61ef.1784297616.git.jdenemar@redhat.com>
+From 8ceddabb12d1b32fbcffe9697885462af133d309 Mon Sep 17 00:00:00 2001
+Message-ID: <8ceddabb12d1b32fbcffe9697885462af133d309.1784297531.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Thu, 11 Jun 2026 12:00:45 +0200
 Subject: [PATCH] qemu: Allow reuse of 'qemuProcessStartUpdateCustomCaps'
@@ -20,7 +20,7 @@ Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
 
 https://redhat.atlassian.net/browse/RHEL-186019
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
  src/qemu/qemu_domain.c  | 79 +++++++++++++++++++++++++++++++++++++++++
  src/qemu/qemu_domain.h  |  6 ++++

@@ -1,5 +1,5 @@
-From 7ed376033a1ed52aabc703ece1292e52c51d6956 Mon Sep 17 00:00:00 2001
-Message-ID: <7ed376033a1ed52aabc703ece1292e52c51d6956.1787145055.git.jdenemar@redhat.com>
+From 4d9f92a466e0d78d3c5388a03eaf56f67ac67211 Mon Sep 17 00:00:00 2001
+Message-ID: <4d9f92a466e0d78d3c5388a03eaf56f67ac67211.1787144643.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Wed, 12 Aug 2026 13:44:48 +0200
 Subject: [PATCH] qemu: Implement device info for virDomainGetGuestInfo() API
@@ -18,7 +18,7 @@ src/libvirt_private.syms: Because v12.4.0-rc1~76 is not being backported
                           (it moved parts of the agent code under
                           src/hypervisor for wider use).
 
-Resolves: https://redhat.atlassian.net/browse/RHEL-243306
+Resolves: https://redhat.atlassian.net/browse/RHEL-243300
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  src/qemu/qemu_agent.c  | 36 ++++++++++++++++++++++++++++++++++++
@@ -84,10 +84,10 @@ index a6be2ff387..d19b5b2134 100644
 +                                     size_t ndevices,
 +                                     virTypedParamList *list);
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 3c7de45301..0635668582 100644
+index adc7054f5e..30f70d2dc2 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
-@@ -19641,7 +19641,8 @@ static const unsigned int qemuDomainGetGuestInfoSupportedTypes =
+@@ -19688,7 +19688,8 @@ static const unsigned int qemuDomainGetGuestInfoSupportedTypes =
      VIR_DOMAIN_GUEST_INFO_FILESYSTEM |
      VIR_DOMAIN_GUEST_INFO_DISKS |
      VIR_DOMAIN_GUEST_INFO_INTERFACES |
@@ -97,7 +97,7 @@ index 3c7de45301..0635668582 100644
  
  static int
  qemuDomainGetGuestInfoCheckSupport(unsigned int types,
-@@ -19849,6 +19850,8 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -19896,6 +19897,8 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
      double load5m = 0;
      double load15m = 0;
      bool format_load = false;
@@ -106,7 +106,7 @@ index 3c7de45301..0635668582 100644
      size_t i;
      g_autoptr(virTypedParamList) list = virTypedParamListNew();
  
-@@ -19928,6 +19931,14 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -19975,6 +19978,14 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
              format_load = true;
      }
  
@@ -121,7 +121,7 @@ index 3c7de45301..0635668582 100644
      qemuDomainObjExitAgent(vm, agent);
      virDomainObjEndAgentJob(vm);
  
-@@ -19960,6 +19971,10 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -20007,6 +20018,10 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
          virTypedParamListAddDouble(list, load15m, VIR_DOMAIN_GUEST_INFO_LOAD_15M);
      }
  
@@ -132,7 +132,7 @@ index 3c7de45301..0635668582 100644
      if (virTypedParamListSteal(list, params, nparams) < 0)
          goto cleanup;
  
-@@ -19977,6 +19992,12 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
+@@ -20024,6 +20039,12 @@ qemuDomainGetGuestInfo(virDomainPtr dom,
              virDomainInterfaceFree(ifaces[i]);
      }
      g_free(ifaces);

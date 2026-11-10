@@ -1,5 +1,5 @@
-From e4cc6301f4b70ec2a0cf24cdfd04f0faeeb54b21 Mon Sep 17 00:00:00 2001
-Message-ID: <e4cc6301f4b70ec2a0cf24cdfd04f0faeeb54b21.1784297616.git.jdenemar@redhat.com>
+From 5cbc7dbe68ca1743a45567d4bb9d15ad3b8687d9 Mon Sep 17 00:00:00 2001
+Message-ID: <5cbc7dbe68ca1743a45567d4bb9d15ad3b8687d9.1784297532.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 8 Jun 2026 17:30:50 +0200
 Subject: [PATCH] qemustatusxml2xml: Add test case capturing virtio video
@@ -24,14 +24,14 @@ https://redhat.atlassian.net/browse/RHEL-186019
  	Context; some qemu capabilities weren't yet backported upstream.
          They are not essential to the test
 
-https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
+https://redhat.atlassian.net/browse/RHEL-177646 (rhel-9.9)
 ---
- .../virtio-vga-upgrade-in.xml                 | 459 ++++++++++++++++++
- .../virtio-vga-upgrade-missing-in.xml         | 457 +++++++++++++++++
- .../virtio-vga-upgrade-missing-out.xml        | 450 +++++++++++++++++
- .../virtio-vga-upgrade-out.xml                | 452 +++++++++++++++++
+ .../virtio-vga-upgrade-in.xml                 | 461 ++++++++++++++++++
+ .../virtio-vga-upgrade-missing-in.xml         | 459 +++++++++++++++++
+ .../virtio-vga-upgrade-missing-out.xml        | 452 +++++++++++++++++
+ .../virtio-vga-upgrade-out.xml                | 454 +++++++++++++++++
  tests/qemuxmlactivetest.c                     |   6 +
- 5 files changed, 1824 insertions(+)
+ 5 files changed, 1832 insertions(+)
  create mode 100644 tests/qemustatusxml2xmldata/virtio-vga-upgrade-in.xml
  create mode 100644 tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-in.xml
  create mode 100644 tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml
@@ -39,10 +39,10 @@ https://redhat.atlassian.net/browse/RHEL-186018 (rhel-9.8.z)
 
 diff --git a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-in.xml b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-in.xml
 new file mode 100644
-index 0000000000..eea3830a00
+index 0000000000..9be9e920f3
 --- /dev/null
 +++ b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-in.xml
-@@ -0,0 +1,459 @@
+@@ -0,0 +1,461 @@
 +<!--
 +WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
 +OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
@@ -270,6 +270,8 @@ index 0000000000..eea3830a00
 +    <flag name='acpi-generic-initiator'/>
 +    <flag name='disk-timed-stats'/>
 +    <flag name='query-accelerators'/>
++    <flag name='scsi-block.migrate-pr'/>
++    <flag name='iommufd'/>
 +  </qemuCaps>
 +  <devices>
 +    <device alias='input0'/>
@@ -504,10 +506,10 @@ index 0000000000..eea3830a00
 +</domstatus>
 diff --git a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-in.xml b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-in.xml
 new file mode 100644
-index 0000000000..c0063d189e
+index 0000000000..1c4a5b4d02
 --- /dev/null
 +++ b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-in.xml
-@@ -0,0 +1,457 @@
+@@ -0,0 +1,459 @@
 +<!--
 +WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
 +OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
@@ -733,6 +735,8 @@ index 0000000000..c0063d189e
 +    <flag name='acpi-generic-initiator'/>
 +    <flag name='disk-timed-stats'/>
 +    <flag name='query-accelerators'/>
++    <flag name='scsi-block.migrate-pr'/>
++    <flag name='iommufd'/>
 +  </qemuCaps>
 +  <devices>
 +    <device alias='input0'/>
@@ -967,10 +971,10 @@ index 0000000000..c0063d189e
 +</domstatus>
 diff --git a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml
 new file mode 100644
-index 0000000000..4560cff378
+index 0000000000..e7b3dd17ed
 --- /dev/null
 +++ b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-missing-out.xml
-@@ -0,0 +1,450 @@
+@@ -0,0 +1,452 @@
 +<domstatus state='running' reason='booted' pid='1348839'>
 +  <monitor path='/var/lib/libvirt/qemu/domain-2-virtio-vga-test/monitor.sock' type='unix'/>
 +  <namespaces>
@@ -1189,6 +1193,8 @@ index 0000000000..4560cff378
 +    <flag name='acpi-generic-initiator'/>
 +    <flag name='disk-timed-stats'/>
 +    <flag name='query-accelerators'/>
++    <flag name='scsi-block.migrate-pr'/>
++    <flag name='iommufd'/>
 +  </qemuCaps>
 +  <devices>
 +    <device alias='input0'/>
@@ -1423,10 +1429,10 @@ index 0000000000..4560cff378
 +</domstatus>
 diff --git a/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml
 new file mode 100644
-index 0000000000..a1c16f1e85
+index 0000000000..948d4c8135
 --- /dev/null
 +++ b/tests/qemustatusxml2xmldata/virtio-vga-upgrade-out.xml
-@@ -0,0 +1,452 @@
+@@ -0,0 +1,454 @@
 +<domstatus state='running' reason='booted' pid='1348839'>
 +  <monitor path='/var/lib/libvirt/qemu/domain-2-virtio-vga-test/monitor.sock' type='unix'/>
 +  <namespaces>
@@ -1647,6 +1653,8 @@ index 0000000000..a1c16f1e85
 +    <flag name='acpi-generic-initiator'/>
 +    <flag name='disk-timed-stats'/>
 +    <flag name='query-accelerators'/>
++    <flag name='scsi-block.migrate-pr'/>
++    <flag name='iommufd'/>
 +  </qemuCaps>
 +  <devices>
 +    <device alias='input0'/>
