@@ -1,5 +1,5 @@
-From 15a5dd4e411c69c438b7015a32940f57444f3e67 Mon Sep 17 00:00:00 2001
-Message-ID: <15a5dd4e411c69c438b7015a32940f57444f3e67.1787144402.git.jdenemar@redhat.com>
+From 59f656a08ba5557f3bbd6f617248b585b8e911a9 Mon Sep 17 00:00:00 2001
+Message-ID: <59f656a08ba5557f3bbd6f617248b585b8e911a9.1787144197.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Wed, 12 Aug 2026 14:08:37 +0200
 Subject: [PATCH] qemuagenttest: Introduce GetGuestDeviceInfo test case
@@ -13,14 +13,14 @@ missing).
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit c56a2479ab59167af6cc9094981ef6e1c0a83a01)
-Resolves: https://redhat.atlassian.net/browse/RHEL-243305
+Resolves: https://redhat.atlassian.net/browse/RHEL-235731
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
  tests/qemuagenttest.c | 123 ++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 123 insertions(+)
 
 diff --git a/tests/qemuagenttest.c b/tests/qemuagenttest.c
-index 9c64ed3c5f..612ecb976b 100644
+index 74cd317e74..7c726a6b85 100644
 --- a/tests/qemuagenttest.c
 +++ b/tests/qemuagenttest.c
 @@ -1394,6 +1394,128 @@ testQemuAgentGetLoadAvg(const void *data)

@@ -1,5 +1,5 @@
-From 71f1b069e4db93d64945156853b757b518d0aef0 Mon Sep 17 00:00:00 2001
-Message-ID: <71f1b069e4db93d64945156853b757b518d0aef0.1787144402.git.jdenemar@redhat.com>
+From 97cc433df8d7eebda4985b76e4b38b0597c6ddc6 Mon Sep 17 00:00:00 2001
+Message-ID: <97cc433df8d7eebda4985b76e4b38b0597c6ddc6.1787144197.git.jdenemar@redhat.com>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Tue, 11 Aug 2026 17:08:05 +0200
 Subject: [PATCH] qemu_agent: Introduce guest-get-devices
@@ -23,28 +23,21 @@ NULL or -1, if missing.
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 Reviewed-by: Peter Krempa <pkrempa@redhat.com>
 (cherry picked from commit 7dea038439aa025d18c716e3343d3f0e9ccd672a)
-
-Conflicts:
-src/libvirt_private.syms:
-src/qemu/qemu_agent.c:
-src/qemu/qemu_agent.h: All three conflicts are due to v12.4.0-rc1~76
-                       not being backported (it moved parts of the
-                       agent code under src/hypervisor for wider use).
-
-Resolves: https://redhat.atlassian.net/browse/RHEL-243305
+Resolves: https://redhat.atlassian.net/browse/RHEL-235731
 Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
 ---
- src/qemu/qemu_agent.c | 119 ++++++++++++++++++++++++++++++++++++++++++
- src/qemu/qemu_agent.h |  21 ++++++++
- 2 files changed, 140 insertions(+)
+ src/hypervisor/qemu_agent.c | 119 ++++++++++++++++++++++++++++++++++++
+ src/hypervisor/qemu_agent.h |  21 +++++++
+ src/libvirt_private.syms    |   2 +
+ 3 files changed, 142 insertions(+)
 
-diff --git a/src/qemu/qemu_agent.c b/src/qemu/qemu_agent.c
-index ee0921eca6..67faa5aa97 100644
---- a/src/qemu/qemu_agent.c
-+++ b/src/qemu/qemu_agent.c
-@@ -2599,3 +2599,122 @@ qemuAgentGetLoadAvg(qemuAgent *agent,
- 
-     return 0;
+diff --git a/src/hypervisor/qemu_agent.c b/src/hypervisor/qemu_agent.c
+index 418386317d..fbfaafc1bb 100644
+--- a/src/hypervisor/qemu_agent.c
++++ b/src/hypervisor/qemu_agent.c
+@@ -2843,3 +2843,122 @@ qemuAgentInterfaceFormatParams(virDomainInterfacePtr *ifaces,
+         }
+     }
  }
 +
 +
@@ -165,14 +158,14 @@ index ee0921eca6..67faa5aa97 100644
 +    g_clear_pointer(info, g_free);
 +    return -1;
 +}
-diff --git a/src/qemu/qemu_agent.h b/src/qemu/qemu_agent.h
-index 860f19b6bd..a6be2ff387 100644
---- a/src/qemu/qemu_agent.h
-+++ b/src/qemu/qemu_agent.h
-@@ -195,3 +195,24 @@ int qemuAgentGetLoadAvg(qemuAgent *agent,
-                         double *load5m,
-                         double *load15m,
-                         bool report_unsupported);
+diff --git a/src/hypervisor/qemu_agent.h b/src/hypervisor/qemu_agent.h
+index def6f983d4..def4194ab7 100644
+--- a/src/hypervisor/qemu_agent.h
++++ b/src/hypervisor/qemu_agent.h
+@@ -218,3 +218,24 @@ void
+ qemuAgentInterfaceFormatParams(virDomainInterfacePtr *ifaces,
+                                int nifaces,
+                                virTypedParamList *list);
 +
 +typedef struct _qemuAgentGuestDeviceInfoPCI qemuAgentGuestDeviceInfoPCI;
 +struct _qemuAgentGuestDeviceInfoPCI {
@@ -194,5 +187,25 @@ index 860f19b6bd..a6be2ff387 100644
 +int qemuAgentGetGuestDeviceInfo(qemuAgent *agent,
 +                                qemuAgentGuestDeviceInfo ***info,
 +                                bool report_unsupported);
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 02bd505749..0bd8c6f781 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -1726,6 +1726,7 @@ qemuAgentFSThaw;
+ qemuAgentFSTrim;
+ qemuAgentGetDisks;
+ qemuAgentGetFSInfo;
++qemuAgentGetGuestDeviceInfo;
+ qemuAgentGetHostname;
+ qemuAgentGetInterfaces;
+ qemuAgentGetLoadAvg;
+@@ -1734,6 +1735,7 @@ qemuAgentGetTime;
+ qemuAgentGetTimezone;
+ qemuAgentGetUsers;
+ qemuAgentGetVCPUs;
++qemuAgentGuestDeviceInfoFree;
+ qemuAgentInterfaceFormatParams;
+ qemuAgentNotifyClose;
+ qemuAgentNotifyEvent;
 -- 
 2.55.0

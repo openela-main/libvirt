@@ -1,5 +1,5 @@
-From dd5816febc2d7888219044cb042cad4e672dcee9 Mon Sep 17 00:00:00 2001
-Message-ID: <dd5816febc2d7888219044cb042cad4e672dcee9.1788184951.git.jdenemar@redhat.com>
+From 68aef452471aa40f8f09730fe1aca9b7d4fdcdbb Mon Sep 17 00:00:00 2001
+Message-ID: <68aef452471aa40f8f09730fe1aca9b7d4fdcdbb.1787144197.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Wed, 22 Jul 2026 17:05:00 +0200
 Subject: [PATCH] qemuDomainModifyLifecycleActionLive: Prepare to handle other
@@ -15,16 +15,16 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 79b6d701c7719fbe5e5db8531ff6460edfbed171)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_driver.c | 55 ++++++++++++++++++++++++------------------
  1 file changed, 32 insertions(+), 23 deletions(-)
 
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 6f59b0b666..1a487f2c1c 100644
+index b3b853b4c8..269694fac5 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
-@@ -19260,42 +19260,51 @@ qemuDomainModifyLifecycleActionLive(virDomainObj *vm,
+@@ -19547,42 +19547,51 @@ qemuDomainModifyLifecycleActionLive(virDomainObj *vm,
                                      virDomainLifecycle type,
                                      virDomainLifecycleAction action)
  {

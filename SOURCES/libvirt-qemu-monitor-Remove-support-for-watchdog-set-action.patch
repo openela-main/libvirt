@@ -1,5 +1,5 @@
-From 67a7ae8ec54eeb8905e1a4ef12eff5b13d6b0c08 Mon Sep 17 00:00:00 2001
-Message-ID: <67a7ae8ec54eeb8905e1a4ef12eff5b13d6b0c08.1788184951.git.jdenemar@redhat.com>
+From a29e30928c9892e9a550af0b8d4df398606fc013 Mon Sep 17 00:00:00 2001
+Message-ID: <a29e30928c9892e9a550af0b8d4df398606fc013.1787144196.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:31:39 +0200
 Subject: [PATCH] qemu: monitor: Remove support for 'watchdog-set-action'
@@ -13,7 +13,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 8365c6679fa65b66b85da2773547515a40ae1a8f)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_monitor.c      | 12 ------------
  src/qemu/qemu_monitor.h      |  4 ----
@@ -22,10 +22,10 @@ https://redhat.atlassian.net/browse/RHEL-242547
  4 files changed, 43 deletions(-)
 
 diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
-index 3d7477c01c..5ecee978f9 100644
+index baa78dd6fe..85e97562ad 100644
 --- a/src/qemu/qemu_monitor.c
 +++ b/src/qemu/qemu_monitor.c
-@@ -4006,18 +4006,6 @@ qemuMonitorMemoryDeviceSizeChangeFree(qemuMonitorMemoryDeviceSizeChangePtr info)
+@@ -3965,18 +3965,6 @@ qemuMonitorMemoryDeviceSizeChangeFree(qemuMonitorMemoryDeviceSizeChangePtr info)
  }
  
  
@@ -45,10 +45,10 @@ index 3d7477c01c..5ecee978f9 100644
   * qemuMonitorBlockdevCreate:
   * @mon: monitor object
 diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
-index bbe400003a..671930fe5f 100644
+index c2afb580e4..3298095e9c 100644
 --- a/src/qemu/qemu_monitor.h
 +++ b/src/qemu/qemu_monitor.h
-@@ -1642,10 +1642,6 @@ qemuMonitorSetBlockThreshold(qemuMonitor *mon,
+@@ -1640,10 +1640,6 @@ qemuMonitorSetBlockThreshold(qemuMonitor *mon,
                               const char *nodename,
                               unsigned long long threshold);
  
@@ -60,10 +60,10 @@ index bbe400003a..671930fe5f 100644
  qemuMonitorBlockdevCreate(qemuMonitor *mon,
                            const char *jobname,
 diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
-index 45f690d9e2..a98cf70a41 100644
+index 28f7d93834..57e4b91874 100644
 --- a/src/qemu/qemu_monitor_json.c
 +++ b/src/qemu/qemu_monitor_json.c
-@@ -7826,28 +7826,6 @@ qemuMonitorJSONSetBlockThreshold(qemuMonitor *mon,
+@@ -7873,28 +7873,6 @@ qemuMonitorJSONSetBlockThreshold(qemuMonitor *mon,
  }
  
  
@@ -93,10 +93,10 @@ index 45f690d9e2..a98cf70a41 100644
  qemuMonitorJSONBlockdevCreate(qemuMonitor *mon,
                                const char *jobname,
 diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
-index b418f70048..b07e54c2c5 100644
+index f4c093d717..3b7b04a11d 100644
 --- a/src/qemu/qemu_monitor_json.h
 +++ b/src/qemu/qemu_monitor_json.h
-@@ -629,11 +629,6 @@ qemuMonitorJSONSetBlockThreshold(qemuMonitor *mon,
+@@ -633,11 +633,6 @@ qemuMonitorJSONSetBlockThreshold(qemuMonitor *mon,
                                   unsigned long long threshold)
      ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
  

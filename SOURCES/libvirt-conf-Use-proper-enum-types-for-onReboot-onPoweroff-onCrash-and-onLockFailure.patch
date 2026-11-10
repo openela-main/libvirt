@@ -1,5 +1,5 @@
-From f27d08ed49a33fdd3d167544f77e5713503348b4 Mon Sep 17 00:00:00 2001
-Message-ID: <f27d08ed49a33fdd3d167544f77e5713503348b4.1788184951.git.jdenemar@redhat.com>
+From c85c8ecd53bf4d67b14d7f022813ec7b2801181c Mon Sep 17 00:00:00 2001
+Message-ID: <c85c8ecd53bf4d67b14d7f022813ec7b2801181c.1787144197.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 21 Jul 2026 10:21:50 +0200
 Subject: [PATCH] conf: Use proper enum types for 'onReboot', 'onPoweroff',
@@ -14,7 +14,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 997b9816dcaef7ed0d7fdbfe4f1b2354b1b82c58)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/conf/domain_conf.c | 10 ++++++----
  src/conf/domain_conf.h |  9 ++++-----
@@ -23,10 +23,10 @@ https://redhat.atlassian.net/browse/RHEL-242547
  4 files changed, 19 insertions(+), 12 deletions(-)
 
 diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
-index 0df73a777c..8770d5eb0e 100644
+index db44ba9a72..d43b8bdd5b 100644
 --- a/src/conf/domain_conf.c
 +++ b/src/conf/domain_conf.c
-@@ -14100,21 +14100,23 @@ static int
+@@ -14172,21 +14172,23 @@ static int
  virDomainEventActionParseXML(xmlXPathContextPtr ctxt,
                               const char *name,
                               const char *xpath,
@@ -55,10 +55,10 @@ index 0df73a777c..8770d5eb0e 100644
      return 0;
  }
 diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
-index 1b184bd92a..aa2b3a7fdb 100644
+index 40ea6090f8..2c017738e3 100644
 --- a/src/conf/domain_conf.h
 +++ b/src/conf/domain_conf.h
-@@ -3240,12 +3240,11 @@ struct _virDomainDef {
+@@ -3255,12 +3255,11 @@ struct _virDomainDef {
      virDomainResourceDef *resource;
      virDomainIdMapDef idmap;
  
@@ -76,7 +76,7 @@ index 1b184bd92a..aa2b3a7fdb 100644
      virDomainPowerManagement pm;
  
 diff --git a/src/libxl/xen_common.c b/src/libxl/xen_common.c
-index f19e4f6abb..fcb0339b35 100644
+index e6a372e078..4b2e47006a 100644
 --- a/src/libxl/xen_common.c
 +++ b/src/libxl/xen_common.c
 @@ -336,33 +336,37 @@ xenParseEventsActions(virConf *conf, virDomainDef *def)
@@ -121,10 +121,10 @@ index f19e4f6abb..fcb0339b35 100644
      return 0;
  }
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index fbd15b690b..0ff5622cad 100644
+index b7c1a28d5f..cb9f6fb7bf 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
-@@ -3596,6 +3596,8 @@ processGuestPanicEvent(virQEMUDriver *driver,
+@@ -3680,6 +3680,8 @@ processGuestPanicEvent(virQEMUDriver *driver,
          /* the VM is kept around for debugging */
          break;
  

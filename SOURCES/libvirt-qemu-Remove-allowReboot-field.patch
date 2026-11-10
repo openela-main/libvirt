@@ -1,5 +1,5 @@
-From 0440c28c4afa668114a7ef07c9f9ad59b3534d82 Mon Sep 17 00:00:00 2001
-Message-ID: <0440c28c4afa668114a7ef07c9f9ad59b3534d82.1788184951.git.jdenemar@redhat.com>
+From 0b63c24aa265be78e55210ab5d985e24bdb13499 Mon Sep 17 00:00:00 2001
+Message-ID: <0b63c24aa265be78e55210ab5d985e24bdb13499.1787144196.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:35:07 +0200
 Subject: [PATCH] qemu: Remove 'allowReboot' field
@@ -14,7 +14,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 94bd5174d20fafafc2fa67fae101b78b46ec6196)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_domain.c                        | 33 -------------------
  src/qemu/qemu_domain.h                        | 17 ----------
@@ -35,7 +35,7 @@ https://redhat.atlassian.net/browse/RHEL-242547
  16 files changed, 64 deletions(-)
 
 diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
-index 78587e2574..703bfc5867 100644
+index e1b805d906..a4e5f92840 100644
 --- a/src/qemu/qemu_domain.c
 +++ b/src/qemu/qemu_domain.c
 @@ -1946,8 +1946,6 @@ qemuDomainObjPrivateDataClear(qemuDomainObjPrivate *priv)
@@ -107,10 +107,10 @@ index 78587e2574..703bfc5867 100644
  
      if (qemuDomainObjPrivateXMLParseBlockjobs(vm, priv, ctxt) < 0)
 diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
-index a8bf301d51..14fd1b603b 100644
+index 50ab492023..23e99dc68c 100644
 --- a/src/qemu/qemu_domain.h
 +++ b/src/qemu/qemu_domain.h
-@@ -133,15 +133,6 @@ struct _qemuDomainObjPrivate {
+@@ -134,15 +134,6 @@ struct _qemuDomainObjPrivate {
      bool fakeReboot;
      bool fakeReset;
      bool pausedShutdown;
@@ -126,7 +126,7 @@ index a8bf301d51..14fd1b603b 100644
  
      unsigned long migMaxBandwidth;
      char *origname;
-@@ -1015,14 +1006,6 @@ qemuDomainFixupCPUs(virDomainObj *vm,
+@@ -1010,14 +1001,6 @@ qemuDomainFixupCPUs(virDomainObj *vm,
  char *
  qemuDomainGetMachineName(virDomainObj *vm);
  
@@ -250,7 +250,7 @@ index b914236b62..f4e921ab38 100644
    <fdset index='0'/>
    <blockjobs active='no'/>
 diff --git a/tests/qemustatusxml2xmldata/modern-in.xml b/tests/qemustatusxml2xmldata/modern-in.xml
-index 3b3e831759..1193c1997e 100644
+index 050669f554..422a04f3ca 100644
 --- a/tests/qemustatusxml2xmldata/modern-in.xml
 +++ b/tests/qemustatusxml2xmldata/modern-in.xml
 @@ -260,7 +260,6 @@

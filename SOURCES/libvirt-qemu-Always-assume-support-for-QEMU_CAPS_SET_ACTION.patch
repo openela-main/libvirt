@@ -1,5 +1,5 @@
-From a76c4f63832ee6ecf17f116228127d02c39d0474 Mon Sep 17 00:00:00 2001
-Message-ID: <a76c4f63832ee6ecf17f116228127d02c39d0474.1788184951.git.jdenemar@redhat.com>
+From e21a75730bd8cdd57b595222ff1af64d012431f8 Mon Sep 17 00:00:00 2001
+Message-ID: <e21a75730bd8cdd57b595222ff1af64d012431f8.1787144196.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:27:20 +0200
 Subject: [PATCH] qemu: Always assume support for 'QEMU_CAPS_SET_ACTION'
@@ -17,7 +17,7 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 771f17c9072c6aacc7bc10e01afc14421512c913)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_command.c  | 13 +++----------
  src/qemu/qemu_driver.c   | 16 ----------------
@@ -27,10 +27,10 @@ https://redhat.atlassian.net/browse/RHEL-242547
  5 files changed, 7 insertions(+), 77 deletions(-)
 
 diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
-index 3ba6d14318..0712cc8ba3 100644
+index 2d5eaa1e80..346a7905c5 100644
 --- a/src/qemu/qemu_command.c
 +++ b/src/qemu/qemu_command.c
-@@ -6167,16 +6167,9 @@ qemuBuildPMCommandLine(virCommand *cmd,
+@@ -6171,16 +6171,9 @@ qemuBuildPMCommandLine(virCommand *cmd,
  {
      virQEMUCaps *qemuCaps = priv->qemuCaps;
  
@@ -51,10 +51,10 @@ index 3ba6d14318..0712cc8ba3 100644
      /* Use old syntax of -no-acpi only if qemu didn't report that it supports the
       * new syntax */
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index c98063aedc..6f59b0b666 100644
+index 8ec9e1f9c4..b3b853b4c8 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
-@@ -19264,9 +19264,6 @@ qemuDomainModifyLifecycleActionLive(virDomainObj *vm,
+@@ -19551,9 +19551,6 @@ qemuDomainModifyLifecycleActionLive(virDomainObj *vm,
      qemuDomainObjPrivate *priv = vm->privateData;
      int rc;
  
@@ -64,7 +64,7 @@ index c98063aedc..6f59b0b666 100644
      /* For now we only update 'reboot' action here as we want to keep the
       * shutdown action as is (we're emulating the outcome anyways)) */
      if (type != VIR_DOMAIN_LIFECYCLE_REBOOT ||
-@@ -19316,7 +19313,6 @@ qemuDomainSetLifecycleAction(virDomainPtr dom,
+@@ -19603,7 +19600,6 @@ qemuDomainSetLifecycleAction(virDomainPtr dom,
  {
      virQEMUDriver *driver = dom->conn->privateData;
      g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
@@ -72,7 +72,7 @@ index c98063aedc..6f59b0b666 100644
      virDomainObj *vm = NULL;
      virDomainDef *def = NULL;
      virDomainDef *persistentDef = NULL;
-@@ -19333,8 +19329,6 @@ qemuDomainSetLifecycleAction(virDomainPtr dom,
+@@ -19620,8 +19616,6 @@ qemuDomainSetLifecycleAction(virDomainPtr dom,
      if (!(vm = qemuDomainObjFromDomain(dom)))
          goto cleanup;
  
@@ -81,7 +81,7 @@ index c98063aedc..6f59b0b666 100644
      if (virDomainSetLifecycleActionEnsureACL(dom->conn, vm->def) < 0)
          goto cleanup;
  
-@@ -19349,16 +19343,6 @@ qemuDomainSetLifecycleAction(virDomainPtr dom,
+@@ -19636,16 +19630,6 @@ qemuDomainSetLifecycleAction(virDomainPtr dom,
          goto endjob;
  
      if (def) {
@@ -99,10 +99,10 @@ index c98063aedc..6f59b0b666 100644
              goto endjob;
  
 diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
-index 8944062aa4..86cbe438a3 100644
+index 5be567b510..8990a716fa 100644
 --- a/src/qemu/qemu_hotplug.c
 +++ b/src/qemu/qemu_hotplug.c
-@@ -3069,7 +3069,7 @@ qemuDomainAttachWatchdog(virDomainObj *vm,
+@@ -3061,7 +3061,7 @@ qemuDomainAttachWatchdog(virDomainObj *vm,
      if (vm->def->nwatchdogs) {
          /* Domain already has a watchdog and all must have the same action. */
          rv = 0;
@@ -111,7 +111,7 @@ index 8944062aa4..86cbe438a3 100644
          /* QEMU doesn't have a 'dump' action; we tell qemu to 'pause', then
             libvirt listens for the watchdog event, and we perform the dump
             ourselves. so convert 'dump' to 'pause' for the qemu cli */
-@@ -3111,14 +3111,6 @@ qemuDomainAttachWatchdog(virDomainObj *vm,
+@@ -3103,14 +3103,6 @@ qemuDomainAttachWatchdog(virDomainObj *vm,
                                    QEMU_MONITOR_ACTION_REBOOT_KEEP,
                                    watchdogaction,
                                    QEMU_MONITOR_ACTION_PANIC_KEEP);
@@ -127,10 +127,10 @@ index 8944062aa4..86cbe438a3 100644
  
      if (rv >= 0)
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index d3f86ff661..f8d433d3b0 100644
+index 4c94ff3c91..646ddda7e9 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
-@@ -6850,24 +6850,6 @@ qemuProcessRebootAllowed(const virDomainDef *def)
+@@ -6898,24 +6898,6 @@ qemuProcessRebootAllowed(const virDomainDef *def)
  }
  
  
@@ -155,7 +155,7 @@ index d3f86ff661..f8d433d3b0 100644
  static int
  qemuProcessUpdateSEVInfo(virDomainObj *vm)
  {
-@@ -7039,8 +7021,6 @@ qemuProcessPrepareDomain(virQEMUDriver *driver,
+@@ -7087,8 +7069,6 @@ qemuProcessPrepareDomain(virQEMUDriver *driver,
      /* Track if this domain remembers original owner */
      priv->rememberOwner = cfg->rememberOwner;
  
@@ -164,7 +164,7 @@ index d3f86ff661..f8d433d3b0 100644
      /*
       * Normally PCI addresses are assigned in the virDomainCreate
       * or virDomainDefine methods. We might still need to assign
-@@ -8172,9 +8152,6 @@ qemuProcessSetupLifecycleActions(virDomainObj *vm,
+@@ -8216,9 +8196,6 @@ qemuProcessSetupLifecycleActions(virDomainObj *vm,
      qemuDomainObjPrivate *priv = vm->privateData;
      int rc;
  
@@ -174,7 +174,7 @@ index d3f86ff661..f8d433d3b0 100644
      /* for now we handle only onReboot->destroy here as an alternative to
       * '-no-reboot' on the commandline */
      if (vm->def->onReboot != VIR_DOMAIN_LIFECYCLE_ACTION_DESTROY)
-@@ -9868,10 +9845,6 @@ qemuProcessReconnect(void *opaque)
+@@ -9909,10 +9886,6 @@ qemuProcessReconnect(void *opaque)
      if (qemuExtDevicesInitPaths(cfg, obj->def) < 0)
          goto error;
  
@@ -185,7 +185,7 @@ index d3f86ff661..f8d433d3b0 100644
      if (qemuHostdevUpdateActiveDomainDevices(driver, obj->def) < 0)
          goto error;
  
-@@ -10106,9 +10079,7 @@ qemuProcessReconnect(void *opaque)
+@@ -10147,9 +10120,7 @@ qemuProcessReconnect(void *opaque)
           * domain crashed; otherwise, if the monitor was started,
           * then we can blame ourselves, else we failed before the
           * monitor started so we don't really know. */
@@ -197,10 +197,10 @@ index d3f86ff661..f8d433d3b0 100644
          else if (priv->mon)
              state = VIR_DOMAIN_SHUTOFF_DAEMON;
 diff --git a/src/qemu/qemu_validate.c b/src/qemu/qemu_validate.c
-index cadb73635a..3503ef733d 100644
+index 1093eb8363..61f3bd3278 100644
 --- a/src/qemu/qemu_validate.c
 +++ b/src/qemu/qemu_validate.c
-@@ -3612,10 +3612,7 @@ qemuValidateDomainDeviceDefDiskBlkdeviotune(const virDomainDiskDef *disk,
+@@ -3658,10 +3658,7 @@ qemuValidateDomainDeviceDefDiskBlkdeviotune(const virDomainDiskDef *disk,
  
  
  static int
@@ -212,7 +212,7 @@ index cadb73635a..3503ef733d 100644
  {
      virStorageType actualType = virStorageSourceGetActualType(disk->src);
  
-@@ -3649,13 +3646,6 @@ qemuValidateDomainDeviceDefDiskTransient(const virDomainDiskDef *disk,
+@@ -3695,13 +3692,6 @@ qemuValidateDomainDeviceDefDiskTransient(const virDomainDiskDef *disk,
      }
  
      if (disk->transientShareBacking == VIR_TRISTATE_BOOL_YES) {
@@ -226,7 +226,7 @@ index cadb73635a..3503ef733d 100644
          /* sharing the backing file requires hotplug of the disk in the qemu driver */
          switch (disk->bus) {
          case VIR_DOMAIN_DISK_BUS_USB:
-@@ -3701,7 +3691,7 @@ qemuValidateDomainDeviceDefDisk(const virDomainDiskDef *disk,
+@@ -3747,7 +3737,7 @@ qemuValidateDomainDeviceDefDisk(const virDomainDiskDef *disk,
      if (qemuValidateDomainDeviceDefDiskBlkdeviotune(disk, def) < 0)
          return -1;
  

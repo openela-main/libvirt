@@ -1,5 +1,5 @@
-From 5d56b5349b03b5a9def7066dac44105ffad4af7e Mon Sep 17 00:00:00 2001
-Message-ID: <5d56b5349b03b5a9def7066dac44105ffad4af7e.1786713514.git.jdenemar@redhat.com>
+From d8f7346b329f6594eeb32318c37fadde391c19b2 Mon Sep 17 00:00:00 2001
+Message-ID: <d8f7346b329f6594eeb32318c37fadde391c19b2.1786713644.git.jdenemar@redhat.com>
 From: =?UTF-8?q?HE=20WEI=EF=BC=88=E3=82=AE=E3=82=AB=E3=82=AF=EF=BC=89?=
  <skyexpoc@gmail.com>
 Date: Tue, 28 Jul 2026 17:49:02 +0100
@@ -29,10 +29,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 14 insertions(+), 2 deletions(-)
 
 diff --git a/src/util/virfile.c b/src/util/virfile.c
-index 05b2fa8168..4fbb306a78 100644
+index a0c6cb8048..c9d838eeeb 100644
 --- a/src/util/virfile.c
 +++ b/src/util/virfile.c
-@@ -3179,6 +3179,12 @@ int virDirIsEmpty(const char *path,
+@@ -3306,6 +3306,12 @@ int virDirIsEmpty(const char *path,
   *
   * Change ownership of all regular files in a directory.
   *
@@ -45,7 +45,7 @@ index 05b2fa8168..4fbb306a78 100644
   * Returns -1 on error, with error already reported, 0 on success.
   */
  #ifndef WIN32
-@@ -3195,13 +3201,19 @@ int virFileChownFiles(const char *name,
+@@ -3322,13 +3328,19 @@ int virFileChownFiles(const char *name,
  
      while ((direrr = virDirRead(dir, &ent, name)) > 0) {
          g_autofree char *path = NULL;

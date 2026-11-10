@@ -1,5 +1,5 @@
-From 9b1bc6c1c9a905f05acaa46d18169f0e1c60cb16 Mon Sep 17 00:00:00 2001
-Message-ID: <9b1bc6c1c9a905f05acaa46d18169f0e1c60cb16.1787144402.git.jdenemar@redhat.com>
+From 5c17de983248cecad3d35c5afae30c6ce4ddc6d2 Mon Sep 17 00:00:00 2001
+Message-ID: <5c17de983248cecad3d35c5afae30c6ce4ddc6d2.1787144197.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 18 Aug 2026 10:09:06 +0200
 Subject: [PATCH] qemu: Fix proper ordering of 'virtlockd' shutdown
@@ -14,7 +14,7 @@ Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
 Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
 (cherry picked from commit 82b39d0580ecb6aa4a6c88eabb85cc6d6bafd559)
 
-https://redhat.atlassian.net/browse/RHEL-224982
+https://redhat.atlassian.net/browse/RHEL-185108
 ---
  src/qemu/virtqemud.service.extra.in | 2 +-
  src/remote/libvirtd.service.in      | 2 +-

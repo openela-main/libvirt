@@ -1,5 +1,5 @@
-From 4777bf8655bbdf67d1b460367202afe7ff058616 Mon Sep 17 00:00:00 2001
-Message-ID: <4777bf8655bbdf67d1b460367202afe7ff058616.1788184951.git.jdenemar@redhat.com>
+From 434a60c4f126958b0969f0523bf580311af2a786 Mon Sep 17 00:00:00 2001
+Message-ID: <434a60c4f126958b0969f0523bf580311af2a786.1787144197.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Tue, 21 Jul 2026 14:54:50 +0200
 Subject: [PATCH] qemuMonitorGuestPanicEventInfoFormatMsg: Directly return
@@ -14,16 +14,16 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 3f41645e3d8bf7b589de58d2d5052123a4d6fe9c)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_monitor.c | 40 +++++++++++++++++-----------------------
  1 file changed, 17 insertions(+), 23 deletions(-)
 
 diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
-index 5ecee978f9..86702f6599 100644
+index 85e97562ad..13a6b1ed98 100644
 --- a/src/qemu/qemu_monitor.c
 +++ b/src/qemu/qemu_monitor.c
-@@ -3922,43 +3922,37 @@ qemuMonitorSetBlockThreshold(qemuMonitor *mon,
+@@ -3881,43 +3881,37 @@ qemuMonitorSetBlockThreshold(qemuMonitor *mon,
  char *
  qemuMonitorGuestPanicEventInfoFormatMsg(qemuMonitorEventPanicInfo *info)
  {

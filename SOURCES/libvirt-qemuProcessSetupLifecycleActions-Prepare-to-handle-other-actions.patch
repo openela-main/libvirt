@@ -1,5 +1,5 @@
-From 643da88de88d5dc6d39d30e0540137979882cf5d Mon Sep 17 00:00:00 2001
-Message-ID: <643da88de88d5dc6d39d30e0540137979882cf5d.1788184951.git.jdenemar@redhat.com>
+From bd4a2bf8b7bd25adfdcf693f84a8df15e4473261 Mon Sep 17 00:00:00 2001
+Message-ID: <bd4a2bf8b7bd25adfdcf693f84a8df15e4473261.1787144196.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:48:51 +0200
 Subject: [PATCH] qemuProcessSetupLifecycleActions: Prepare to handle other
@@ -15,16 +15,16 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 30a548c894dc2f5787d7004d68b266caa404f6af)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_process.c | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)
 
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index 1020510130..ad6e459118 100644
+index a1cdce6d17..397082ef04 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
-@@ -8132,21 +8132,27 @@ qemuProcessSetupLifecycleActions(virDomainObj *vm,
+@@ -8176,21 +8176,27 @@ qemuProcessSetupLifecycleActions(virDomainObj *vm,
                                   virDomainAsyncJob asyncJob)
  {
      qemuDomainObjPrivate *priv = vm->privateData;

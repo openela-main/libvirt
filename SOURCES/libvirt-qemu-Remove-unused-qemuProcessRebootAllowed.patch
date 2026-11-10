@@ -1,5 +1,5 @@
-From 101dc4d748cb2da2b9093cbb2b52b497de3ff8d1 Mon Sep 17 00:00:00 2001
-Message-ID: <101dc4d748cb2da2b9093cbb2b52b497de3ff8d1.1788184951.git.jdenemar@redhat.com>
+From 4f5111e3d80b98ce455074f89fea42c4e311bad0 Mon Sep 17 00:00:00 2001
+Message-ID: <4f5111e3d80b98ce455074f89fea42c4e311bad0.1787144196.git.jdenemar@redhat.com>
 From: Peter Krempa <pkrempa@redhat.com>
 Date: Mon, 20 Jul 2026 13:29:50 +0200
 Subject: [PATCH] qemu: Remove unused 'qemuProcessRebootAllowed'
@@ -11,17 +11,17 @@ Signed-off-by: Peter Krempa <pkrempa@redhat.com>
 Reviewed-by: Ján Tomko <jtomko@redhat.com>
 (cherry picked from commit 8effae01b918f91933a6bd3b5721cb243c50248a)
 
-https://redhat.atlassian.net/browse/RHEL-242547
+https://redhat.atlassian.net/browse/RHEL-242545
 ---
  src/qemu/qemu_process.c | 18 ------------------
  src/qemu/qemu_process.h |  2 --
  2 files changed, 20 deletions(-)
 
 diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
-index f8d433d3b0..1020510130 100644
+index 646ddda7e9..a1cdce6d17 100644
 --- a/src/qemu/qemu_process.c
 +++ b/src/qemu/qemu_process.c
-@@ -6832,24 +6832,6 @@ qemuProcessPrepareDomainHostdevs(virDomainObj *vm,
+@@ -6880,24 +6880,6 @@ qemuProcessPrepareDomainHostdevs(virDomainObj *vm,
  }
  
  
@@ -47,10 +47,10 @@ index f8d433d3b0..1020510130 100644
  qemuProcessUpdateSEVInfo(virDomainObj *vm)
  {
 diff --git a/src/qemu/qemu_process.h b/src/qemu/qemu_process.h
-index dc16622ed9..75a725c4b9 100644
+index 5874214596..2db5186e08 100644
 --- a/src/qemu/qemu_process.h
 +++ b/src/qemu/qemu_process.h
-@@ -262,8 +262,6 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(qemuProcessQMP, qemuProcessQMPFree);
+@@ -258,8 +258,6 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(qemuProcessQMP, qemuProcessQMPFree);
  
  int qemuProcessQMPStart(qemuProcessQMP *proc);
  
