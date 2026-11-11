@@ -1,0 +1,67 @@
+From 1c4d3a8797d2f033f964a7eb8791286dae95d13f Mon Sep 17 00:00:00 2001
+Message-ID: <1c4d3a8797d2f033f964a7eb8791286dae95d13f.1792612145.git.jdenemar@redhat.com>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 18 Aug 2026 17:13:25 +0200
+Subject: [PATCH] qemuDomainRestoreInternal: Preserve error on cleanup path
+
+Preserve the error on cleanup path as cleanup of the 'libvirt_iohelper'
+process may overwrite it with an unactionable error, such as when
+attempting to restore a save image while the VM is already running:
+
+  $ virsh list
+   Id   Name       State
+  --------------------------
+   9    cd         running
+
+  $ virsh restore /tmp/cd.save
+  error: Failed to restore domain from /tmp/cd.save
+  error: internal error: Child process (LIBVIRT_LOG_OUTPUTS=1:stderr /home/pipo/build/libvirt/gcc/src/libvirt_iohelper /tmp/cd.save 0) unexpected fatal signal 13
+
+After this patch the original error is reported:
+
+  $ virsh restore /tmp/cd.save
+  error: Failed to restore domain from /tmp/cd.save
+  error: Requested operation is not valid: domain 'cd' is already active
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit cae70a18d15b9a7d397aa36fb9c51ed759835686)
+
+Resolves: https://redhat.atlassian.net/browse/RHEL-288544
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_driver.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index d787b0dc4b..257b7f1507 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -5985,6 +5985,7 @@ qemuDomainRestoreInternal(virQEMUDriver *driver,
+     bool sparse = false;
+     bool bypass_cache = (flags & VIR_DOMAIN_SAVE_BYPASS_CACHE) != 0;
+     g_autoptr(qemuMigrationParams) restoreParams = NULL;
++    virErrorPtr save_err = NULL;
+ 
+     virCheckFlags(QEMU_DOMAIN_RESTORE_FLAGS, -1);
+ 
+@@ -6109,6 +6110,7 @@ qemuDomainRestoreInternal(virQEMUDriver *driver,
+         qemuProcessEndJob(vmNew);
+ 
+  cleanup:
++    virErrorPreserveLast(&save_err);
+     VIR_FORCE_CLOSE(fd);
+     if (virFileWrapperFdClose(wrapperFd) < 0)
+         ret = -1;
+@@ -6117,6 +6119,7 @@ qemuDomainRestoreInternal(virQEMUDriver *driver,
+     if (vmNew && ret < 0)
+         qemuDomainRemoveInactive(vmNew, 0, false);
+     virDomainObjEndAPI(&vmNew);
++    virErrorRestore(&save_err);
+     return ret;
+ }
+ 
+-- 
+2.56.0

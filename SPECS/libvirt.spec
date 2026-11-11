@@ -294,7 +294,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 12.5.0
-Release: 4%{?dist}%{?extra_release}
+Release: 4.1%{?dist}%{?extra_release}
 License: GPL-2.0-or-later AND LGPL-2.1-only AND LGPL-2.1-or-later AND OFL-1.1
 URL: https://libvirt.org/
 
@@ -333,6 +333,8 @@ Patch28: libvirt-qemuagenttest-Introduce-GetGuestDeviceInfo-test-case.patch
 Patch29: libvirt-qemu-Implement-device-info-for-virDomainGetGuestInfo-API.patch
 Patch30: libvirt-virsh-Add-support-for-VIR_DOMAIN_GUEST_INFO_DEVICES.patch
 Patch31: libvirt-remote-Fix-integer-overflow-in-RPC-handler-for-virNodeGetFreePages-CVE-2026-18917.patch
+Patch32: libvirt-qemu-Pass-driver-to-qemuDomainRestoreInternal-explicitly.patch
+Patch33: libvirt-qemuDomainRestoreInternal-Preserve-error-on-cleanup-path.patch
 
 
 Requires: libvirt-daemon = %{version}-%{release}
@@ -2735,6 +2737,10 @@ exit 0
 %endif
 
 %changelog
+* Wed Oct 21 2026 Jiri Denemark <jdenemar@redhat.com> - 12.5.0-4.1.el10_3
+- qemu: Pass driver to qemuDomainRestoreInternal explicitly (RHEL-288543)
+- qemuDomainRestoreInternal: Preserve error on cleanup path (RHEL-288544)
+
 * Thu Aug 27 2026 Jiri Denemark <jdenemar@redhat.com> - 12.5.0-4
 - remote: Fix integer overflow in RPC handler for virNodeGetFreePages (CVE-2026-18917) (CVE-2026-18917, RHEL-245273)
 
